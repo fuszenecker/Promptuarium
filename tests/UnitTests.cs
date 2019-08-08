@@ -236,7 +236,7 @@ namespace PromptuariumTests
             MemoryStream stream = new MemoryStream();
 
             await tree.SaveAsync(stream);
-            await tree.SaveAsync(@"ut0.arbo");
+            await tree.SaveAsync(@"ut0.p");
         }
 
         [TestMethod]
@@ -270,9 +270,9 @@ namespace PromptuariumTests
         public async Task TreeToStringTest()
         {
             Element tree = CreateTestTree();
-            await tree.SaveAsync(@"ut2.arbo");
+            await tree.SaveAsync(@"ut2.p");
 
-            Element tree2 = await Element.LoadAsync(@"ut2.arbo");
+            Element tree2 = await Element.LoadAsync(@"ut2.p");
 
             string treeString = tree.TreeToString();
             string treeString2 = tree2.TreeToString();
@@ -289,8 +289,8 @@ namespace PromptuariumTests
             subNode.Data = Data.FromInt(0x55aa00ff);
             tree.Add(subNode);
 
-            await tree.SaveAsync(@"ut3.arbo");
-            Element tree2 = await Element.LoadAsync(@"ut3.arbo");
+            await tree.SaveAsync(@"ut3.p");
+            Element tree2 = await Element.LoadAsync(@"ut3.p");
 
             string treeString = tree.TreeToString();
             string treeString2 = tree2.TreeToString();
@@ -312,8 +312,8 @@ namespace PromptuariumTests
             numericNode.MetaData = Data.FromDouble(3.14159265359);
             tree[0].Add(numericNode);
 
-            await tree.SaveAsync(@"ut4.arbo");
-            Element tree2 = await Element.LoadAsync(@"ut4.arbo");
+            await tree.SaveAsync(@"ut4.p");
+            Element tree2 = await Element.LoadAsync(@"ut4.p");
 
             Assert.AreEqual(0x55aa00ff19781986, tree2[0][1].Data.AsLong());
 
@@ -333,8 +333,8 @@ namespace PromptuariumTests
             decimalGuidNode.MetaData = Data.FromDecimal(1.978M);
             tree.Add(decimalGuidNode);
 
-            await tree.SaveAsync(@"ut5.arbo");
-            Element tree2 = await Element.LoadAsync(@"ut5.arbo");
+            await tree.SaveAsync(@"ut5.p");
+            Element tree2 = await Element.LoadAsync(@"ut5.p");
 
             Assert.AreEqual(1.978M, tree2[0].MetaData.AsDecimal());
             Assert.AreEqual(0, testGuid.CompareTo(tree2[0].Data.AsGuid()));
@@ -351,8 +351,8 @@ namespace PromptuariumTests
             byteArrayNode.Data = Data.FromByteArray(testBytes);
             tree.Add(byteArrayNode);
 
-            await tree.SaveAsync(@"ut6.arbo");
-            Element tree2 = await Element.LoadAsync(@"ut6.arbo");
+            await tree.SaveAsync(@"ut6.p");
+            Element tree2 = await Element.LoadAsync(@"ut6.p");
 
             byte[] testBytes2 = tree2[0].Data.AsByteArray();
 
@@ -372,8 +372,8 @@ namespace PromptuariumTests
             unicodeNode.MetaData = Data.FromUtf16String("Hello, UTF-16LE world!");
             tree.Add(unicodeNode);
 
-            await tree.SaveAsync(@"ut7.arbo");
-            Element tree2 = await Element.LoadAsync(@"ut7.arbo");
+            await tree.SaveAsync(@"ut7.p");
+            Element tree2 = await Element.LoadAsync(@"ut7.p");
 
             Assert.AreEqual("Hello, UTF-32LE world!", tree2[0].Data.AsUtf32String());
             Assert.AreEqual("Hello, UTF-16LE world!", tree2[0].MetaData.AsUtf16String());
@@ -391,9 +391,9 @@ namespace PromptuariumTests
             outerTree.MetaData = Data.FromShort(1000);
             outerTree.Data = await Data.FromElementAsync(innerTree);
 
-            await outerTree.SaveAsync(@"ut8.arbo");
+            await outerTree.SaveAsync(@"ut8.p");
 
-            Element outerTree2 = await Element.LoadAsync(@"ut8.arbo");
+            Element outerTree2 = await Element.LoadAsync(@"ut8.p");
             Element innerTree2 = await outerTree2.Data.AsAElementAsync();
 
             Assert.AreEqual(1000, outerTree2.MetaData.AsShort());
@@ -420,8 +420,8 @@ namespace PromptuariumTests
                     }
                 );
 
-            await tree.SaveAsync(@"ut9.arbo");
-            Element tree2 = await Element.LoadAsync(@"ut9.arbo");
+            await tree.SaveAsync(@"ut9.p");
+            Element tree2 = await Element.LoadAsync(@"ut9.p");
 
             Assert.AreEqual(0, birthDay.CompareTo(tree2[0][0].Data.AsDateTime()));
             Assert.AreEqual(0, testTimeSpan.CompareTo(tree2[0][0].MetaData.AsTimeSpan()));
@@ -709,7 +709,7 @@ namespace PromptuariumTests
                     savedEventFired++;
                 };
 
-            await tree.SaveAsync(@"ut10.arbo");
+            await tree.SaveAsync(@"ut10.p");
 
             List<string> loadingNodes = new List<string>();
             List<string> loadedNodes = new List<string>();
@@ -724,7 +724,7 @@ namespace PromptuariumTests
                     loadedNodes.Add(s.Data.AsUtf8String());
                 };
 
-            Element tree2 = await Element.LoadAsync(@"ut10.arbo");
+            Element tree2 = await Element.LoadAsync(@"ut10.p");
 
             Assert.AreEqual(1, savingEventFired);
             Assert.AreEqual(1, savedEventFired);
@@ -765,9 +765,9 @@ namespace PromptuariumTests
         {
             Element tree = new Element();
 
-            await tree.SaveAsync(@"empty.arbo");
+            await tree.SaveAsync(@"empty.p");
 
-            Assert.AreEqual(1, new FileInfo(@"empty.arbo").Length);
+            Assert.AreEqual(1, new FileInfo(@"empty.p").Length);
         }
 
         [TestMethod]
@@ -866,8 +866,8 @@ namespace PromptuariumTests
                 }
                 );
 
-            tree.SaveAsync(@"ut9.arbo").Wait();
-            Element tree2 = Element.LoadAsync(@"ut9.arbo").Result;
+            tree.SaveAsync(@"ut9.p").Wait();
+            Element tree2 = Element.LoadAsync(@"ut9.p").Result;
 
             Assert.AreEqual(0, birthDay.CompareTo(tree2[0][0].Data.AsDateTime()));
             Assert.AreEqual(0, testTimeSpan.CompareTo(tree2[0][0].MetaData.AsTimeSpan()));
