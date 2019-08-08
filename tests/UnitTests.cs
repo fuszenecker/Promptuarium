@@ -10,7 +10,7 @@ using Promptuarium;
 namespace PromptuariumTests
 {
     /// <summary>
-    /// Unit tests for the Arborium tree
+    /// Unit tests for the Promptuarium tree
     /// </summary>
     [TestClass]
     public class UnitTests
