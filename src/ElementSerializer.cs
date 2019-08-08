@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Promptuarium
@@ -25,7 +26,7 @@ namespace Promptuarium
 
         #region Serialization ruotines
 
-        private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments)
+        private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments, CancellationToken cancellationToken)
         {
             for (int x = 0; x < serializationArguments.stepUpNodesRequired; x++)
             {
@@ -74,7 +75,7 @@ namespace Promptuarium
 
             if (Contains(Data))
             {
-                appending = await SerializeContentAsync(stream, Data, DataType.Data, direction, appending);
+                appending = await SerializeContentAsync(stream, Data, DataType.Data, direction, appending, cancellationToken);
             }
 
             #region Fireing event
@@ -101,7 +102,7 @@ namespace Promptuarium
 
             if (Contains(MetaData))
             {
-                appending = await SerializeContentAsync(stream, MetaData, DataType.MetaData, direction, appending);
+                appending = await SerializeContentAsync(stream, MetaData, DataType.MetaData, direction, appending, cancellationToken);
             }
 
             #region Fireing event
@@ -127,7 +128,7 @@ namespace Promptuarium
 
                     if (child != null)
                     {
-                        await child.SerializeAsync(stream, serializationArguments);
+                        await child.SerializeAsync(stream, serializationArguments, cancellationToken);
                     }
                 }
 
@@ -139,7 +140,7 @@ namespace Promptuarium
             }
         }
 
-        private async Task<bool> SerializeContentAsync(Stream target, Stream source, DataType dataType, Directions direction, bool appending)
+        private async Task<bool> SerializeContentAsync(Stream target, Stream source, DataType dataType, Directions direction, bool appending, CancellationToken cancellationToken)
         {
             IEnumerable<SizeDescriptor> chunks = GetSizes(source.Length);
             source.Position = 0;
@@ -159,8 +160,8 @@ namespace Promptuarium
                 int bufferSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
 
                 byte[] buffer = new byte[bufferSize];
-                await source.ReadAsync(buffer, 0, bufferSize);
-                await target.WriteAsync(buffer, 0, bufferSize);
+                await source.ReadAsync(buffer, 0, bufferSize, cancellationToken);
+                await target.WriteAsync(buffer, 0, bufferSize, cancellationToken);
             }            
             
             return appending;
@@ -236,7 +237,7 @@ namespace Promptuarium
 
         #region Deserialization routines
         
-        private static async Task<Element> DeserializeAsync(Stream stream)
+        private static async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
         {
             Element root = new Element();
             Element parent = root;
@@ -274,7 +275,7 @@ namespace Promptuarium
                 }
 
                 byte[] buffer = new byte[chunkSize];
-                await stream.ReadAsync(buffer, 0, chunkSize);
+                await stream.ReadAsync(buffer, 0, chunkSize, cancellationToken);
 
                 if (IsDataChunk(controlByte))
                 {
@@ -294,7 +295,7 @@ namespace Promptuarium
 
                         #endregion
 
-                        await node.Data.WriteAsync(buffer, 0, chunkSize);
+                        await node.Data.WriteAsync(buffer, 0, chunkSize, cancellationToken);
 
                         #region Fireing event
 
@@ -324,7 +325,7 @@ namespace Promptuarium
 
                         #endregion
 
-                        await node.MetaData.WriteAsync(buffer, 0, chunkSize);
+                        await node.MetaData.WriteAsync(buffer, 0, chunkSize, cancellationToken);
 
                         #region Fireing event
 

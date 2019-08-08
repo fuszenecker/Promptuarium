@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Promptuarium
@@ -298,13 +299,13 @@ namespace Promptuarium
             return stringBuilder.ToString();
         }
 
-        public async Task<string> ToBase64StringAsync()
+        public async Task<string> ToBase64StringAsync(CancellationToken cancellationToken)
         {
             string base64String;
 
             using (MemoryStream memoryStream = new MemoryStream())
             {
-                await SaveAsync(memoryStream);
+                await SaveAsync(memoryStream, cancellationToken);
 
                 byte[] buffer = new byte[memoryStream.Length];
                 Array.Copy(memoryStream.ToArray(), buffer, (int)memoryStream.Length);
@@ -315,16 +316,26 @@ namespace Promptuarium
             return base64String;
         }
 
-        public static async Task<Element> FromBase64StringAsync(string base64String)
+        public Task<string> ToBase64StringAsync()
+        {
+            return ToBase64StringAsync(CancellationToken.None);
+        }
+
+        public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
         {
             Element tree;
 
             using (MemoryStream memoryStream = new MemoryStream(Convert.FromBase64String(base64String)))
             {
-                tree = await LoadAsync(memoryStream);
+                tree = await LoadAsync(memoryStream, cancellationToken);
             }
 
             return tree;
+        }
+
+        public static Task<Element> FromBase64StringAsync(string base64String)
+        {
+            return FromBase64StringAsync(base64String, CancellationToken.None);
         }
 
         #endregion

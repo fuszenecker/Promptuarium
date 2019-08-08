@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Promptuarium
@@ -12,9 +13,14 @@ namespace Promptuarium
         /// </summary>
         /// <param name="stream">The source stream</param>
         /// <returns>The tree, if no error occured</returns>
+        public static Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
+        {
+            return DeserializeAsync(stream, cancellationToken);
+        }
+
         public static Task<Element> LoadAsync(Stream stream)
         {
-            return DeserializeAsync(stream);
+            return LoadAsync(stream, CancellationToken.None);
         }
 
         /// <summary>
@@ -22,18 +28,23 @@ namespace Promptuarium
         /// </summary>
         /// <param name="fileName">The source file name</param>
         /// <returns>The tree, if no error occured</returns>
-        public static async Task<Element> LoadAsync(string fileName)
+        public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
         {
             Element result;
 
             using (Stream fileStream = new FileStream(fileName, FileMode.Open))
             {
-                result = await LoadAsync(fileStream);
+                result = await LoadAsync(fileStream, cancellationToken);
             }
 
             return result;
         }
 
+        public static Task<Element> LoadAsync(string fileName)
+        {
+            return LoadAsync(fileName, CancellationToken.None);
+        }
+        
         #endregion
 
         #region Save functions
@@ -43,10 +54,15 @@ namespace Promptuarium
         /// </summary>
         /// <param name="stream">The target stream</param>
         /// <returns>True, if no error occured</returns>
-        public async Task SaveAsync(Stream stream)
+        public async Task SaveAsync(Stream stream, CancellationToken cancellationToken)
         {
-            await SerializeAsync(stream, new SerializationArguments());
+            await SerializeAsync(stream, new SerializationArguments(), cancellationToken);
             stream.WriteByte(ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0));
+        }
+
+        public Task SaveAsync(Stream stream)
+        {
+            return SaveAsync(stream, CancellationToken.None);
         }
 
         /// <summary>
@@ -54,14 +70,18 @@ namespace Promptuarium
         /// </summary>
         /// <param name="fileName">The target file name</param>
         /// <returns>True, if no error occured</returns>
-        public async Task SaveAsync(string fileName)
+        public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
         {
             using (Stream stream = new FileStream(fileName, FileMode.Create))
             {
-                await SaveAsync(stream);
+                await SaveAsync(stream, cancellationToken);
             }
         }
 
+        public Task SaveAsync(string fileName)
+        {
+            return SaveAsync(fileName, CancellationToken.None);
+        }
         #endregion
     }
 }
