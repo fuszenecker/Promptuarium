@@ -15,7 +15,9 @@ namespace Dump
             }
 
             var container = Element.LoadAsync(args[0]).GetAwaiter().GetResult();
+
             Console.WriteLine(container.TreeToString());
+            Console.WriteLine(container.Statistics);
         }
     }
 }

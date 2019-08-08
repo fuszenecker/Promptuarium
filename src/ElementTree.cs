@@ -369,6 +369,10 @@ namespace Promptuarium
                 stringBuilder.Append("[");
                 StreamToString(node.MetaData, stringBuilder);
                 stringBuilder.Append("]");
+
+                stringBuilder.Append(" = \"");
+                stringBuilder.Append(node.MetaData.AsUtf8String());
+                stringBuilder.Append("\"");
             }
 
             if (Contains(node.Data) && Contains(node.MetaData))
@@ -379,6 +383,10 @@ namespace Promptuarium
             if (Contains(node.Data))
             {
                 StreamToString(node.Data, stringBuilder);
+
+                stringBuilder.Append(" = \"");
+                stringBuilder.Append(node.Data.AsUtf8String());
+                stringBuilder.Append("\"");
             }
 
             stringBuilder.Append(")\n");

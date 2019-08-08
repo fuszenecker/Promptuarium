@@ -27,6 +27,24 @@ namespace Promptuarium
         public long LongestMetaData;
         public long ShortestData;
         public long ShortestMetaData;
+
+        public override string ToString() 
+        {
+            return
+                $"Nodes: {Nodes}{Environment.NewLine}" +
+                $"NodesWithData: {NodesWithData}{Environment.NewLine}" +
+                $"NodesWithMetaData: {NodesWithMetaData}{Environment.NewLine}" +
+                $"NodesWithDataAndMetaData: {NodesWithDataAndMetaData}{Environment.NewLine}" +
+                $"NodesWithoutDataAndMetaData: {NodesWithoutDataAndMetaData}{Environment.NewLine}" +
+                $"NodesWithoutChildren: {NodesWithoutChildren}{Environment.NewLine}" +
+                $"Depth: {Depth}{Environment.NewLine}" +
+                $"MaxChildren: {MaxChildren}{Environment.NewLine}" +
+                $"MinChildren: {MinChildren}{Environment.NewLine}" +
+                $"LongestData: {LongestData}{Environment.NewLine}" +
+                $"LongestMetaData: {LongestMetaData}{Environment.NewLine}" +
+                $"ShortestData: {ShortestData}{Environment.NewLine}" +
+                $"ShortestMetaData: {ShortestMetaData}{Environment.NewLine}";
+        }
     }
 
     #endregion
@@ -35,77 +53,77 @@ namespace Promptuarium
 
     public partial class Element
     {
-        private Statistics _statistics;
+        private Statistics statistics;
 
         public Statistics Statistics
         { 
             get
             {
-                _statistics = new Statistics();
+                statistics = new Statistics();
 
                 Walk((Element node, List<Element> ancestors) =>
                     {
-                        _statistics.Nodes++;
+                        statistics.Nodes++;
 
-                        if (ancestors.Count + 1 > _statistics.Depth)
+                        if (ancestors.Count + 1 > statistics.Depth)
                         {
-                            _statistics.Depth = ancestors.Count + 1;
+                            statistics.Depth = ancestors.Count + 1;
                         }
 
-                        if (node.Children.Count() > _statistics.MaxChildren)
+                        if (node.Children.Count() > statistics.MaxChildren)
                         {
-                            _statistics.MaxChildren = node.Children.Count();
+                            statistics.MaxChildren = node.Children.Count();
                         }
 
-                        if (node.Children.Count() < _statistics.MinChildren)
+                        if (node.Children.Count() < statistics.MinChildren)
                         {
-                            _statistics.MinChildren = node.Children.Count();
+                            statistics.MinChildren = node.Children.Count();
                         }
 
                         if (node.Data != null && node.MetaData != null)
                         {
-                            _statistics.NodesWithDataAndMetaData++;
+                            statistics.NodesWithDataAndMetaData++;
                         }
                         else if (node.Data != null && node.MetaData == null)
                         {
-                            _statistics.NodesWithData++;
+                            statistics.NodesWithData++;
                         }
                         else if (node.Data == null && node.MetaData != null)
                         {
-                            _statistics.NodesWithMetaData++;
+                            statistics.NodesWithMetaData++;
                         }
                         else
                         {
-                            _statistics.NodesWithoutDataAndMetaData++;
+                            statistics.NodesWithoutDataAndMetaData++;
                         }
 
-                        if (node.Data != null && _statistics.LongestData < node.Data.Length)
+                        if (node.Data != null && statistics.LongestData < node.Data.Length)
                         {
-                            _statistics.LongestData = node.Data.Length;
+                            statistics.LongestData = node.Data.Length;
                         }
 
-                        if (node.MetaData != null && _statistics.LongestMetaData < node.MetaData.Length)
+                        if (node.MetaData != null && statistics.LongestMetaData < node.MetaData.Length)
                         {
-                            _statistics.LongestMetaData = node.MetaData.Length;
+                            statistics.LongestMetaData = node.MetaData.Length;
                         }
 
-                        if (node.Data != null && _statistics.ShortestData > node.Data.Length)
+                        if (node.Data != null && statistics.ShortestData > node.Data.Length)
                         {
-                            _statistics.ShortestData = node.Data.Length;
+                            statistics.ShortestData = node.Data.Length;
                         }
 
-                        if (node.MetaData != null && _statistics.ShortestMetaData > node.MetaData.Length)
+                        if (node.MetaData != null && statistics.ShortestMetaData > node.MetaData.Length)
                         {
-                            _statistics.ShortestMetaData = node.MetaData.Length;
+                            statistics.ShortestMetaData = node.MetaData.Length;
                         }
                         
                         if (node.Children.Count() == 0)
                         {
-                            _statistics.NodesWithoutChildren++;
+                            statistics.NodesWithoutChildren++;
                         }
                     });
 
-                return _statistics;
+                return statistics;
             }
         }
     }
