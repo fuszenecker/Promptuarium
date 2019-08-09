@@ -38,6 +38,10 @@ The ```Statistics``` property gives information about i.e.
 * the minimum and maximum number of children
 * the number of nodes with and without data/metadata/children
 
+## Documentation
+
+See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki)
+
 ## Unit tests
 
 **Unit tests** help to keep the project code robust.
