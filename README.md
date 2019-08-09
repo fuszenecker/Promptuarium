@@ -40,7 +40,7 @@ The ```Statistics``` property gives information about i.e.
 
 ## Documentation
 
-See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki)
+See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples)
 
 ## Unit tests
 
