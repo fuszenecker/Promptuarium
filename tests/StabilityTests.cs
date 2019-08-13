@@ -16,8 +16,8 @@ namespace PromptuariumTests
         {
             const int maxTests = 10000;
             const int minChildren = 0;
-            const int maxChildren = 5;
-            const double probability = 0.90;
+            const int maxChildren = 10;
+            const double probability = 0.95;
 
             await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.p");
         }
@@ -54,7 +54,7 @@ namespace PromptuariumTests
 
                     Element child = new Element()
                     {
-                        MetaData = Data.FromGuid(nodeGuid),
+                        MetaData = Data.FromAsciiString(nodeGuid.ToString("N")),
                         Data = Data.FromUtf8String(String.Format("LEVEL: {0}, NODE: {1}", level, nodeGuid))
                     };
 
