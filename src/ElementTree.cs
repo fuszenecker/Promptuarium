@@ -368,11 +368,11 @@ namespace Promptuarium
             {
                 stringBuilder.Append("[");
                 StreamToString(node.MetaData, stringBuilder);
-                stringBuilder.Append("]");
 
                 stringBuilder.Append(" = \"");
                 stringBuilder.Append(node.MetaData.AsUtf8String());
                 stringBuilder.Append("\"");
+                stringBuilder.Append("]");
             }
 
             if (Contains(node.Data) && Contains(node.MetaData))
