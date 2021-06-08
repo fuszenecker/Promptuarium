@@ -4,9 +4,9 @@ using Promptuarium;
 
 namespace Dump
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
             if (args.Length != 1)
             {
@@ -14,7 +14,7 @@ namespace Dump
                 Environment.Exit(-1);
             }
 
-            var container = Element.LoadAsync(args[0]).GetAwaiter().GetResult();
+            var container = await Element.LoadAsync(args[0]).ConfigureAwait(false);
 
             Console.WriteLine(container.TreeToString());
             Console.WriteLine(container.Statistics);
