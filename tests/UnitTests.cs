@@ -15,7 +15,6 @@ namespace PromptuariumTests
     [TestClass]
     public class UnitTests
     {
-
         /// <summary>
         ///Gets or sets the test context which provides
         ///information about and functionality for the current test run.
@@ -186,7 +185,7 @@ namespace PromptuariumTests
             tree.Add(
                 new byte[] {5, 9, 3, 6, 7}.Select(n => new Element
                                                        (
-                                                           new MemoryStream(new[] {n}), new MemoryStream(new[] {n}),
+                                                           new MemoryStream(new[] { n }), new MemoryStream(new[] { n }),
                                                            new Element(new MemoryStream(new byte[] {66}), null)
                                                        ))
                 );

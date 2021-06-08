@@ -10,7 +10,7 @@ namespace Dump
         {
             if (args.Length != 1)
             {
-                Console.WriteLine("Usage: Dump.exe <promptuarium_container>");
+                Console.WriteLine("Usage: dump.exe <promptuarium_container>");
                 Environment.Exit(-1);
             }
 
