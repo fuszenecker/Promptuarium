@@ -8,7 +8,6 @@ namespace Promptuarium
     public static class Data
     {
         #region Boolean Operations
-
         public static Stream FromBool(bool value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -18,11 +17,9 @@ namespace Promptuarium
         {
             return BitConverter.ToBoolean(GetBuffer(stream, sizeof(bool)), 0);
         }
-
         #endregion
 
         #region Byte Operations
-
         public static Stream FromByte(byte value)
         {
             MemoryStream result = new MemoryStream();
@@ -39,11 +36,9 @@ namespace Promptuarium
             stream.Position = 0;
             return result;
         }
-
         #endregion
 
         #region Byte Array Operations
-
         public static Stream FromByteArray(byte[] value)
         {
             return new MemoryStream(value);
@@ -53,11 +48,9 @@ namespace Promptuarium
         {
             return GetBuffer(stream, (int)stream.Length);
         }
-
         #endregion
 
         #region Char Operations
-
         public static Stream FromChar(char value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -67,11 +60,9 @@ namespace Promptuarium
         {
             return BitConverter.ToChar(GetBuffer(stream, sizeof(char)), 0);
         }
-
         #endregion
 
         #region Double Operations
-
         public static Stream FromDouble(double value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -81,11 +72,9 @@ namespace Promptuarium
         {
             return BitConverter.ToDouble(GetBuffer(stream, sizeof(double)), 0);
         }
-
         #endregion
 
         #region Short Operations
-
         public static Stream FromShort(short value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -95,11 +84,9 @@ namespace Promptuarium
         {
             return BitConverter.ToInt16(GetBuffer(stream, sizeof(short)), 0);
         }
-
         #endregion
 
         #region Int Operations
-
         public static Stream FromInt(int value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -109,11 +96,9 @@ namespace Promptuarium
         {
             return BitConverter.ToInt32(GetBuffer(stream, sizeof(int)), 0);
         }
-
         #endregion
 
         #region Long Operations
-
         public static Stream FromLong(long value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -123,11 +108,9 @@ namespace Promptuarium
         {
             return BitConverter.ToInt64(GetBuffer(stream, sizeof(long)), 0);
         }
-
         #endregion
 
         #region Float Operations
-
         public static Stream FromFloat(float value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -137,11 +120,9 @@ namespace Promptuarium
         {
             return BitConverter.ToSingle(GetBuffer(stream, sizeof(float)), 0);
         }
-
         #endregion
 
         #region UShort Operations
-
         public static Stream FromUShort(ushort value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -151,11 +132,9 @@ namespace Promptuarium
         {
             return BitConverter.ToUInt16(GetBuffer(stream, sizeof(ushort)), 0);
         }
-
         #endregion
 
         #region UInt Operations
-
         public static Stream FromUInt(uint value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -165,11 +144,9 @@ namespace Promptuarium
         {
             return BitConverter.ToUInt32(GetBuffer(stream, sizeof(uint)), 0);
         }
-
         #endregion
 
         #region ULong Operations
-
         public static Stream FromULong(ulong value)
         {
             return new MemoryStream(BitConverter.GetBytes(value));
@@ -179,11 +156,9 @@ namespace Promptuarium
         {
             return BitConverter.ToUInt64(GetBuffer(stream, sizeof(ulong)), 0);
         }
-
         #endregion
 
         #region Decimal Operations
-
         // Decimal: (value as a 96-bit integer) * 10^(-exponent)
         // Bytes of Decimal (4 × 30 bit unsigned integers in LE): L0:L1:L2:L3:M0:M1:M2:M3:H0:H1:H2:H3:F0:F1:F2:F2
         // Value: H3H2H1H0M3M2M1M0L3L2L1L0
@@ -194,7 +169,7 @@ namespace Promptuarium
         //         value: BA:07:00:00:00:00:00:00:00:00:00:00
         //         exponent: 3
         //         flags: 00:00:03:00
-        
+
         public static Stream FromDecimal(decimal value)
         {
             MemoryStream stream = new MemoryStream();
@@ -218,11 +193,9 @@ namespace Promptuarium
             stream.Position = 0;
             return result;
         }
-
         #endregion
 
         #region VarInt Operations
-
         public static Stream FromVarInt(long value)
         {
             MemoryStream result = new MemoryStream();
@@ -234,13 +207,11 @@ namespace Promptuarium
         public static long AsVarInt(this Stream stream)
         {
             ulong buffer = BitConverter.ToUInt64(GetBuffer(stream, sizeof(ulong)), 0);
-            return ((buffer & 1) == 0) ? (long)(buffer >> 1) : -(long)((buffer >> 1));
+            return ((buffer & 1) == 0) ? (long)(buffer >> 1) : -(long)(buffer >> 1);
         }
-
         #endregion
 
         #region VarInt Operations
-
         public static Stream FromVarUInt(ulong value)
         {
             MemoryStream result = new MemoryStream();
@@ -252,11 +223,9 @@ namespace Promptuarium
         {
             return AsULong(stream);
         }
-
         #endregion
 
         #region GUID Operations
-
         public static Stream FromGuid(Guid value)
         {
             return new MemoryStream(value.ToByteArray());
@@ -266,11 +235,9 @@ namespace Promptuarium
         {
             return new Guid(GetBuffer(stream, (int)stream.Length));
         }
-
         #endregion
 
         #region Date and Time Operations
-
         public static Stream FromDateTime(DateTime value)
         {
             return FromLong(value.Ticks);
@@ -288,14 +255,11 @@ namespace Promptuarium
 
         public static TimeSpan AsTimeSpan(this Stream stream)
         {
-
             return new TimeSpan(stream.AsLong());
         }
-
         #endregion
 
         #region ASCII String Operations
-
         public static Stream FromAsciiString(string value)
         {
             return new MemoryStream(Encoding.ASCII.GetBytes(value));
@@ -305,11 +269,9 @@ namespace Promptuarium
         {
             return Encoding.ASCII.GetString(GetBuffer(stream, (int)stream.Length));
         }
-
         #endregion
 
         #region UTF-8 String Operations
-
         public static Stream FromUtf8String(string value)
         {
             return new MemoryStream(Encoding.UTF8.GetBytes(value));
@@ -319,11 +281,9 @@ namespace Promptuarium
         {
             return Encoding.UTF8.GetString(GetBuffer(stream, (int)stream.Length));
         }
-
         #endregion
 
         #region UTF-16 String Operations
-
         public static Stream FromUtf16String(string value)
         {
             return new MemoryStream(Encoding.Unicode.GetBytes(value));
@@ -333,11 +293,9 @@ namespace Promptuarium
         {
             return Encoding.Unicode.GetString(GetBuffer(stream, (int)stream.Length));
         }
-
         #endregion
 
         #region UTF-32 String Operations
-
         public static Stream FromUtf32String(string value)
         {
             return new MemoryStream(Encoding.UTF32.GetBytes(value));
@@ -347,11 +305,9 @@ namespace Promptuarium
         {
             return Encoding.UTF32.GetString(GetBuffer(stream, (int)stream.Length));
         }
-
         #endregion
 
         #region Tree Operation
-
         public static async Task<Stream> FromElementAsync(Element value)
         {
             if (value is null)
@@ -360,7 +316,7 @@ namespace Promptuarium
             }
 
             Stream stream = new MemoryStream();
-            await value.SaveAsync(stream);
+            await value.SaveAsync(stream).ConfigureAwait(false);
             return stream;
         }
 
@@ -368,15 +324,13 @@ namespace Promptuarium
         {
             Element result;
             stream.Position = 0;
-            result = await Element.LoadAsync(stream);
+            result = await Element.LoadAsync(stream).ConfigureAwait(false);
             stream.Position = 0;
             return result;
         }
-
         #endregion
 
         #region Private Methods
-
         private static byte[] GetBuffer(Stream stream, int size)
         {
             byte[] buffer = new byte[size];
@@ -401,7 +355,6 @@ namespace Promptuarium
 
             result.Position = 0;
         }
-
         #endregion
     }
 }

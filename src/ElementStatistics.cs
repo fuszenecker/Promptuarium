@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace Promptuarium
 {
     #region Public types
-    
     public class Statistics
     {
         public int Nodes;
@@ -28,35 +26,33 @@ namespace Promptuarium
         public long ShortestData;
         public long ShortestMetaData;
 
-        public override string ToString() 
+        public override string ToString()
         {
             return
-                $"Nodes: {Nodes}{Environment.NewLine}" +
-                $"NodesWithData: {NodesWithData}{Environment.NewLine}" +
-                $"NodesWithMetaData: {NodesWithMetaData}{Environment.NewLine}" +
-                $"NodesWithDataAndMetaData: {NodesWithDataAndMetaData}{Environment.NewLine}" +
-                $"NodesWithoutDataAndMetaData: {NodesWithoutDataAndMetaData}{Environment.NewLine}" +
-                $"NodesWithoutChildren: {NodesWithoutChildren}{Environment.NewLine}" +
-                $"Depth: {Depth}{Environment.NewLine}" +
-                $"MaxChildren: {MaxChildren}{Environment.NewLine}" +
-                $"MinChildren: {MinChildren}{Environment.NewLine}" +
-                $"LongestData: {LongestData}{Environment.NewLine}" +
-                $"LongestMetaData: {LongestMetaData}{Environment.NewLine}" +
-                $"ShortestData: {ShortestData}{Environment.NewLine}" +
-                $"ShortestMetaData: {ShortestMetaData}{Environment.NewLine}";
+                $"Nodes: .......................... {Nodes}{Environment.NewLine}" +
+                $"NodesWithData: .................. {NodesWithData}{Environment.NewLine}" +
+                $"NodesWithMetaData: .............. {NodesWithMetaData}{Environment.NewLine}" +
+                $"NodesWithDataAndMetaData: ....... {NodesWithDataAndMetaData}{Environment.NewLine}" +
+                $"NodesWithoutDataAndMetaData: .... {NodesWithoutDataAndMetaData}{Environment.NewLine}" +
+                $"NodesWithoutChildren: ........... {NodesWithoutChildren}{Environment.NewLine}" +
+                $"Depth: .......................... {Depth}{Environment.NewLine}" +
+                $"MaxChildren: .................... {MaxChildren}{Environment.NewLine}" +
+                $"MinChildren: .................... {MinChildren}{Environment.NewLine}" +
+                $"LongestData: .................... {LongestData}{Environment.NewLine}" +
+                $"LongestMetaData: ................ {LongestMetaData}{Environment.NewLine}" +
+                $"ShortestData: ................... {ShortestData}{Environment.NewLine}" +
+                $"ShortestMetaData: ............... {ShortestMetaData}{Environment.NewLine}";
         }
     }
-
     #endregion
-    
-    #region Private fields
 
+    #region Private fields
     public partial class Element
     {
         private Statistics statistics;
 
         public Statistics Statistics
-        { 
+        {
             get
             {
                 statistics = new Statistics();
@@ -70,14 +66,14 @@ namespace Promptuarium
                             statistics.Depth = ancestors.Count + 1;
                         }
 
-                        if (node.Children.Count() > statistics.MaxChildren)
+                        if (node.Children.Count > statistics.MaxChildren)
                         {
-                            statistics.MaxChildren = node.Children.Count();
+                            statistics.MaxChildren = node.Children.Count;
                         }
 
-                        if (node.Children.Count() < statistics.MinChildren)
+                        if (node.Children.Count < statistics.MinChildren)
                         {
-                            statistics.MinChildren = node.Children.Count();
+                            statistics.MinChildren = node.Children.Count;
                         }
 
                         if (node.Data != null && node.MetaData != null)
@@ -116,8 +112,8 @@ namespace Promptuarium
                         {
                             statistics.ShortestMetaData = node.MetaData.Length;
                         }
-                        
-                        if (node.Children.Count() == 0)
+
+                        if (node.Children.Count == 0)
                         {
                             statistics.NodesWithoutChildren++;
                         }
@@ -127,6 +123,5 @@ namespace Promptuarium
             }
         }
     }
-
     #endregion
 }

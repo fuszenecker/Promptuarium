@@ -3,7 +3,6 @@
     public partial class Element
     {
         #region Constants
-
         // Number of size bits in the control byte
         private const byte NibbleSizeInBits = 4;
 
@@ -15,11 +14,9 @@
 
         // Max. size of a chunk of data
         private const long ChunkMaxValue = 1 << ChunkSizeInBits;
-
         #endregion
 
         #region Enumerations
-
         private enum Directions : byte
         {
             Append = 0x00,
@@ -45,7 +42,6 @@
             Logarithmic = 0x10,
             Mask = 0x10
         }
-
         #endregion
     }
 }

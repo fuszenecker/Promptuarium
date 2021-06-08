@@ -9,7 +9,7 @@ namespace PromptuariumTests
     [TestClass]
     public class StabilityTests
     {
-        private Random random = new Random((int)DateTime.Now.Ticks);
+        private readonly Random random = new Random((int)DateTime.Now.Ticks);
 
         [TestMethod]
         public async Task Stability()
@@ -17,9 +17,9 @@ namespace PromptuariumTests
             const int maxTests = 10000;
             const int minChildren = 0;
             const int maxChildren = 10;
-            const double probability = 0.95;
+            const double probability = 0.90;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.p");
+            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.p").ConfigureAwait(false);
         }
 
         [TestMethod]
@@ -28,9 +28,9 @@ namespace PromptuariumTests
             const int maxTests = 10;
             const int minChildren = 0;
             const int maxChildren = 20;
-            const double probability = 0.95;
+            const double probability = 0.90;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.p");
+            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.p").ConfigureAwait(false);
         }
 
         private Element GenerateTree(int minimumChildren, int maximumChildren, double probability)
@@ -71,13 +71,13 @@ namespace PromptuariumTests
             {
                 Element originalTree = GenerateTree(minChildren, maxChildren, probability);
                 string originalTreeString = originalTree.TreeToString();
-                await originalTree.SaveAsync(fileName);
+                await originalTree.SaveAsync(fileName).ConfigureAwait(false);
 
                 // Statistics stats = originalTree.Statistics;
 
                 Assert.IsTrue(new FileInfo(fileName).Length > 0);
 
-                Element currentTree = await Element.LoadAsync(fileName);
+                Element currentTree = await Element.LoadAsync(fileName).ConfigureAwait(false);
                 string currentTreeString = currentTree.TreeToString();
 
                 Assert.AreEqual(originalTreeString, currentTreeString);

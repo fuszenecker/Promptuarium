@@ -11,7 +11,6 @@ namespace Promptuarium
     public partial class Element
     {
         #region Properties
-
         /// <summary>
         /// Data storage
         /// </summary>
@@ -39,11 +38,9 @@ namespace Promptuarium
                 return children;
             }
         }
-
         #endregion
 
         #region Constructors
-
         /// <summary>
         /// Conctructor without any data
         /// </summary>
@@ -121,11 +118,9 @@ namespace Promptuarium
                 this.children = new List<Element>();
             }
         }
-
         #endregion
 
         #region Indexer
-
         public Element this[int index]
         {
             get
@@ -135,14 +130,12 @@ namespace Promptuarium
                     return children[index];
                 }
 
-                throw new PromptuariumException(String.Format("Index {0} in out of range [0...{1}]", index, children.Count));
+                throw new PromptuariumException(string.Format("Index {0} in out of range [0...{1}]", index, children.Count));
             }
         }
-
         #endregion
 
         #region Tree operations
-
         /// <summary>
         /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
         /// </summary>
@@ -167,7 +160,6 @@ namespace Promptuarium
                 }
             }
         }
-
 
         /// <summary>
         /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
@@ -237,7 +229,7 @@ namespace Promptuarium
         /// <returns>The node itself</returns>
         public Element Detach(Element node)
         {
-            if (node != null && node.Parent != null)
+            if (node?.Parent != null)
             {
                 if (node.Parent.Children.Contains(node))
                 {
@@ -269,18 +261,13 @@ namespace Promptuarium
         {
             List<Element> ancestors = new List<Element>();
 
-            if (handler != null)
-            {
-                handler(this, ancestors);
-            }
+            handler?.Invoke(this, ancestors);
 
             Walk(this, ancestors, handler);
         }
-
         #endregion
 
         #region Conversion functions
-
         public override string ToString()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -305,7 +292,7 @@ namespace Promptuarium
 
             using (MemoryStream memoryStream = new MemoryStream())
             {
-                await SaveAsync(memoryStream, cancellationToken);
+                await SaveAsync(memoryStream, cancellationToken).ConfigureAwait(false);
 
                 byte[] buffer = new byte[memoryStream.Length];
                 Array.Copy(memoryStream.ToArray(), buffer, (int)memoryStream.Length);
@@ -316,10 +303,7 @@ namespace Promptuarium
             return base64String;
         }
 
-        public Task<string> ToBase64StringAsync()
-        {
-            return ToBase64StringAsync(CancellationToken.None);
-        }
+        public Task<string> ToBase64StringAsync() => ToBase64StringAsync(CancellationToken.None);
 
         public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
         {
@@ -327,21 +311,16 @@ namespace Promptuarium
 
             using (MemoryStream memoryStream = new MemoryStream(Convert.FromBase64String(base64String)))
             {
-                tree = await LoadAsync(memoryStream, cancellationToken);
+                tree = await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             }
 
             return tree;
         }
 
-        public static Task<Element> FromBase64StringAsync(string base64String)
-        {
-            return FromBase64StringAsync(base64String, CancellationToken.None);
-        }
-
+        public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
         #endregion
 
         #region Private Methods
-
         /// <summary>
         /// Add node(s) to the tree, unsafely, but quickly. Node can be null, in this case nothing will happen.
         /// </summary>
@@ -414,21 +393,18 @@ namespace Promptuarium
         {
             if (parent.children != null)
             {
-                List<Element> _ancestors = new List<Element>(ancestors);
-                _ancestors.Add(parent);
+                List<Element> _ancestors = new List<Element>(ancestors)
+                {
+                    parent
+                };
 
                 foreach (Element child in parent.children)
                 {
-                    if (handler != null)
-                    {
-                        handler(child, _ancestors);
-                    }
-
+                    handler?.Invoke(child, _ancestors);
                     Walk(child, _ancestors, handler);
                 }
             }
         }
-
         #endregion
     }
 }

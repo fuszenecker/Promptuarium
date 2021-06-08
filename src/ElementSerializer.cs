@@ -9,7 +9,6 @@ namespace Promptuarium
     public partial class Element
     {
         #region Private types
-
         private struct SizeDescriptor
         {
             public SizeType SizeType;
@@ -21,11 +20,9 @@ namespace Promptuarium
             public Element previouslySerialized;
             public int stepUpNodesRequired;
         }
-
         #endregion
 
         #region Serialization ruotines
-
         private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments, CancellationToken cancellationToken)
         {
             for (int x = 0; x < serializationArguments.stepUpNodesRequired; x++)
@@ -61,30 +58,19 @@ namespace Promptuarium
             {
                 stream.WriteByte(ControlByte(direction, DataType.Data, SizeType.Linear, 0));
             }
-
             #region Saving Data
 
             #region Fireing event
-
-            if (OnDataSaving != null)
-            {
-                OnDataSaving(this, new PromptuariumSavingEventArgs());
-            }
-
+            OnDataSaving?.Invoke(this, new PromptuariumSavingEventArgs());
             #endregion
 
             if (Contains(Data))
             {
-                appending = await SerializeContentAsync(stream, Data, DataType.Data, direction, appending, cancellationToken);
+                appending = await SerializeContentAsync(stream, Data, DataType.Data, direction, appending, cancellationToken).ConfigureAwait(false);
             }
 
             #region Fireing event
-
-            if (OnDataSaved != null)
-            {
-                OnDataSaved(this, new PromptuariumSavedEventArgs());
-            }
-
+            OnDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
             #endregion
 
             #endregion
@@ -92,26 +78,16 @@ namespace Promptuarium
             #region Saving MetaData
 
             #region Fireing event
-
-            if (OnMetaDataSaving != null)
-            {
-                OnMetaDataSaving(this, new PromptuariumSavingEventArgs());
-            }
-
+            OnMetaDataSaving?.Invoke(this, new PromptuariumSavingEventArgs());
             #endregion
 
             if (Contains(MetaData))
             {
-                appending = await SerializeContentAsync(stream, MetaData, DataType.MetaData, direction, appending, cancellationToken);
+                appending = await SerializeContentAsync(stream, MetaData, DataType.MetaData, direction, appending, cancellationToken).ConfigureAwait(false);
             }
 
             #region Fireing event
-
-            if (OnMetaDataSaved != null)
-            {
-                OnMetaDataSaved(this, new PromptuariumSavedEventArgs());
-            }
-
+            OnMetaDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
             #endregion
 
             #endregion
@@ -128,7 +104,7 @@ namespace Promptuarium
 
                     if (child != null)
                     {
-                        await child.SerializeAsync(stream, serializationArguments, cancellationToken);
+                        await child.SerializeAsync(stream, serializationArguments, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -160,10 +136,10 @@ namespace Promptuarium
                 int bufferSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
 
                 byte[] buffer = new byte[bufferSize];
-                await source.ReadAsync(buffer, 0, bufferSize, cancellationToken);
-                await target.WriteAsync(buffer, 0, bufferSize, cancellationToken);
-            }            
-            
+                await source.ReadAsync(buffer, 0, bufferSize, cancellationToken).ConfigureAwait(false);
+                await target.WriteAsync(buffer, 0, bufferSize, cancellationToken).ConfigureAwait(false);
+            }
+
             return appending;
         }
 
@@ -173,7 +149,7 @@ namespace Promptuarium
             {
                 return (byte)((byte)direction | (byte)dataType | (byte)sizeType | sizeBits);
             }
-            
+
             throw new PromptuariumException("Size bits greater than the max value (" + NibbleMaxValue.ToString(CultureInfo.InvariantCulture) + " bits)");
         }
 
@@ -181,7 +157,7 @@ namespace Promptuarium
         {
             List<SizeDescriptor> sizes = new List<SizeDescriptor>();
             long word = size;
-            
+
             while (word > 0)
             {
                 // Logarithmic sizes
@@ -230,13 +206,11 @@ namespace Promptuarium
 
         private bool Contains(Stream stream)
         {
-            return stream != null && stream.Length > 0;
+            return stream?.Length > 0;
         }
-
         #endregion
 
         #region Deserialization routines
-        
         private static async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
         {
             Element root = new Element();
@@ -275,7 +249,7 @@ namespace Promptuarium
                 }
 
                 byte[] buffer = new byte[chunkSize];
-                await stream.ReadAsync(buffer, 0, chunkSize, cancellationToken);
+                await stream.ReadAsync(buffer, 0, chunkSize, cancellationToken).ConfigureAwait(false);
 
                 if (IsDataChunk(controlByte))
                 {
@@ -287,23 +261,13 @@ namespace Promptuarium
                         }
 
                         #region Fireing event
-
-                        if (OnDataLoading != null)
-                        {
-                            OnDataLoading(node, new PromptuariumLoadingEventArgs());
-                        }
-
+                        OnDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
                         #endregion
 
-                        await node.Data.WriteAsync(buffer, 0, chunkSize, cancellationToken);
+                        await node.Data.WriteAsync(buffer, 0, chunkSize, cancellationToken).ConfigureAwait(false);
 
                         #region Fireing event
-
-                        if (OnDataLoaded != null)
-                        {
-                            OnDataLoaded(node, new PromptuariumLoadedEventArgs());
-                        }
-
+                        OnDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
                         #endregion
                     }
                 }
@@ -317,23 +281,13 @@ namespace Promptuarium
                         }
 
                         #region Fireing event
-
-                        if (OnMetaDataLoading != null)
-                        {
-                            OnMetaDataLoading(node, new PromptuariumLoadingEventArgs());
-                        }
-
+                        OnMetaDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
                         #endregion
 
-                        await node.MetaData.WriteAsync(buffer, 0, chunkSize, cancellationToken);
+                        await node.MetaData.WriteAsync(buffer, 0, chunkSize, cancellationToken).ConfigureAwait(false);
 
                         #region Fireing event
-
-                        if (OnMetaDataLoaded != null)
-                        {
-                            OnMetaDataLoaded(node, new PromptuariumLoadedEventArgs());
-                        }
-
+                        OnMetaDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
                         #endregion
                     }
                 }
@@ -351,31 +305,13 @@ namespace Promptuarium
             }
         }
 
-        private static int GetChunkSize(byte controlByte)
-        {
-            int result;
+        private static int GetChunkSize(byte controlByte) => IsSizeLogarithmic(controlByte) ?
+            1 << ((controlByte & NibbleMaxValue) + NibbleSizeInBits) :
+            controlByte & NibbleMaxValue;
 
-            if (IsSizeLogarithmic(controlByte))
-            {
-                result = 1 << ((controlByte & NibbleMaxValue) + NibbleSizeInBits);
-            }
-            else
-            {
-                result = controlByte & NibbleMaxValue;
-            }
+        private static bool IsSizeLogarithmic(byte controlByte) => (controlByte & (byte)SizeType.Mask) == (byte)SizeType.Logarithmic;
 
-            return result;
-        }
-
-        private static bool IsSizeLogarithmic(byte controlByte)
-        {
-            return (controlByte & (byte)SizeType.Mask) == (byte)SizeType.Logarithmic;
-        }
-
-        private static bool IsDataChunk(byte controlByte)
-        {
-            return (controlByte & (byte)DataType.Mask) == (byte) DataType.Data;
-        }
+        private static bool IsDataChunk(byte controlByte) => (controlByte & (byte)DataType.Mask) == (byte)DataType.Data;
 
         private static Element AddNewNode(Element parent)
         {
@@ -389,7 +325,7 @@ namespace Promptuarium
 
             return node;
         }
-        
+
         private static void PurgeEmptyNodes(Element node)
         {
             foreach (Element child in new List<Element>(node.Children))
@@ -402,7 +338,6 @@ namespace Promptuarium
                 node.Parent.Remove(node);
             }
         }
-
         #endregion
     }
 }

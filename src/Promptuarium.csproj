@@ -8,13 +8,13 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
-    <Company>Fuszenecker Sofrware Development</Company>
+    <Company>Fuszenecker Software Development</Company>
     <ProjectUrl></ProjectUrl>
     <Description>Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, can be used in F#, too.</Description>
-    <Copyright>Copyright 2012-2019, Fuszenecker Róbert</Copyright>
+    <Copyright>Copyright 2012-2021, Fuszenecker Róbert</Copyright>
     <ReleaseNotes>Updated to .NET Standard 2.0</ReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/fuszenecker/Promptuarium</PackageProjectUrl>

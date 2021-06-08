@@ -34,7 +34,7 @@ namespace Promptuarium
 
             using (Stream fileStream = new FileStream(fileName, FileMode.Open))
             {
-                result = await LoadAsync(fileStream, cancellationToken);
+                result = await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
             }
 
             return result;
@@ -44,7 +44,7 @@ namespace Promptuarium
         {
             return LoadAsync(fileName, CancellationToken.None);
         }
-        
+
         #endregion
 
         #region Save functions
@@ -56,7 +56,7 @@ namespace Promptuarium
         /// <returns>True, if no error occured</returns>
         public async Task SaveAsync(Stream stream, CancellationToken cancellationToken)
         {
-            await SerializeAsync(stream, new SerializationArguments(), cancellationToken);
+            await SerializeAsync(stream, new SerializationArguments(), cancellationToken).ConfigureAwait(false);
             stream.WriteByte(ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0));
         }
 
@@ -74,7 +74,7 @@ namespace Promptuarium
         {
             using (Stream stream = new FileStream(fileName, FileMode.Create))
             {
-                await SaveAsync(stream, cancellationToken);
+                await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
             }
         }
 
