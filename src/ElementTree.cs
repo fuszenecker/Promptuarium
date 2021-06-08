@@ -337,7 +337,7 @@ namespace Promptuarium
             {
                 for (int i = 0; i < level; ++i)
                 {
-                    stringBuilder.Append("> ");
+                    stringBuilder.Append("--> ");
                 }
             }
 

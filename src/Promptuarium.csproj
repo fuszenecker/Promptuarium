@@ -8,7 +8,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
