@@ -349,7 +349,10 @@ namespace Promptuarium
                 StreamToString(node.MetaData, stringBuilder);
 
                 stringBuilder.Append(" = \"");
-                stringBuilder.Append(node.MetaData.AsUtf8String());
+                stringBuilder.Append(node.MetaData
+                    .AsUtf8String()
+                    .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
+                    .ToArray());
                 stringBuilder.Append("\"");
                 stringBuilder.Append("]");
             }
@@ -364,7 +367,10 @@ namespace Promptuarium
                 StreamToString(node.Data, stringBuilder);
 
                 stringBuilder.Append(" = \"");
-                stringBuilder.Append(node.Data.AsUtf8String());
+                stringBuilder.Append(node.Data
+                    .AsUtf8String()
+                    .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
+                    .ToArray());
                 stringBuilder.Append("\"");
             }
 
