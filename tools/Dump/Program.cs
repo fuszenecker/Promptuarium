@@ -14,10 +14,20 @@ namespace Dump
                 Environment.Exit(-1);
             }
 
-            var container = await Element.LoadAsync(args[0]).ConfigureAwait(false);
+            try
+            {
+                var container = await Element.LoadAsync(args[0]).ConfigureAwait(false);
 
-            Console.WriteLine(container.TreeToString());
-            Console.WriteLine(container.Statistics);
+                Console.WriteLine(container.TreeToString());
+                Console.WriteLine(container.Statistics);
+            }
+            catch (Exception ex)
+            {
+                var originalColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Exception has been thrown during execution:\n{ex.Message}\n{ex.InnerException?.Message}");
+                Console.ForegroundColor = originalColor;
+            }
         }
     }
 }
