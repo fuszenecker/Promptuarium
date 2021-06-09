@@ -320,7 +320,7 @@ namespace Promptuarium
             return stream;
         }
 
-        public static async Task<Element> AsAElementAsync(this Stream stream)
+        public static async Task<Element> AsElementAsync(this Stream stream)
         {
             Element result;
             stream.Position = 0;
