@@ -8,7 +8,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -21,9 +21,11 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
     <ReleaseNotes>Breaking change in API (AsElementAsync).</ReleaseNotes>
-    <PackageReleaseNotes>Breaking change in API (AsElementAsync).</PackageReleaseNotes>
+    <PackageReleaseNotes>Added symbols.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
 </Project>
