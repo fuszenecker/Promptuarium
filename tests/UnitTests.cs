@@ -713,8 +713,8 @@ namespace PromptuariumTests
                     Data.FromUtf8String("DATETIME.NOW()"))
                 );
 
-            tree.OnDataSaving += (s, _) => s.Data = Data.FromUtf8String("ROOT NODE MODIFIED");
-            tree.OnDataSaved += (s, _) => s.Data = Data.FromUtf8String("ROOT NODE SAVED");
+            tree.OnDataSaving += (s, _) => ((Element)s).Data = Data.FromUtf8String("ROOT NODE MODIFIED");
+            tree.OnDataSaved += (s, _) => ((Element)s).Data = Data.FromUtf8String("ROOT NODE SAVED");
 
             using (StreamWriter fs = new StreamWriter("base64.p"))
             {
@@ -747,8 +747,8 @@ namespace PromptuariumTests
             List<string> loadingNodes = new List<string>();
             List<string> loadedNodes = new List<string>();
 
-            Element.OnDataLoading += (s, _) => loadingNodes.Add(s.Data.AsUtf8String());
-            Element.OnDataLoaded += (s, _) => loadedNodes.Add(s.Data.AsUtf8String());
+            Element.OnDataLoading += (s, _) => loadingNodes.Add(((Element)s).Data.AsUtf8String());
+            Element.OnDataLoaded += (s, _) => loadedNodes.Add(((Element)s).Data.AsUtf8String());
 
             Element tree2 = await Element.LoadAsync("ut10.p").ConfigureAwait(false);
 

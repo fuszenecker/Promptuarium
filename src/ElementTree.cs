@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace Promptuarium
 {
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public partial class Element
     {
         #region Properties
@@ -272,16 +274,16 @@ namespace Promptuarium
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            NodeToString(this, 0, stringBuilder, false);
+            NodeToString(this, 0, stringBuilder, false, string.Empty);
 
             return stringBuilder.ToString().Trim();
         }
 
-        public string TreeToString()
+        public string TreeToString(string tabulator = ">")
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            NodeToString(this, 0, stringBuilder, true);
+            NodeToString(this, 0, stringBuilder, true, tabulator);
 
             return stringBuilder.ToString();
         }
@@ -331,13 +333,13 @@ namespace Promptuarium
             node.Parent = this;
         }
 
-        private void NodeToString(Element node, int level, StringBuilder stringBuilder, bool recursive)
+        private void NodeToString(Element node, int level, StringBuilder stringBuilder, bool recursive, string tabulator)
         {
             if (recursive)
             {
                 for (int i = 0; i < level; ++i)
                 {
-                    stringBuilder.Append("--> ");
+                    stringBuilder.Append(tabulator);
                 }
             }
 
@@ -380,7 +382,7 @@ namespace Promptuarium
             {
                 foreach (Element child in node.Children)
                 {
-                    NodeToString(child, level + 1, stringBuilder, true);
+                    NodeToString(child, level + 1, stringBuilder, true, tabulator);
                 }
             }
         }
@@ -411,6 +413,8 @@ namespace Promptuarium
                 }
             }
         }
+
+        private string DebuggerDisplay => ToString();
         #endregion
     }
 }
