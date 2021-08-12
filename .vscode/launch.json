@@ -11,7 +11,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/tools/Dump/bin/Debug/netcoreapp3.1/Dump.dll",
-            "args": [],
+            "args": ["../../tests/bin/Debug/netcoreapp3.1/ut0.p"],
             "cwd": "${workspaceFolder}/tools/Dump",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",

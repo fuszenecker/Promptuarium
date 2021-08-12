@@ -1,19 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Promptuarium.csproj" />
+    <!--ProjectReference Include="..\..\src\Promptuarium.csproj" /-->
+    <PackageReference Include="Promptuarium" Version="3.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <!--RuntimeIdentifier>win10-x64</RuntimeIdentifier-->
     <AssemblyName>dump</AssemblyName>
     <TieredCompilation>true</TieredCompilation>
-    <PublishTrimmed>true</PublishTrimmed>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <!--PublishTrimmed>true</PublishTrimmed>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
-    <PublishReadyToRun>false</PublishReadyToRun>
-    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <PublishReadyToRun>false</PublishReadyToRun-->
   </PropertyGroup>
 
 </Project>
