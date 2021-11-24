@@ -1,5 +1,7 @@
 # Promptuarium
 
+[![.NET](https://github.com/fuszenecker/Promptuarium/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fuszenecker/Promptuarium/actions/workflows/dotnet.yml)
+
 ## Project summary
 
 Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, can be used in F#, too.
