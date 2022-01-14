@@ -49,78 +49,73 @@ namespace Promptuarium
     #region Private fields
     public partial class Element
     {
-        private Statistics statistics;
-
-        public Statistics Statistics
+        public Statistics GetStatistics()
         {
-            get
-            {
-                statistics = new Statistics();
+            var statistics = new Statistics();
 
-                Walk((Element node, List<Element> ancestors) =>
+            Walk((Element node, IReadOnlyCollection<Element> ancestors) =>
+                {
+                    statistics.Nodes++;
+
+                    if (ancestors.Count + 1 > statistics.Depth)
                     {
-                        statistics.Nodes++;
+                        statistics.Depth = ancestors.Count + 1;
+                    }
 
-                        if (ancestors.Count + 1 > statistics.Depth)
-                        {
-                            statistics.Depth = ancestors.Count + 1;
-                        }
+                    if (node.Children.Count > statistics.MaxChildren)
+                    {
+                        statistics.MaxChildren = node.Children.Count;
+                    }
 
-                        if (node.Children.Count > statistics.MaxChildren)
-                        {
-                            statistics.MaxChildren = node.Children.Count;
-                        }
+                    if (node.Children.Count < statistics.MinChildren)
+                    {
+                        statistics.MinChildren = node.Children.Count;
+                    }
 
-                        if (node.Children.Count < statistics.MinChildren)
-                        {
-                            statistics.MinChildren = node.Children.Count;
-                        }
+                    if (node.Data != null && node.MetaData != null)
+                    {
+                        statistics.NodesWithDataAndMetaData++;
+                    }
+                    else if (node.Data != null && node.MetaData == null)
+                    {
+                        statistics.NodesWithData++;
+                    }
+                    else if (node.Data == null && node.MetaData != null)
+                    {
+                        statistics.NodesWithMetaData++;
+                    }
+                    else
+                    {
+                        statistics.NodesWithoutDataAndMetaData++;
+                    }
 
-                        if (node.Data != null && node.MetaData != null)
-                        {
-                            statistics.NodesWithDataAndMetaData++;
-                        }
-                        else if (node.Data != null && node.MetaData == null)
-                        {
-                            statistics.NodesWithData++;
-                        }
-                        else if (node.Data == null && node.MetaData != null)
-                        {
-                            statistics.NodesWithMetaData++;
-                        }
-                        else
-                        {
-                            statistics.NodesWithoutDataAndMetaData++;
-                        }
+                    if (node.Data != null && statistics.LongestData < node.Data.Length)
+                    {
+                        statistics.LongestData = node.Data.Length;
+                    }
 
-                        if (node.Data != null && statistics.LongestData < node.Data.Length)
-                        {
-                            statistics.LongestData = node.Data.Length;
-                        }
+                    if (node.MetaData != null && statistics.LongestMetaData < node.MetaData.Length)
+                    {
+                        statistics.LongestMetaData = node.MetaData.Length;
+                    }
 
-                        if (node.MetaData != null && statistics.LongestMetaData < node.MetaData.Length)
-                        {
-                            statistics.LongestMetaData = node.MetaData.Length;
-                        }
+                    if (node.Data != null && statistics.ShortestData > node.Data.Length)
+                    {
+                        statistics.ShortestData = node.Data.Length;
+                    }
 
-                        if (node.Data != null && statistics.ShortestData > node.Data.Length)
-                        {
-                            statistics.ShortestData = node.Data.Length;
-                        }
+                    if (node.MetaData != null && statistics.ShortestMetaData > node.MetaData.Length)
+                    {
+                        statistics.ShortestMetaData = node.MetaData.Length;
+                    }
 
-                        if (node.MetaData != null && statistics.ShortestMetaData > node.MetaData.Length)
-                        {
-                            statistics.ShortestMetaData = node.MetaData.Length;
-                        }
+                    if (node.Children.Count == 0)
+                    {
+                        statistics.NodesWithoutChildren++;
+                    }
+                });
 
-                        if (node.Children.Count == 0)
-                        {
-                            statistics.NodesWithoutChildren++;
-                        }
-                    });
-
-                return statistics;
-            }
+            return statistics;
         }
     }
     #endregion

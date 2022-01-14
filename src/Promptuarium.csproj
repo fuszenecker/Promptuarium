@@ -3,12 +3,16 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IsPackable>true</IsPackable>
+    <LangVersion>10</LangVersion>
+    <Nullable>enable</Nullable>
+    <AnalysisLevel>preview</AnalysisLevel>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
   </PropertyGroup>
 
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>3.0.0</Version>
+    <Version>4.0.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -20,8 +24,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Breaking change in API (AsElementAsync).</ReleaseNotes>
-    <PackageReleaseNotes>Changed to EventHandler[T] delegate.</PackageReleaseNotes>
+    <ReleaseNotes>Breaking change in API (nullable).</ReleaseNotes>
+    <PackageReleaseNotes>Breaking change in API (nullable).</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>

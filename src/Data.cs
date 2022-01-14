@@ -22,7 +22,7 @@ namespace Promptuarium
         #region Byte Operations
         public static Stream FromByte(byte value)
         {
-            MemoryStream result = new MemoryStream();
+            var result = new MemoryStream();
             result.WriteByte(value);
             result.Position = 0;
             return result;
@@ -172,13 +172,10 @@ namespace Promptuarium
 
         public static Stream FromDecimal(decimal value)
         {
-            MemoryStream stream = new MemoryStream();
-
-            BinaryWriter binaryWriter = new BinaryWriter(stream);
+            var stream = new MemoryStream();
+            var binaryWriter = new BinaryWriter(stream);
             binaryWriter.Write(value);
-
             stream.Position = 0;
-
             return stream;
         }
 
@@ -186,10 +183,8 @@ namespace Promptuarium
         {
             decimal result;
             stream.Position = 0;
-
-            BinaryReader binaryReader = new BinaryReader(stream);
+            var binaryReader = new BinaryReader(stream);
             result = binaryReader.ReadDecimal();
-
             stream.Position = 0;
             return result;
         }
@@ -198,7 +193,7 @@ namespace Promptuarium
         #region VarInt Operations
         public static Stream FromVarInt(long value)
         {
-            MemoryStream result = new MemoryStream();
+            var result = new MemoryStream();
             ulong buffer = (value >= 0) ? (ulong)(value << 1) : (((ulong)(-value) << 1) + 1);
             CompactBytes(result, buffer);
             return result;
@@ -214,7 +209,7 @@ namespace Promptuarium
         #region VarInt Operations
         public static Stream FromVarUInt(ulong value)
         {
-            MemoryStream result = new MemoryStream();
+            var result = new MemoryStream();
             CompactBytes(result, value);
             return result;
         }
@@ -315,7 +310,7 @@ namespace Promptuarium
                 throw new ArgumentNullException(nameof(value));
             }
 
-            Stream stream = new MemoryStream();
+            var stream = new MemoryStream();
             await value.SaveAsync(stream).ConfigureAwait(false);
             return stream;
         }

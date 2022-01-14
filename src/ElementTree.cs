@@ -16,30 +16,22 @@ namespace Promptuarium
         /// <summary>
         /// Data storage
         /// </summary>
-        public Stream Data { get; set; }
+        public Stream? Data { get; set; }
 
         /// <summary>
         /// Metadata storage
         /// </summary>
-        public Stream MetaData { get; set; }
+        public Stream? MetaData { get; set; }
 
         /// <summary>
         /// Reference to the parent node; root node has null as parent.
         /// </summary>
-        public Element Parent { get; set; }
-
-        internal List<Element> children;
+        public Element? Parent { get; set; }
 
         /// <summary>
         /// List of children. it is never null.
         /// </summary>
-        public IList<Element> Children
-        {
-            get
-            {
-                return children;
-            }
-        }
+        public IList<Element> Children { get; } = new List<Element>();
         #endregion
 
         #region Constructors
@@ -48,7 +40,6 @@ namespace Promptuarium
         /// </summary>
         public Element()
         {
-            children = new List<Element>();
         }
 
         /// <summary>
@@ -61,9 +52,9 @@ namespace Promptuarium
             MetaData = other.MetaData;
 
             Parent = other.Parent;
-            children = new List<Element>(other.Children.Where(child => child != null));
+            this.Children = new List<Element>(other.Children.Where(child => child != null));
 
-            foreach (Element child in children)
+            foreach (Element child in this.Children)
             {
                 child.Parent = this;
             }
@@ -75,23 +66,16 @@ namespace Promptuarium
         /// <param name="data">Data of the parent node</param>
         /// <param name="metaData"></param>
         /// <param name="children">List of child nodes</param>
-        public Element(Stream data, Stream metaData, params Element[] children)
+        public Element(Stream? data, Stream? metaData, params Element[] children)
         {
             Data = data;
             MetaData = metaData;
 
-            if (children != null)
-            {
-                this.children = new List<Element>(children.Where(child => child != null));
+            this.Children = new List<Element>(children.Where(child => child != null));
 
-                foreach (Element child in this.children)
-                {
-                    child.Parent = this;
-                }
-            }
-            else
+            foreach (Element child in this.Children)
             {
-                this.children = new List<Element>();
+                child.Parent = this;
             }
         }
 
@@ -101,23 +85,16 @@ namespace Promptuarium
         /// <param name="data">Data of the parent node</param>
         /// <param name="metaData"></param>
         /// <param name="children">LINQ query of child nodes</param>
-        public Element(Stream data, Stream metaData, IEnumerable<Element> children)
+        public Element(Stream? data, Stream? metaData, IEnumerable<Element> children)
         {
             Data = data;
             MetaData = metaData;
 
-            if (children != null)
-            {
-                this.children = new List<Element>(children.Where(child => child != null));
+            this.Children = new List<Element>(children.Where(child => child != null));
 
-                foreach (Element child in this.children)
-                {
-                    child.Parent = this;
-                }
-            }
-            else
+            foreach (Element child in this.Children)
             {
-                this.children = new List<Element>();
+                child.Parent = this;
             }
         }
         #endregion
@@ -127,12 +104,12 @@ namespace Promptuarium
         {
             get
             {
-                if (index >= 0 && index < children.Count)
+                if (index >= 0 && index < this.Children.Count)
                 {
-                    return children[index];
+                    return this.Children[index];
                 }
 
-                throw new PromptuariumException(string.Format("Index {0} in out of range [0...{1}]", index, children.Count));
+                throw new PromptuariumException($"Index {index} in out of range [0...{this.Children.Count}]");
             }
         }
         #endregion
@@ -144,21 +121,15 @@ namespace Promptuarium
         /// <param name="nodes">The nodes to be added</param>
         public void Add(params Element[] nodes)
         {
-            if (nodes != null)
+            foreach (Element node in nodes)
             {
-                foreach (Element node in nodes)
+                if (!Children.Contains(node))
                 {
-                    if (node != null)
-                    {
-                        if (!Children.Contains(node))
-                        {
-                            UnsafeAdd(node);
-                        }
-                        else
-                        {
-                            throw new PromptuariumException("Node already exists in the tree");
-                        }
-                    }
+                    UnsafeAdd(node);
+                }
+                else
+                {
+                    throw new PromptuariumException("Node already exists in the tree");
                 }
             }
         }
@@ -169,12 +140,9 @@ namespace Promptuarium
         /// <param name="nodes">The nodes to be added</param>
         public void Add(IEnumerable<Element> nodes)
         {
-            if (nodes != null)
+            foreach (Element node in nodes)
             {
-                foreach (Element node in nodes)
-                {
-                    Add(node);
-                }
+                Add(node);
             }
         }
 
@@ -195,22 +163,14 @@ namespace Promptuarium
         /// <param name="node">The node to be removed</param>
         public void Remove(Element node)
         {
-            if (node != null)
+            var elementsToRemove = new List<Element>(node.Children);
+
+            foreach (Element child in elementsToRemove)
             {
-                if (node.Children == null)
-                {
-                    throw new PromptuariumException("Children list must not be null");
-                }
-
-                List<Element> elementsToRemove = new List<Element>(node.Children);
-
-                foreach (Element child in elementsToRemove)
-                {
-                    Remove(child);
-                }
-
-                Detach(node);
+                Remove(child);
             }
+
+            Detach(node);
         }
 
         /// <summary>
@@ -229,13 +189,13 @@ namespace Promptuarium
         /// </summary>
         /// <param name="node">The node to be detached</param>
         /// <returns>The node itself</returns>
-        public Element Detach(Element node)
+        public static Element Detach(Element node)
         {
-            if (node?.Parent != null)
+            if (node.Parent != null)
             {
                 if (node.Parent.Children.Contains(node))
                 {
-                    node.Parent.children.Remove(node);
+                    node.Parent.Children.Remove(node);
                 }
                 else
                 {
@@ -249,11 +209,20 @@ namespace Promptuarium
         }
 
         /// <summary>
+        /// Detaches a subtree or node.
+        /// </summary>
+        /// <returns>The node itself</returns>
+        public Element Detach()
+        {
+            return Detach(this);
+        }
+
+        /// <summary>
         /// The method is called for each nodes.
         /// </summary>
         /// <param name="node">The current node</param>
         /// <param name="ancestors">A list of ancestors</param>
-        public delegate void WalkHandler(Element node, List<Element> ancestors);
+        public delegate void WalkHandler(Element node, IReadOnlyCollection<Element> ancestors);
 
         /// <summary>
         /// Walks through the tree, and calls the handler for each node.
@@ -261,10 +230,8 @@ namespace Promptuarium
         /// <param name="handler">The method to be called for each nodes</param>
         public void Walk(WalkHandler handler)
         {
-            List<Element> ancestors = new List<Element>();
-
-            handler?.Invoke(this, ancestors);
-
+            var ancestors = new List<Element>();
+            handler.Invoke(this, ancestors);
             Walk(this, ancestors, handler);
         }
         #endregion
@@ -272,51 +239,36 @@ namespace Promptuarium
         #region Conversion functions
         public override string ToString()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-
+            var stringBuilder = new StringBuilder();
             NodeToString(this, 0, stringBuilder, false, string.Empty);
-
             return stringBuilder.ToString().Trim();
         }
 
         public string TreeToString(string tabulator = ">")
         {
-            StringBuilder stringBuilder = new StringBuilder();
-
+            var stringBuilder = new StringBuilder();
             NodeToString(this, 0, stringBuilder, true, tabulator);
-
             return stringBuilder.ToString();
         }
 
         public async Task<string> ToBase64StringAsync(CancellationToken cancellationToken)
         {
-            string base64String;
+            using var memoryStream = new MemoryStream();
 
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                await SaveAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+            await SaveAsync(memoryStream, cancellationToken).ConfigureAwait(false);
 
-                byte[] buffer = new byte[memoryStream.Length];
-                Array.Copy(memoryStream.ToArray(), buffer, (int)memoryStream.Length);
+            byte[] buffer = new byte[memoryStream.Length];
+            Array.Copy(memoryStream.ToArray(), buffer, (int)memoryStream.Length);
 
-                base64String = Convert.ToBase64String(buffer);
-            }
-
-            return base64String;
+            return Convert.ToBase64String(buffer);
         }
 
         public Task<string> ToBase64StringAsync() => ToBase64StringAsync(CancellationToken.None);
 
         public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
         {
-            Element tree;
-
-            using (MemoryStream memoryStream = new MemoryStream(Convert.FromBase64String(base64String)))
-            {
-                tree = await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
-            }
-
-            return tree;
+            using var memoryStream = new MemoryStream(Convert.FromBase64String(base64String));
+            return await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
         }
 
         public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
@@ -329,7 +281,7 @@ namespace Promptuarium
         /// <param name="node">The node to be added</param>
         private void UnsafeAdd(Element node)
         {
-            children.Add(node);
+            this.Children.Add(node);
             node.Parent = this;
         }
 
@@ -343,37 +295,37 @@ namespace Promptuarium
                 }
             }
 
-            stringBuilder.Append("(");
+            stringBuilder.Append('(');
 
             if (Contains(node.MetaData))
             {
-                stringBuilder.Append("[");
-                StreamToString(node.MetaData, stringBuilder);
+                stringBuilder.Append('[');
+                StreamToString(node.MetaData!, stringBuilder);
 
                 stringBuilder.Append(" = \"");
-                stringBuilder.Append(node.MetaData
+                stringBuilder.Append(node.MetaData!
                     .AsUtf8String()
                     .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
                     .ToArray());
-                stringBuilder.Append("\"");
-                stringBuilder.Append("]");
+                stringBuilder.Append('\"');
+                stringBuilder.Append(']');
             }
 
             if (Contains(node.Data) && Contains(node.MetaData))
             {
-                stringBuilder.Append(" ");
+                stringBuilder.Append(' ');
             }
 
             if (Contains(node.Data))
             {
-                StreamToString(node.Data, stringBuilder);
+                StreamToString(node.Data!, stringBuilder);
 
                 stringBuilder.Append(" = \"");
-                stringBuilder.Append(node.Data
+                stringBuilder.Append(node.Data!
                     .AsUtf8String()
                     .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
                     .ToArray());
-                stringBuilder.Append("\"");
+                stringBuilder.Append('\"');
             }
 
             stringBuilder.Append(")\n");
@@ -387,7 +339,7 @@ namespace Promptuarium
             }
         }
 
-        private void StreamToString(Stream data, StringBuilder stringBuilder)
+        private static void StreamToString(Stream data, StringBuilder stringBuilder)
         {
             data.Position = 0;
 
@@ -399,18 +351,15 @@ namespace Promptuarium
 
         private void Walk(Element parent, List<Element> ancestors, WalkHandler handler)
         {
-            if (parent.children != null)
+            var _ancestors = new List<Element>(ancestors)
             {
-                List<Element> _ancestors = new List<Element>(ancestors)
-                {
-                    parent
-                };
+                parent
+            };
 
-                foreach (Element child in parent.children)
-                {
-                    handler?.Invoke(child, _ancestors);
-                    Walk(child, _ancestors, handler);
-                }
+            foreach (Element child in parent.Children)
+            {
+                handler.Invoke(child, _ancestors);
+                Walk(child, _ancestors, handler);
             }
         }
 

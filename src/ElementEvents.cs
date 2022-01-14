@@ -42,15 +42,15 @@ namespace Promptuarium
     public partial class Element
     {
         #region Events
-        public static event EventHandler<PromptuariumLoadingEventArgs> OnDataLoading;
-        public static event EventHandler<PromptuariumLoadedEventArgs> OnDataLoaded;
-        public event EventHandler<PromptuariumSavingEventArgs> OnDataSaving;
-        public event EventHandler<PromptuariumSavedEventArgs> OnDataSaved;
+        public static event EventHandler<PromptuariumLoadingEventArgs>? OnDataLoading;
+        public static event EventHandler<PromptuariumLoadedEventArgs>? OnDataLoaded;
+        public event EventHandler<PromptuariumSavingEventArgs>? OnDataSaving;
+        public event EventHandler<PromptuariumSavedEventArgs>? OnDataSaved;
 
-        public static event EventHandler<PromptuariumLoadingEventArgs> OnMetaDataLoading;
-        public static event EventHandler<PromptuariumLoadedEventArgs> OnMetaDataLoaded;
-        public event EventHandler<PromptuariumSavingEventArgs> OnMetaDataSaving;
-        public event EventHandler<PromptuariumSavedEventArgs> OnMetaDataSaved;
+        public static event EventHandler<PromptuariumLoadingEventArgs>? OnMetaDataLoading;
+        public static event EventHandler<PromptuariumLoadedEventArgs>? OnMetaDataLoaded;
+        public event EventHandler<PromptuariumSavingEventArgs>? OnMetaDataSaving;
+        public event EventHandler<PromptuariumSavedEventArgs>? OnMetaDataSaved;
         #endregion
     }
     #endregion
