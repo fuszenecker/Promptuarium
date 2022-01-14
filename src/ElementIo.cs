@@ -30,14 +30,8 @@ namespace Promptuarium
         /// <returns>The tree, if no error occured</returns>
         public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
         {
-            Element result;
-
-            using (Stream fileStream = new FileStream(fileName, FileMode.Open))
-            {
-                result = await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
-            }
-
-            return result;
+            using var fileStream = new FileStream(fileName, FileMode.Open);
+            return await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
         }
 
         public static Task<Element> LoadAsync(string fileName)
@@ -72,10 +66,8 @@ namespace Promptuarium
         /// <returns>True, if no error occured</returns>
         public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
         {
-            using (Stream stream = new FileStream(fileName, FileMode.Create))
-            {
-                await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
-            }
+            using Stream stream = new FileStream(fileName, FileMode.Create);
+            await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
         }
 
         public Task SaveAsync(string fileName)

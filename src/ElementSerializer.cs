@@ -17,7 +17,7 @@ namespace Promptuarium
 
         private class SerializationArguments
         {
-            public Element previouslySerialized;
+            public Element? previouslySerialized;
             public int stepUpNodesRequired;
         }
         #endregion
@@ -42,7 +42,7 @@ namespace Promptuarium
             {
                 direction = Directions.New;
             }
-            else if (serializationArguments.previouslySerialized.Parent.Parent == Parent)
+            else if (serializationArguments.previouslySerialized?.Parent?.Parent == Parent)
             {
                 direction = Directions.Up;
             }
@@ -54,7 +54,7 @@ namespace Promptuarium
             bool appending = false;
 
             // If the node has only children
-            if (!Contains(Data) && !Contains(MetaData) && children.Count > 0)
+            if (!Contains(Data) && !Contains(MetaData) && this.Children.Count > 0)
             {
                 stream.WriteByte(ControlByte(direction, DataType.Data, SizeType.Linear, 0));
             }
@@ -66,7 +66,7 @@ namespace Promptuarium
 
             if (Contains(Data))
             {
-                appending = await SerializeContentAsync(stream, Data, DataType.Data, direction, appending, cancellationToken).ConfigureAwait(false);
+                appending = await SerializeContentAsync(stream, Data!, DataType.Data, direction, appending, cancellationToken).ConfigureAwait(false);
             }
 
             #region Fireing event
@@ -83,7 +83,7 @@ namespace Promptuarium
 
             if (Contains(MetaData))
             {
-                appending = await SerializeContentAsync(stream, MetaData, DataType.MetaData, direction, appending, cancellationToken).ConfigureAwait(false);
+                appending = await SerializeContentAsync(stream, MetaData!, DataType.MetaData, direction, appending, cancellationToken).ConfigureAwait(false);
             }
 
             #region Fireing event
@@ -94,13 +94,13 @@ namespace Promptuarium
 
             serializationArguments.previouslySerialized = this;
 
-            if (children.Count > 0)
+            if (this.Children.Count > 0)
             {
-                Element child = new Element();
+                var child = new Element();
 
-                for (int childIndex = 0; childIndex < children.Count; childIndex++)
+                for (int childIndex = 0; childIndex < this.Children.Count; childIndex++)
                 {
-                    child = children[childIndex];
+                    child = this.Children[childIndex];
 
                     if (child != null)
                     {
@@ -108,7 +108,7 @@ namespace Promptuarium
                     }
                 }
 
-                if (child.children.Count > 0)
+                if (child?.Children.Count > 0)
                 {
                     serializationArguments.stepUpNodesRequired++;
                     serializationArguments.previouslySerialized = child;
@@ -116,7 +116,7 @@ namespace Promptuarium
             }
         }
 
-        private async Task<bool> SerializeContentAsync(Stream target, Stream source, DataType dataType, Directions direction, bool appending, CancellationToken cancellationToken)
+        private static async Task<bool> SerializeContentAsync(Stream target, Stream source, DataType dataType, Directions direction, bool appending, CancellationToken cancellationToken)
         {
             IEnumerable<SizeDescriptor> chunks = GetSizes(source.Length);
             source.Position = 0;
@@ -143,19 +143,19 @@ namespace Promptuarium
             return appending;
         }
 
-        private byte ControlByte(Directions direction, DataType dataType, SizeType sizeType, byte sizeBits)
+        private static byte ControlByte(Directions direction, DataType dataType, SizeType sizeType, byte sizeBits)
         {
             if (sizeBits <= NibbleMaxValue)
             {
                 return (byte)((byte)direction | (byte)dataType | (byte)sizeType | sizeBits);
             }
 
-            throw new PromptuariumException("Size bits greater than the max value (" + NibbleMaxValue.ToString(CultureInfo.InvariantCulture) + " bits)");
+            throw new PromptuariumException($"Size bits greater than the max value ({NibbleMaxValue.ToString(CultureInfo.InvariantCulture)} bits)");
         }
 
-        private IEnumerable<SizeDescriptor> GetSizes(long size)
+        private static IEnumerable<SizeDescriptor> GetSizes(long size)
         {
-            List<SizeDescriptor> sizes = new List<SizeDescriptor>();
+            var sizes = new List<SizeDescriptor>();
             long word = size;
 
             while (word > 0)
@@ -204,7 +204,7 @@ namespace Promptuarium
             return sizes;
         }
 
-        private bool Contains(Stream stream)
+        private static bool Contains(Stream? stream)
         {
             return stream?.Length > 0;
         }
@@ -213,7 +213,7 @@ namespace Promptuarium
         #region Deserialization routines
         private static async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
         {
-            Element root = new Element();
+            var root = new Element();
             Element parent = root;
             Element node = root;
 
@@ -233,8 +233,16 @@ namespace Promptuarium
                         break;
 
                     case (byte) Directions.Up:
-                        parent = parent.Parent;
-                        node = AddNewNode(parent);
+                        if (parent.Parent != null)
+                        {
+                            parent = parent.Parent;
+                            node = AddNewNode(parent);
+                        }
+                        else
+                        {
+                            throw new PromptuariumException("Navigating upper the root node during deserialization.");
+                        }
+
                         break;
 
                     case (byte) Directions.Append:
@@ -253,7 +261,7 @@ namespace Promptuarium
 
                 if (IsDataChunk(controlByte))
                 {
-                    if (node != null && chunkSize > 0)
+                    if (chunkSize > 0)
                     {
                         if (node.Data == null)
                         {
@@ -273,7 +281,7 @@ namespace Promptuarium
                 }
                 else
                 {
-                    if (node != null && chunkSize > 0)
+                    if (chunkSize > 0)
                     {
                         if (node.MetaData == null)
                         {
@@ -295,9 +303,9 @@ namespace Promptuarium
 
             PurgeEmptyNodes(root);
 
-            if (root.children.Count > 0)
+            if (root.Children.Count > 0)
             {
-                return root.children[0];
+                return root.Children[0];
             }
             else
             {
@@ -315,14 +323,8 @@ namespace Promptuarium
 
         private static Element AddNewNode(Element parent)
         {
-            Element node = null;
-
-            if (parent != null)
-            {
-                node = new Element();
-                parent.UnsafeAdd(node);
-            }
-
+            var node = new Element();
+            parent.UnsafeAdd(node);
             return node;
         }
 
@@ -333,9 +335,9 @@ namespace Promptuarium
                 PurgeEmptyNodes(child);
             }
 
-            if (node.Data == null && node.MetaData == null && node.children.Count == 0 && node.Parent != null)
+            if (node.Data == null && node.MetaData == null && node.Children.Count == 0)
             {
-                node.Parent.Remove(node);
+                node.Parent?.Remove(node);
             }
         }
         #endregion

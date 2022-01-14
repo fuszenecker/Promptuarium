@@ -9,7 +9,7 @@ namespace PromptuariumTests
     [TestClass]
     public class StabilityTests
     {
-        private readonly Random random = new Random((int)DateTime.Now.Ticks);
+        private readonly Random random = new ((int)DateTime.Now.Ticks);
 
         [TestMethod]
         public async Task Stability()
@@ -35,7 +35,7 @@ namespace PromptuariumTests
 
         private Element GenerateTree(int minimumChildren, int maximumChildren, double probability)
         {
-            Element root = new Element();
+            var root = new Element();
 
             GenerateTree(root, minimumChildren, maximumChildren, probability);
 
@@ -50,9 +50,9 @@ namespace PromptuariumTests
 
                 for (int x = 0; x < numChildren; x++)
                 {
-                    Guid nodeGuid = Guid.NewGuid();
+                    var nodeGuid = Guid.NewGuid();
 
-                    Element child = new Element()
+                    var child = new Element()
                     {
                         MetaData = Data.FromAsciiString(nodeGuid.ToString("N")),
                         Data = Data.FromUtf8String(string.Format("LEVEL: {0}, NODE: {1}", level, nodeGuid))
@@ -73,7 +73,7 @@ namespace PromptuariumTests
                 string originalTreeString = originalTree.TreeToString();
                 await originalTree.SaveAsync(fileName).ConfigureAwait(false);
 
-                // Statistics stats = originalTree.Statistics;
+                Statistics stats = originalTree.GetStatistics();
 
                 Assert.IsTrue(new FileInfo(fileName).Length > 0);
 
