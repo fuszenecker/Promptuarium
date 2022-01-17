@@ -18,7 +18,7 @@
     <Company>Fuszenecker Software Development</Company>
     <ProjectUrl>https://github.com/fuszenecker/Promptuarium</ProjectUrl>
     <Description>Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, can be used in F#, too.</Description>
-    <Copyright>Copyright 2012-2021, Fuszenecker Róbert</Copyright>
+    <Copyright>Copyright 2012-2022, Fuszenecker Róbert</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/fuszenecker/Promptuarium</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
