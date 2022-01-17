@@ -21,26 +21,21 @@ namespace PromptuariumTests
         ///</summary>
         public TestContext? TestContext { get; set; }
 
+        private string TestFileName = CreateTestFileName();
+
         #region Additional test attributes
-        //
-        // You can use the following additional attributes as you write your tests:
-        //
-        // Use ClassInitialize to run code before running the first test in the class
-        // [ClassInitialize()]
-        // public static void MyClassInitialize(TestContext testContext) { }
-        //
-        // Use ClassCleanup to run code after all tests in a class have run
-        // [ClassCleanup()]
-        // public static void MyClassCleanup() { }
-        //
         // Use TestInitialize to run code before running each test
-        // [TestInitialize()]
-        // public void MyTestInitialize() { }
-        //
+        [TestInitialize()]
+        public void Initialize()
+        {
+            TestFileName = CreateTestFileName();
+        }
+
         // Use TestCleanup to run code after each test has run
-        // [TestCleanup()]
-        // public void MyTestCleanup() { }
-        //
+        [TestCleanup()]
+        public void MyTestCleanup()
+        {
+        }
         #endregion
 
         [TestMethod]
@@ -239,9 +234,9 @@ namespace PromptuariumTests
             using var stream = new MemoryStream();
 
             await tree.SaveAsync(stream).ConfigureAwait(false);
-            await tree.SaveAsync("ut0.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(stream.Length, new FileInfo("ut0.p").Length);
+            Assert.AreEqual(stream.Length, new FileInfo(TestFileName).Length);
         }
 
         [TestMethod]
@@ -273,9 +268,9 @@ namespace PromptuariumTests
         public async Task TreeToStringTest()
         {
             var tree = CreateTestTree();
-            await tree.SaveAsync("ut2.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
 
-            var tree2 = await Element.LoadAsync("ut2.p").ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             string treeString = tree.TreeToString();
             string treeString2 = tree2.TreeToString();
@@ -295,8 +290,8 @@ namespace PromptuariumTests
 
             tree.Add(subNode);
 
-            await tree.SaveAsync("ut3a.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut3a.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(0x55aa00ff, tree[tree.Children.Count - 1].Data?.AsInt());
             Assert.AreEqual(0x55aa00ff, tree2[tree2.Children.Count - 1].Data?.AsInt());
@@ -307,8 +302,8 @@ namespace PromptuariumTests
         {
             var tree = CreateTestTree();
 
-            await tree.SaveAsync("ut3b.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut3b.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             string treeString = tree.TreeToString();
             string treeString2 = tree2.TreeToString();
@@ -328,8 +323,8 @@ namespace PromptuariumTests
 
             tree[0].Add(numericNode);
 
-            await tree.SaveAsync("ut4a.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut4a.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(0x55aa00ff19781986, tree2[0][1].Data?.AsLong());
         }
@@ -346,8 +341,8 @@ namespace PromptuariumTests
 
             tree[0].Add(numericNode);
 
-            await tree.SaveAsync("ut4b.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut4b.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             double? value = tree2[0][1].MetaData?.AsDouble();
             Assert.IsTrue(value > 3.1415926 && value < 3.1415927);
@@ -367,8 +362,8 @@ namespace PromptuariumTests
 
             tree.Add(guidNode);
 
-            await tree.SaveAsync("ut5a.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut5a.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(0, testGuid.CompareTo(tree2[0].Data?.AsGuid()));
         }
@@ -385,8 +380,8 @@ namespace PromptuariumTests
 
             tree.Add(decimalNode);
 
-            await tree.SaveAsync("ut5b.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut5b.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(1.978M, tree2[0].MetaData?.AsDecimal());
         }
@@ -405,8 +400,8 @@ namespace PromptuariumTests
 
             tree.Add(byteArrayNode);
 
-            await tree.SaveAsync("ut6.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut6.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             byte[]? testBytes2 = tree2[0].Data?.AsByteArray();
 
@@ -429,8 +424,8 @@ namespace PromptuariumTests
 
             tree.Add(unicodeNode);
 
-            await tree.SaveAsync("ut7.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut7.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual("Hello, UTF-32LE world!", tree2[0].Data?.AsUtf32String());
             Assert.AreEqual("Hello, UTF-16LE world!", tree2[0].MetaData?.AsUtf16String());
@@ -448,9 +443,9 @@ namespace PromptuariumTests
             outerTree.MetaData = Data.FromShort(1000);
             outerTree.Data = await Data.FromElementAsync(innerTree).ConfigureAwait(false);
 
-            await outerTree.SaveAsync("ut8.p").ConfigureAwait(false);
+            await outerTree.SaveAsync(TestFileName).ConfigureAwait(false);
 
-            var outerTree2 = await Element.LoadAsync("ut8.p").ConfigureAwait(false);
+            var outerTree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
             var innerTree2 = await outerTree2.Data!.AsElementAsync().ConfigureAwait(false);
 
             Assert.AreEqual((short)1000, outerTree2.MetaData?.AsShort());
@@ -471,8 +466,8 @@ namespace PromptuariumTests
                 MetaData = Data.FromTimeSpan(testTimeSpan)
             };
 
-            await tree.SaveAsync("ut9a.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut9a.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTime()));
             Assert.AreEqual(0, testTimeSpan.CompareTo(tree2[0].MetaData?.AsTimeSpan()));
@@ -495,8 +490,8 @@ namespace PromptuariumTests
                 Data = Data.FromDateTimeOffset(birthDay),
             };
 
-            await tree.SaveAsync("ut9a.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut9a.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTimeOffset() ?? throw new ArgumentNullException("Test failed.")));
 
@@ -518,8 +513,8 @@ namespace PromptuariumTests
 
             tree.Add(unicodeNode);
 
-            await tree.SaveAsync("ut9b.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("ut9b.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual('Ä', tree2[0].Data?.AsChar());
             Assert.AreEqual('Ő', tree2[0].MetaData?.AsChar());
@@ -544,8 +539,8 @@ namespace PromptuariumTests
                 );
             }
 
-            await tree.SaveAsync("pt0.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("pt0.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(tree.TreeToString(), tree2.TreeToString());
         }
@@ -565,8 +560,8 @@ namespace PromptuariumTests
                 );
             }
 
-            await tree.SaveAsync("pt1.p").ConfigureAwait(false);
-            var tree2 = await Element.LoadAsync("pt1.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
             Assert.AreEqual(tree.TreeToString(), tree2.TreeToString());
         }
 
@@ -746,7 +741,7 @@ namespace PromptuariumTests
             tree.OnDataSaving += (s, _) => ((Element)s!).Data = Data.FromUtf8String("ROOT NODE MODIFIED");
             tree.OnDataSaved += (s, _) => ((Element)s!).Data = Data.FromUtf8String("ROOT NODE SAVED");
 
-            using var fs = new StreamWriter("base64.p");
+            using var fs = new StreamWriter(TestFileName);
             using var ms = new MemoryStream();
             await tree.SaveAsync(ms).ConfigureAwait(false);
             fs.Write(Convert.ToBase64String(ms.AsByteArray()));
@@ -770,7 +765,7 @@ namespace PromptuariumTests
             tree.OnDataSaving += (_, __) => savingEventFired++;
             tree.OnDataSaved += (_, __) => savedEventFired++;
 
-            await tree.SaveAsync("ut10.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
 
             var loadingNodes = new List<string>();
             var loadedNodes = new List<string>();
@@ -778,7 +773,7 @@ namespace PromptuariumTests
             Element.OnDataLoading += (s, _) => loadingNodes.Add(((Element)s!).Data!.AsUtf8String());
             Element.OnDataLoaded += (s, _) => loadedNodes.Add(((Element)s!).Data!.AsUtf8String());
 
-            var tree2 = await Element.LoadAsync("ut10.p").ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(1, savingEventFired);
             Assert.AreEqual(1, savedEventFired);
@@ -819,9 +814,9 @@ namespace PromptuariumTests
         {
             var tree = new Element();
 
-            await tree.SaveAsync("empty.p").ConfigureAwait(false);
+            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(1, new FileInfo("empty.p").Length);
+            Assert.AreEqual(1, new FileInfo(TestFileName).Length);
         }
 
         [TestMethod]
@@ -901,7 +896,7 @@ namespace PromptuariumTests
         }
 
         #region Private methods
-        private Element CreateTestTree()
+        private static Element CreateTestTree()
         {
             byte[] longData = new byte[150];
             byte[] veryLongData = new byte[7 * 512 * 1024 + 5 * 16 + 2];
@@ -937,6 +932,16 @@ namespace PromptuariumTests
             );
 
             return node;
+        }
+
+        private static string CreateTestFileName()
+        {
+            if (!Directory.Exists("test-data"))
+            {
+                Directory.CreateDirectory("test-data");
+            }
+
+            return $"test-data{Path.DirectorySeparatorChar}{Guid.NewGuid()}.p";
         }
         #endregion
     }
