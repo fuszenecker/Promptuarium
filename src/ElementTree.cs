@@ -100,6 +100,10 @@ namespace Promptuarium
         #endregion
 
         #region Indexer
+        /// <summary>
+        /// Get an item by index.
+        /// </summary>
+        /// <param name="index">The index.</param>
         public Element this[int index]
         {
             get
@@ -243,6 +247,9 @@ namespace Promptuarium
         #endregion
 
         #region Conversion functions
+        /// <summary>
+        /// Converts the element to string (for debugging purposes).
+        /// </summary>
         public override string ToString()
         {
             var stringBuilder = new StringBuilder();
@@ -250,6 +257,10 @@ namespace Promptuarium
             return stringBuilder.ToString().Trim();
         }
 
+        /// <summary>
+        /// Converts the whole tree to string (for debugging purposes).
+        /// </summary>
+        /// <param name="tabulator">An optional tabulator for conversion.</param>
         public string TreeToString(string tabulator = ">")
         {
             var stringBuilder = new StringBuilder();
@@ -257,6 +268,9 @@ namespace Promptuarium
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Converts the tree to Base64 string.
+        /// </summary>
         public async Task<string> ToBase64StringAsync(CancellationToken cancellationToken)
         {
             using var memoryStream = new MemoryStream();
@@ -269,14 +283,25 @@ namespace Promptuarium
             return Convert.ToBase64String(buffer);
         }
 
+        /// <summary>
+        /// Converts the tree to Base64 string.
+        /// </summary>
         public Task<string> ToBase64StringAsync() => ToBase64StringAsync(CancellationToken.None);
 
+        /// <summary>
+        /// Creates a tree from a Base64 string.
+        /// </summary>
+        /// <param name="base64String">The tree in Base64.</param>
         public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
         {
             using var memoryStream = new MemoryStream(Convert.FromBase64String(base64String));
             return await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Creates a tree from a Base64 string.
+        /// </summary>
+        /// <param name="base64String">The tree in Base64.</param>
         public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
         #endregion
 

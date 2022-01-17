@@ -153,6 +153,13 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        [ExpectedException(typeof(NullReferenceException))]
+        public void AnnNullThrowsException()
+        {
+            new Element().Add(null!);
+        }
+
+        [TestMethod]
         [ExpectedException(typeof(PromptuariumException))]
         public void Add()
         {
