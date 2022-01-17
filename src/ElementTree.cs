@@ -119,7 +119,7 @@ namespace Promptuarium
         /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
         /// </summary>
         /// <param name="nodes">The nodes to be added</param>
-        public void Add(params Element[] nodes)
+        public Element Add(params Element[] nodes)
         {
             foreach (Element node in nodes)
             {
@@ -132,18 +132,22 @@ namespace Promptuarium
                     throw new PromptuariumException("Node already exists in the tree");
                 }
             }
+
+            return this;
         }
 
         /// <summary>
         /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
         /// </summary>
         /// <param name="nodes">The nodes to be added</param>
-        public void Add(IEnumerable<Element> nodes)
+        public Element Add(IEnumerable<Element> nodes)
         {
             foreach (Element node in nodes)
             {
                 Add(node);
             }
+
+            return this;
         }
 
         /// <summary>
@@ -161,7 +165,7 @@ namespace Promptuarium
         /// Removes a subtree or node recursively.
         /// </summary>
         /// <param name="node">The node to be removed</param>
-        public void Remove(Element node)
+        public Element Remove(Element node)
         {
             var elementsToRemove = new List<Element>(node.Children);
 
@@ -171,6 +175,7 @@ namespace Promptuarium
             }
 
             Detach(node);
+            return this;
         }
 
         /// <summary>
@@ -189,7 +194,7 @@ namespace Promptuarium
         /// </summary>
         /// <param name="node">The node to be detached</param>
         /// <returns>The node itself</returns>
-        public static Element Detach(Element node)
+        public Element Detach(Element node)
         {
             if (node.Parent != null)
             {
@@ -205,7 +210,7 @@ namespace Promptuarium
                 node.Parent = null;
             }
 
-            return node;
+            return this;
         }
 
         /// <summary>
@@ -228,11 +233,12 @@ namespace Promptuarium
         /// Walks through the tree, and calls the handler for each node.
         /// </summary>
         /// <param name="handler">The method to be called for each nodes</param>
-        public void Walk(WalkHandler handler)
+        public Element Walk(WalkHandler handler)
         {
             var ancestors = new List<Element>();
             handler.Invoke(this, ancestors);
             Walk(this, ancestors, handler);
+            return this;
         }
         #endregion
 
