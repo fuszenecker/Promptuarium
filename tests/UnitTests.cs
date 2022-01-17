@@ -476,6 +476,29 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task DateTimeOffset()
+        {
+            var tree = new Element();
+
+            var testTimeSpan = new TimeSpan(3, 0, 0);
+            var birthDay = new DateTimeOffset(1978, 10, 27, 8, 0, 0, 230, testTimeSpan);
+
+            tree += new Element
+            {
+                Data = Data.FromDateTimeOffset(birthDay),
+            };
+
+            await tree.SaveAsync("ut9a.p").ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync("ut9a.p").ConfigureAwait(false);
+
+            Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTimeOffset() ?? throw new ArgumentNullException("Test failed.")));
+
+            string treeString = tree.TreeToString();
+            string tree2String = tree2.TreeToString();
+            Assert.AreEqual(treeString, tree2String);
+        }
+
+        [TestMethod]
         public async Task Char()
         {
             var tree = new Element();

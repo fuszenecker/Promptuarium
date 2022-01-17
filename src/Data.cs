@@ -243,6 +243,27 @@ namespace Promptuarium
             return new DateTime(stream.AsLong());
         }
 
+        public static Stream FromDateTimeOffset(DateTimeOffset value)
+        {
+            var result = new MemoryStream();
+            result.Write(BitConverter.GetBytes(value.Ticks), 0, sizeof(long));
+            result.Write(BitConverter.GetBytes(value.Offset.Ticks), 0, sizeof(long));
+            result.Position = 0;
+            return result;
+        }
+
+        public static DateTimeOffset AsDateTimeOffset(this Stream stream)
+        {
+            var bytes = GetBuffer(stream, 2 * sizeof(long));
+            var datetimeBytes = new Span<byte>(bytes, 0, sizeof(long));
+            var offsetBytes = new Span<byte>(bytes, sizeof(long), sizeof(long));
+
+            return new DateTimeOffset(
+                new DateTime(BitConverter.ToInt64(datetimeBytes)),
+                new TimeSpan(BitConverter.ToInt64(offsetBytes))
+            );
+        }
+
         public static Stream FromTimeSpan(TimeSpan value)
         {
             return FromLong(value.Ticks);
