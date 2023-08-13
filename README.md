@@ -6,7 +6,7 @@
 
 Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, can be used in F#, too.
 
-Last reviewed: 07-AUG-2019
+Last reviewed: 13-AUG-2023.
 
 ## Promptuarium details
 
