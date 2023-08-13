@@ -27,7 +27,7 @@ There are many-many **conversion operations** that simplifies storing and exchan
 * DateTime, TimeSpan,
 * GUID,
 * string (ASCII, UTF-8, UTF-16LE and UTF-32LE),
-* **VarInt** and **VarUInt** saves as many bytes as possible.
+* **VarInt** and **VarUInt** saves as few bytes as possible.
 
 Storing other types are also easy, just serialize them into a stream or byte array. 
 The **events** help you to load the node content dynamically, i.e. keep big data in file streams.
