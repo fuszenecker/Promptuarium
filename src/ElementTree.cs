@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 namespace Promptuarium
 {
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
-    public partial class Element
+    public partial class Element : IEnumerable<Element>
     {
         #region Properties
         /// <summary>
@@ -303,6 +304,18 @@ namespace Promptuarium
         /// </summary>
         /// <param name="base64String">The tree in Base64.</param>
         public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
+        #endregion
+
+        #region IEnumerable<Element> implementation
+        public IEnumerator<Element> GetEnumerator()
+        {
+            return Children.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable)Children).GetEnumerator();
+        }
         #endregion
 
         #region Private Methods

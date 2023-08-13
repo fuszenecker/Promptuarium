@@ -149,7 +149,7 @@ namespace PromptuariumTests
 
         [TestMethod]
         [ExpectedException(typeof(NullReferenceException))]
-        public void AnnNullThrowsException()
+        public void AddNullThrowsException()
         {
             new Element().Add(null!);
         }
@@ -199,6 +199,46 @@ namespace PromptuariumTests
             Assert.AreEqual(5, tree[0].Data?.ReadByte());
             Assert.AreEqual(9, tree[1].Data?.ReadByte());
             Assert.AreEqual(7, tree[4].Data?.ReadByte());
+        }
+
+        [TestMethod]
+        public void AddCollectionInitializer()
+        {
+            var tree = new Element()
+            {
+                new Element(new MemoryStream(new byte[] { 1 }), null),
+                new Element(new MemoryStream(new byte[] { 2 }), null),
+                new Element(new MemoryStream(new byte[] { 3 }), null)
+            };
+
+            Assert.AreEqual(null, tree.Parent);
+            Assert.AreEqual(3, tree.Children.Count);
+        }
+
+        [TestMethod]
+        public void CheckEnumerability()
+        {
+            var tree = new Element(null, null);
+
+            tree.Add(
+                new byte[] { 5, 9, 3, 6, 7 }.Select(n => new Element
+                                                         (
+                                                             new MemoryStream(new[] { n }), new MemoryStream(new[] { n }),
+                                                             new Element(new MemoryStream(new byte[] { 66 }), null)
+                                                         ))
+                );
+
+            Assert.AreEqual(null, tree.Parent);
+
+            Assert.AreEqual(5, tree[0].Data?.ReadByte());
+            Assert.AreEqual(9, tree[1].Data?.ReadByte());
+            Assert.AreEqual(7, tree[4].Data?.ReadByte());
+
+            int i = 0;
+            foreach (var child in tree)
+            {
+                Assert.AreEqual(tree[i++], child);
+            }
         }
 
         [TestMethod]
