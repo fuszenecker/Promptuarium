@@ -14,7 +14,7 @@ Promptuarium is a tree-based solution to store data and metadata in a file strea
 
 However, Promptuarium doesn't use any compression algorithms, **it saves as many bytes as possible** (uses binary container format). Theoretically, there is **no size limit** in the binary container, but the .NET limits the data/metadata sizes to 8 exabytes.
 
-The class has list- and **LINQ-friendly** operations to make it easy to use Promptuarium in any .NET project (even in the upcoming .NET 5 Core version). F# examples are available in Wiki.
+The class has list- and **LINQ-friendly** operations to make it easy to use Promptuarium in any .NET project.
 
 There are many-many **conversion operations** that simplifies storing and exchanging data (supported by the converter class):
 
@@ -24,10 +24,10 @@ There are many-many **conversion operations** that simplifies storing and exchan
 * short, integer, long, (enumeration),
 * float, double,
 * decimal,
-* DateTime, TimeSpan,
+* DateTime, DateTimeOffset, TimeSpan,
 * GUID,
 * string (ASCII, UTF-8, UTF-16LE and UTF-32LE),
-* **VarInt** and **VarUInt** saves as few bytes as possible.
+* **VarInt** and **VarUInt** saves as many bytes as possible.
 
 Storing other types are also easy, just serialize them into a stream or byte array. 
 The **events** help you to load the node content dynamically, i.e. keep big data in file streams.
