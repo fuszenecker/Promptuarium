@@ -1,5 +1,6 @@
 {
     "dotnet.defaultSolution": "Promptuarium.sln",
+    "omnisharp.enableEditorConfigSupport": true,
     "cSpell.words": [
         "datetime",
         "LINQ",
