@@ -7,7 +7,7 @@
 **Assembly**: Promptuarium\.dll
 
   
-List of children\. it is never null\.
+List of children\. it is never null, but can be empty
 
 ```csharp
 public System.Collections.Generic.IList<Promptuarium.Element> Children { get; }

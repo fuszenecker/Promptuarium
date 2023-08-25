@@ -14,6 +14,7 @@ namespace Promptuarium;
 public partial class Element : IEnumerable<Element>
 {
     #region Properties
+
     /// <summary>
     /// Data storage
     /// </summary>
@@ -25,20 +26,30 @@ public partial class Element : IEnumerable<Element>
     public Stream? MetaData { get; set; }
 
     /// <summary>
-    /// Reference to the parent node; root node has null as parent.
+    /// Reference to the parent node; root node has null as parent
     /// </summary>
     public Element? Parent { get; set; }
 
     /// <summary>
-    /// List of children. it is never null.
+    /// List of children. it is never null, but can be empty
     /// </summary>
     public IList<Element> Children { get; } = new List<Element>();
+    
     #endregion
 
     #region Constructors
+
     /// <summary>
     /// Constructor without any data
     /// </summary>
+    /// <remarks>
+    /// The constructor creates an empty node.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var node = new Element();
+    /// </code>
+    /// </example>
     public Element()
     {
     }
@@ -47,6 +58,14 @@ public partial class Element : IEnumerable<Element>
     /// Copy constructor
     /// </summary>
     /// <param name="other">Name of the object to by copied</param>
+    /// <remarks>
+    /// The copy constructor creates a deep copy of the object.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var copy = new Element(original);
+    /// </code>
+    /// </example>
     public Element(Element other)
     {
         Data = other.Data;
@@ -67,6 +86,18 @@ public partial class Element : IEnumerable<Element>
     /// <param name="data">Data of the parent node</param>
     /// <param name="metaData"></param>
     /// <param name="children">List of child nodes</param>
+    /// <example>
+    /// <code>
+    /// var child1 = new Element();
+    /// var child2 = new Element();
+    /// var child3 = new Element();
+    /// 
+    /// var data = Data.FromUtf8String("Hello world");
+    /// var metaData = Data.FromUtf8String("Hello world");
+    /// 
+    /// var node = new Element(data, metaData, child1, child2, child3);
+    /// </code>
+    /// </example>
     public Element(Stream? data, Stream? metaData, params Element[] children)
     {
         Data = data;
@@ -86,6 +117,15 @@ public partial class Element : IEnumerable<Element>
     /// <param name="data">Data of the parent node</param>
     /// <param name="metaData"></param>
     /// <param name="children">LINQ query of child nodes</param>
+    /// <example>
+    /// <code>
+    /// var data = Data.FromUtf8String("Hello world");
+    /// var metaData = Data.FromInt32(123);
+    /// 
+    /// var tree = new Element(data, metaData,
+    ///    Enumerable.Range(0, 10).Select(i => new Element(Data.FromVarInt(i))));
+    /// </code>
+    /// </example>
     public Element(Stream? data, Stream? metaData, IEnumerable<Element> children)
     {
         Data = data;
@@ -98,13 +138,22 @@ public partial class Element : IEnumerable<Element>
             child.Parent = this;
         }
     }
+    
     #endregion
 
     #region Indexer
+
     /// <summary>
     /// Get an item by index.
     /// </summary>
     /// <param name="index">The index.</param>
+    /// <returns>The element</returns>
+    /// <exception cref="PromptuariumException">If the index is out of range</exception>
+    /// <example>
+    /// <code>
+    /// var node = tree[0];
+    /// </code>
+    /// </example>
     public Element this[int index]
     {
         get
@@ -117,13 +166,36 @@ public partial class Element : IEnumerable<Element>
             throw new PromptuariumException($"Index {index} in out of range [0...{Children.Count}]");
         }
     }
+
     #endregion
 
     #region Tree operations
+    
     /// <summary>
     /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
     /// </summary>
     /// <param name="nodes">The nodes to be added</param>
+    /// <exception cref="PromptuariumException">Thrown if the node already exists in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// </code>
+    /// 
+    /// <code>
+    /// var tree = new Element()
+    /// {
+    ///     new Element(),
+    ///     new Element(),
+    ///     new Element()
+    /// };
+    /// </code>
+    /// </example>
     public Element Add(params Element[] nodes)
     {
         foreach (Element node in nodes)
@@ -145,6 +217,18 @@ public partial class Element : IEnumerable<Element>
     /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
     /// </summary>
     /// <param name="nodes">The nodes to be added</param>
+    /// <exception cref="PromptuariumException">Thrown if the node already exists in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// </code>
+    /// </example>
     public Element Add(IEnumerable<Element> nodes)
     {
         foreach (Element node in nodes)
@@ -160,6 +244,20 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <param name="tree">The tree to be extended</param>
     /// <param name="node">The node to be added</param>
+    /// <exception cref="PromptuariumException">Thrown if the node already exists in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree += node1;
+    /// tree += node2;
+    /// tree += node3;
+    /// </code>
+    /// </example>
     public static Element operator +(Element tree, Element node)
     {
         tree.Add(node);
@@ -170,6 +268,20 @@ public partial class Element : IEnumerable<Element>
     /// Removes a subtree or node recursively.
     /// </summary>
     /// <param name="node">The node to be removed</param>
+    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// tree.Remove(node2);
+    /// </code>
+    /// </example>
     public Element Remove(Element node)
     {
         var elementsToRemove = new List<Element>(node.Children);
@@ -188,6 +300,20 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <param name="tree">The tree to be shrunk</param>
     /// <param name="node">The node to be removed</param>
+    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// tree -= node2;
+    /// </code>
+    /// </example>
     public static Element operator -(Element tree, Element node)
     {
         tree.Remove(node);
@@ -199,6 +325,20 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <param name="node">The node to be detached</param>
     /// <returns>The node itself</returns>
+    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// var detachedNode = tree.Detach(node2);
+    /// </code>
+    /// </example>
     public Element Detach(Element node)
     {
         if (node.Parent != null)
@@ -222,6 +362,20 @@ public partial class Element : IEnumerable<Element>
     /// Detaches a subtree or node.
     /// </summary>
     /// <returns>The node itself</returns>
+    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// var detachedNode = node2.Detach();
+    /// </code>
+    /// </example>
     public Element Detach()
     {
         return Detach(this);
@@ -238,6 +392,24 @@ public partial class Element : IEnumerable<Element>
     /// Walks through the tree, and calls the handler for each node.
     /// </summary>
     /// <param name="handler">The method to be called for each nodes</param>
+    /// <returns>The node itself</returns>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// tree.Walk((Element node, IReadOnlyCollection&lt;Element&gt; ancestors) =>
+    ///    {
+    ///        Console.WriteLine(node);
+    ///    });
+    ///    
+    /// </code>
+    /// </example>
     public Element Walk(WalkHandler handler)
     {
         var ancestors = new List<Element>();
@@ -245,12 +417,20 @@ public partial class Element : IEnumerable<Element>
         Walk(this, ancestors, handler);
         return this;
     }
+    
     #endregion
 
     #region Conversion functions
     /// <summary>
     /// Converts the element to string (for debugging purposes).
     /// </summary>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// tree.Data = Data.FromUtf8String("Hello world");
+    /// var nodeString = tree.ToString();
+    /// </code>
+    /// </example>
     public override string ToString()
     {
         var stringBuilder = new StringBuilder();
@@ -262,6 +442,23 @@ public partial class Element : IEnumerable<Element>
     /// Converts the whole tree to string (for debugging purposes).
     /// </summary>
     /// <param name="tabulator">An optional tabulator for conversion.</param>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    ///     
+    /// var node2 = new Element();
+    /// node2.Data = Data.FromUtf8String("Hello world");
+    /// 
+    /// var node3 = new Element();
+    /// node3.Data = Data.FromUtf8String("Hello world");
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// var treeString = tree.TreeToString();
+    /// </code>
+    /// </example>
     public string TreeToString(string tabulator = ">")
     {
         var stringBuilder = new StringBuilder();
@@ -272,6 +469,25 @@ public partial class Element : IEnumerable<Element>
     /// <summary>
     /// Converts the tree to Base64 string.
     /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The tree in Base64.</returns>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// 
+    /// var node2 = new Element();
+    /// node2.Data = Data.FromUtf8String("Hello world");
+    /// 
+    /// var node3 = new Element();
+    /// node3.Data = Data.FromUtf8String("Hello world");
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// var base64String = await tree.ToBase64StringAsync();
+    /// </code>
+    /// </example>
     public async Task<string> ToBase64StringAsync(CancellationToken cancellationToken)
     {
         using var memoryStream = new MemoryStream();
@@ -287,12 +503,37 @@ public partial class Element : IEnumerable<Element>
     /// <summary>
     /// Converts the tree to Base64 string.
     /// </summary>
+    /// <returns>The tree in Base64.</returns>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    ///
+    /// var node2 = new Element();
+    /// node2.Data = Data.FromUtf8String("Hello world");
+    /// 
+    /// var node3 = new Element();
+    /// node3.Data = Data.FromUtf8String("Hello world");
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// var base64String = await tree.ToBase64StringAsync();
+    /// </code>
+    /// </example>
     public Task<string> ToBase64StringAsync() => ToBase64StringAsync(CancellationToken.None);
 
     /// <summary>
     /// Creates a tree from a Base64 string.
     /// </summary>
     /// <param name="base64String">The tree in Base64.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The tree.</returns>
+    /// <example>
+    /// <code>
+    /// var tree = await Element.FromBase64StringAsync(base64String);
+    /// </code>
+    /// </example>
     public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
     {
         using var memoryStream = new MemoryStream(Convert.FromBase64String(base64String));
@@ -303,15 +544,63 @@ public partial class Element : IEnumerable<Element>
     /// Creates a tree from a Base64 string.
     /// </summary>
     /// <param name="base64String">The tree in Base64.</param>
+    /// <returns>The tree.</returns>
+    /// <example>
+    /// <code>
+    /// var tree = await Element.FromBase64StringAsync(base64String);
+    /// </code>
+    /// </example>
     public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
+    
     #endregion
 
     #region IEnumerable<Element> implementation
+
+    /// <summary>
+    /// Returns an enumerator that iterates through the Children
+    /// </summary>
+    /// <returns>The enumerator of children</returns>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// foreach (var node in tree)
+    /// {
+    ///    Console.WriteLine(node.ToString());
+    /// }
+    /// </code>
+    /// </example>
     public IEnumerator<Element> GetEnumerator()
     {
         return Children.GetEnumerator();
     }
 
+    /// <summary>
+    /// Returns an enumerator that iterates through the Children
+    /// </summary>
+    /// <returns>The enumerator of children</returns>
+    /// <example>
+    /// <code>
+    /// var tree = new Element();
+    /// 
+    /// var node1 = new Element();
+    /// var node2 = new Element();
+    /// var node3 = new Element();
+    /// 
+    /// tree.Add(node1, node2, node3);
+    /// 
+    /// foreach (var node in tree)
+    /// {
+    ///   Console.WriteLine(node.ToString());
+    /// }
+    /// </code>
+    /// </example>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return ((IEnumerable)Children).GetEnumerator();
@@ -408,5 +697,6 @@ public partial class Element : IEnumerable<Element>
     }
 
     private string DebuggerDisplay => ToString();
+
     #endregion
 }

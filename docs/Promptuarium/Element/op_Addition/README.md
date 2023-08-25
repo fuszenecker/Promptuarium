@@ -27,3 +27,23 @@ The node to be added
 
 [Element](../README.md)
 
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+Thrown if the node already exists in the tree
+
+## Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree += node1;
+tree += node2;
+tree += node3;
+```
+

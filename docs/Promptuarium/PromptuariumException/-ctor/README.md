@@ -10,13 +10,16 @@
 
 | Constructor | Summary |
 | ----------- | ------- |
-| [PromptuariumException()](#2948304758) | |
-| [PromptuariumException(String, Exception)](#3569244339) | |
-| [PromptuariumException(String)](#2107054572) | |
+| [PromptuariumException()](#2948304758) | Initializes a new instance of the [PromptuariumException](../README.md) class\. |
+| [PromptuariumException(String, Exception)](#3569244339) | Initializes a new instance of the [PromptuariumException](../README.md) class\. |
+| [PromptuariumException(String)](#2107054572) | Initializes a new instance of the [PromptuariumException](../README.md) class\. |
 
 <a id="2948304758"></a>
 
 ## PromptuariumException\(\) 
+
+  
+Initializes a new instance of the [PromptuariumException](../README.md) class\.
 
 ```csharp
 public PromptuariumException()
@@ -26,6 +29,9 @@ public PromptuariumException()
 
 ## PromptuariumException\(String, Exception\) 
 
+  
+Initializes a new instance of the [PromptuariumException](../README.md) class\.
+
 ```csharp
 public PromptuariumException(string message, Exception innerException)
 ```
@@ -34,9 +40,16 @@ public PromptuariumException(string message, Exception innerException)
 
 **message** &ensp; [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)
 
-**innerException** &ensp; [Exception](https://docs.microsoft.com/en-us/dotnet/api/system.exception)<a id="2107054572"></a>
+The exception message
+
+**innerException** &ensp; [Exception](https://docs.microsoft.com/en-us/dotnet/api/system.exception)
+
+The inner exception<a id="2107054572"></a>
 
 ## PromptuariumException\(String\) 
+
+  
+Initializes a new instance of the [PromptuariumException](../README.md) class\.
 
 ```csharp
 public PromptuariumException(string message)
@@ -45,3 +58,5 @@ public PromptuariumException(string message)
 ### Parameters
 
 **message** &ensp; [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)
+
+The exception message

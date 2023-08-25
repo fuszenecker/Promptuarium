@@ -23,3 +23,17 @@ The index\.
 
 [Element](../README.md)
 
+The element
+
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+If the index is out of range
+
+## Examples
+
+```
+var node = tree[0];
+```
+

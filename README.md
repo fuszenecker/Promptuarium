@@ -29,7 +29,7 @@ There are many-many **conversion operations** that simplifies storing and exchan
 * string (ASCII, UTF-8, UTF-16LE and UTF-32LE),
 * **VarInt** and **VarUInt** saves as many bytes as possible.
 
-Storing other types are also easy, just serialize them into a stream or byte array. 
+Storing other types are also easy, just serialize them into a stream or byte array.
 The **events** help you to load the node content dynamically, i.e. keep big data in file streams.
 
 The ```Statistics``` property gives information about i.e.
@@ -52,9 +52,9 @@ See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Exampl
 
 * [Promptuarium](https://www.nuget.org/packages/Promptuarium/)
 
-## Licence
+## License
 
-This code is is distributed under the terms of the MIT licence.
+This code is is distributed under the terms of the MIT license.
 
 ## Internals
 

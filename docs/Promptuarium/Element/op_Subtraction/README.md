@@ -27,3 +27,23 @@ The node to be removed
 
 [Element](../README.md)
 
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+Thrown if the node does not exist in the tree
+
+## Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree.Add(node1, node2, node3);
+
+tree -= node2;
+```
+

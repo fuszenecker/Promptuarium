@@ -28,7 +28,29 @@ public Promptuarium.Element Detach()
 
 [Element](../README.md)
 
-The node itself<a id="119873975"></a>
+The node itself
+
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+Thrown if the node does not exist in the tree
+
+### Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree.Add(node1, node2, node3);
+
+var detachedNode = node2.Detach();
+```
+
+<a id="119873975"></a>
 
 ## Detach\(Element\) 
 
@@ -50,3 +72,24 @@ The node to be detached
 [Element](../README.md)
 
 The node itself
+
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+Thrown if the node does not exist in the tree
+
+### Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree.Add(node1, node2, node3);
+
+var detachedNode = tree.Detach(node2);
+```
+

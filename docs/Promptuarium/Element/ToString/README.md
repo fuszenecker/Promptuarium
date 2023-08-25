@@ -17,3 +17,11 @@ public override string ToString()
 
 [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)
 
+## Examples
+
+```
+var tree = new Element();
+tree.Data = Data.FromUtf8String("Hello world");
+var nodeString = tree.ToString();
+```
+

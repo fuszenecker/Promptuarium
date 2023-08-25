@@ -23,3 +23,21 @@ An optional tabulator for conversion\.
 
 [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)
 
+## Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+    
+var node2 = new Element();
+node2.Data = Data.FromUtf8String("Hello world");
+
+var node3 = new Element();
+node3.Data = Data.FromUtf8String("Hello world");
+
+tree.Add(node1, node2, node3);
+
+var treeString = tree.TreeToString();
+```
+

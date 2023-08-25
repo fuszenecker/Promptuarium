@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Converts a stream to a char value\.
+
 ```csharp
 public static char AsChar(this System.IO.Stream stream)
 ```
@@ -14,7 +17,17 @@ public static char AsChar(this System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The source stream
+
 ### Returns
 
 [Char](https://docs.microsoft.com/en-us/dotnet/api/system.char)
+
+The char value
+
+## Examples
+
+```
+char metadata = node.MetaData.AsChar();
+```
 

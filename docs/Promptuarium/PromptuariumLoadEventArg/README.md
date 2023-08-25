@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Base class for all Promptuarium load events
+
 ```csharp
 public class PromptuariumLoadEventArg : Promptuarium.PromptuariumEventArgs
 ```

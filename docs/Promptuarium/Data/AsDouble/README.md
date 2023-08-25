@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Converts a stream to a double value\.
+
 ```csharp
 public static double AsDouble(this System.IO.Stream stream)
 ```
@@ -14,7 +17,17 @@ public static double AsDouble(this System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The source stream
+
 ### Returns
 
 [Double](https://docs.microsoft.com/en-us/dotnet/api/system.double)
+
+The double value
+
+## Examples
+
+```
+double data = node.Data.AsDouble();
+```
 

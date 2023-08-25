@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The depth of the tree
+
 ```csharp
 public int Depth
 ```

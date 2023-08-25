@@ -32,9 +32,19 @@ The tree in Base64\.
 
 **cancellationToken** &ensp; [CancellationToken](https://docs.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken)
 
+The cancellation token\.
+
 ### Returns
 
 [Task](https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task-1)\<[Element](../README.md)\>
+
+The tree\.
+
+### Examples
+
+```
+var tree = await Element.FromBase64StringAsync(base64String);
+```
 
 <a id="3836437132"></a>
 
@@ -56,4 +66,12 @@ The tree in Base64\.
 ### Returns
 
 [Task](https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task-1)\<[Element](../README.md)\>
+
+The tree\.
+
+### Examples
+
+```
+var tree = await Element.FromBase64StringAsync(base64String);
+```
 

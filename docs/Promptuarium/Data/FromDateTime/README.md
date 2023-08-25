@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Creates a stream from a DateTime value\.
+
 ```csharp
 public static System.IO.Stream FromDateTime(DateTime value)
 ```
@@ -14,7 +17,18 @@ public static System.IO.Stream FromDateTime(DateTime value)
 
 **value** &ensp; [DateTime](https://docs.microsoft.com/en-us/dotnet/api/system.datetime)
 
+The DateTime value
+
 ### Returns
 
 [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
+
+The stream
+
+## Examples
+
+```
+node.Data = Data.FromDateTime(DateTime.Now);
+node.MetaData = Data.FromDateTime(DateTime.UtcNow);
+```
 

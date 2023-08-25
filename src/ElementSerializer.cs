@@ -10,6 +10,7 @@ namespace Promptuarium;
 public partial class Element
 {
     #region Private types
+
     private struct SizeDescriptor
     {
         public SizeType SizeType;
@@ -21,9 +22,11 @@ public partial class Element
         public Element? PreviouslySerialized;
         public int StepUpNodesRequired;
     }
+
     #endregion
 
     #region Serialization routines
+
     private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments, CancellationToken cancellationToken)
     {
         for (int x = 0; x < serializationArguments.StepUpNodesRequired; x++)
@@ -59,37 +62,34 @@ public partial class Element
         {
             stream.WriteByte(ControlByte(direction, DataType.Data, SizeType.Linear, 0));
         }
+
         #region Saving Data
 
-        #region Firing event
+        // Firing event
         OnDataSaving?.Invoke(this, new PromptuariumSavingEventArgs());
-        #endregion
 
         if (Contains(Data))
         {
             appending = await SerializeContentAsync(stream, Data!, DataType.Data, direction, appending, cancellationToken).ConfigureAwait(false);
         }
 
-        #region Firing event
+        // Firing event
         OnDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
-        #endregion
 
         #endregion
 
         #region Saving MetaData
 
-        #region Firing event
+        // Firing event
         OnMetaDataSaving?.Invoke(this, new PromptuariumSavingEventArgs());
-        #endregion
 
         if (Contains(MetaData))
         {
             appending = await SerializeContentAsync(stream, MetaData!, DataType.MetaData, direction, appending, cancellationToken).ConfigureAwait(false);
         }
 
-        #region Firing event
+        // Firing event
         OnMetaDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
-        #endregion
 
         #endregion
 
@@ -209,9 +209,11 @@ public partial class Element
     {
         return stream?.Length > 0;
     }
+
     #endregion
 
     #region Deserialization routines
+
     private static async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
     {
         var root = new Element();
@@ -266,15 +268,13 @@ public partial class Element
                 {
                     node.Data ??= new MemoryStream();
 
-                    #region Firing event
+                    // Firing event
                     OnDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
-                    #endregion
 
                     await node.Data.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
 
-                    #region Firing event
+                    // Firing event
                     OnDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
-                    #endregion
                 }
             }
             else
@@ -283,15 +283,13 @@ public partial class Element
                 {
                     node.MetaData ??= new MemoryStream();
 
-                    #region Firing event
+                    // Firing event
                     OnMetaDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
-                    #endregion
 
                     await node.MetaData.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
 
-                    #region Firing event
+                    // Firing event
                     OnMetaDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
-                    #endregion
                 }
             }
         }
@@ -335,5 +333,6 @@ public partial class Element
             node.Parent?.Remove(node);
         }
     }
+
     #endregion
 }

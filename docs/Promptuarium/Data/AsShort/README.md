@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Converts a stream to a short value\.
+
 ```csharp
 public static short AsShort(this System.IO.Stream stream)
 ```
@@ -14,7 +17,17 @@ public static short AsShort(this System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The source stream
+
 ### Returns
 
 [Int16](https://docs.microsoft.com/en-us/dotnet/api/system.int16)
+
+The short value
+
+## Examples
+
+```
+short data = node.Data.AsShort();
+```
 

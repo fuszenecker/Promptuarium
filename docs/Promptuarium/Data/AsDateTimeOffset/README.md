@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Converts a stream to a DateTimeOffset value\.
+
 ```csharp
 public static DateTimeOffset AsDateTimeOffset(this System.IO.Stream stream)
 ```
@@ -14,7 +17,17 @@ public static DateTimeOffset AsDateTimeOffset(this System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The source stream
+
 ### Returns
 
 [DateTimeOffset](https://docs.microsoft.com/en-us/dotnet/api/system.datetimeoffset)
+
+The DateTimeOffset value
+
+## Examples
+
+```
+DateTimeOffset data = node.Data.AsDateTimeOffset();
+```
 

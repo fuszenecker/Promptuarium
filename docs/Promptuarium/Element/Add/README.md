@@ -34,6 +34,35 @@ The nodes to be added
 
 [Element](../README.md)
 
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+Thrown if the node already exists in the tree
+
+### Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree.Add(node1, node2, node3);
+```
+
+
+
+```
+var tree = new Element()
+{
+    new Element(),
+    new Element(),
+    new Element()
+};
+```
+
 <a id="1328999739"></a>
 
 ## Add\(IEnumerable\<Element\>\) 
@@ -54,4 +83,22 @@ The nodes to be added
 ### Returns
 
 [Element](../README.md)
+
+### Exceptions
+
+[PromptuariumException](../../PromptuariumException/README.md)
+
+Thrown if the node already exists in the tree
+
+### Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree.Add(node1, node2, node3);
+```
 

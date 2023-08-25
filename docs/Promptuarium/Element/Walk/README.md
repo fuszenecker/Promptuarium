@@ -23,3 +23,23 @@ The method to be called for each nodes
 
 [Element](../README.md)
 
+The node itself
+
+## Examples
+
+```
+var tree = new Element();
+
+var node1 = new Element();
+var node2 = new Element();
+var node3 = new Element();
+
+tree.Add(node1, node2, node3);
+
+tree.Walk((Element node, IReadOnlyCollection<Element> ancestors) =>
+   {
+       Console.WriteLine(node);
+   });
+   
+```
+

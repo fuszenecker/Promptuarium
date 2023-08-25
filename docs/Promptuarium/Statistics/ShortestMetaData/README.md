@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The shortest metadata in the tree
+
 ```csharp
 public long ShortestMetaData
 ```

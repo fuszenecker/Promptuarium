@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The longest metadata in the tree
+
 ```csharp
 public long LongestMetaData
 ```

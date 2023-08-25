@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Event handler for all Promptuarium metadata saved events
+
 ```csharp
 public event EventHandler<Promptuarium.PromptuariumSavedEventArgs>? OnMetaDataSaved
 ```

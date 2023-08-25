@@ -10,17 +10,17 @@
 
 | Method | Summary |
 | ------ | ------- |
-| [SaveAsync(Stream, CancellationToken)](#404143214) | Saves the tree into a stream \(synchronously\)\. |
-| [SaveAsync(Stream)](#2654619920) | |
-| [SaveAsync(String, CancellationToken)](#717888685) | Saves the tree into a file \(synchronously\)\. |
-| [SaveAsync(String)](#3052064839) | Saves the tree into a file \(synchronously\)\. |
+| [SaveAsync(Stream, CancellationToken)](#404143214) | Saves the tree into a stream\. |
+| [SaveAsync(Stream)](#2654619920) | Saves the tree into a stream\. |
+| [SaveAsync(String, CancellationToken)](#717888685) | Saves the tree into a file\. |
+| [SaveAsync(String)](#3052064839) | Saves the tree into a file\. |
 
 <a id="404143214"></a>
 
 ## SaveAsync\(Stream, CancellationToken\) 
 
   
-Saves the tree into a stream \(synchronously\)\.
+Saves the tree into a stream\.
 
 ```csharp
 public System.Threading.Tasks.Task SaveAsync(System.IO.Stream stream, System.Threading.CancellationToken cancellationToken)
@@ -34,13 +34,25 @@ The target stream
 
 **cancellationToken** &ensp; [CancellationToken](https://docs.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken)
 
+The cancellation token
+
 ### Returns
 
 [Task](https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task)
 
-True, if no error occurred<a id="2654619920"></a>
+### Examples
+
+```
+using var stream = new FileStream("test.p", FileMode.Create);
+await tree.SaveAsync(stream, cancellationToken);
+```
+
+<a id="2654619920"></a>
 
 ## SaveAsync\(Stream\) 
+
+  
+Saves the tree into a stream\.
 
 ```csharp
 public System.Threading.Tasks.Task SaveAsync(System.IO.Stream stream)
@@ -50,16 +62,27 @@ public System.Threading.Tasks.Task SaveAsync(System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The target stream
+
 ### Returns
 
 [Task](https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task)
+
+True, if no error occurred
+
+### Examples
+
+```
+using var stream = new FileStream("test.p", FileMode.Create);
+await tree.SaveAsync(stream);
+```
 
 <a id="717888685"></a>
 
 ## SaveAsync\(String, CancellationToken\) 
 
   
-Saves the tree into a file \(synchronously\)\.
+Saves the tree into a file\.
 
 ```csharp
 public System.Threading.Tasks.Task SaveAsync(string fileName, System.Threading.CancellationToken cancellationToken)
@@ -79,12 +102,18 @@ The cancellation token
 
 [Task](https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task)
 
-True, if no error occurred<a id="3052064839"></a>
+### Examples
+
+```
+await tree.SaveAsync("test.p", cancellationToken);
+```
+
+<a id="3052064839"></a>
 
 ## SaveAsync\(String\) 
 
   
-Saves the tree into a file \(synchronously\)\.
+Saves the tree into a file\.
 
 ```csharp
 public System.Threading.Tasks.Task SaveAsync(string fileName)
@@ -100,4 +129,9 @@ The target file name
 
 [Task](https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task)
 
-True, if no error occurred
+### Examples
+
+```
+await tree.SaveAsync("test.p");
+```
+

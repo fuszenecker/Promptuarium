@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Converts a stream to a GUID value\.
+
 ```csharp
 public static Guid AsGuid(this System.IO.Stream stream)
 ```
@@ -14,7 +17,17 @@ public static Guid AsGuid(this System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The source stream
+
 ### Returns
 
 [Guid](https://docs.microsoft.com/en-us/dotnet/api/system.guid)
+
+The GUID value
+
+## Examples
+
+```
+Guid metadata = node.MetaData.AsGuid();
+```
 

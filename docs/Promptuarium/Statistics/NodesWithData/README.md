@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The number of nodes with data
+
 ```csharp
 public int NodesWithData
 ```

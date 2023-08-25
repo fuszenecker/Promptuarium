@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The number of nodes in the tree
+
 ```csharp
 public int Nodes
 ```

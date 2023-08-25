@@ -1,6 +1,9 @@
 {
     "dotnet.defaultSolution": "Promptuarium.sln",
     "cSpell.words": [
-        "Promptuarium"
+        "datetime",
+        "LINQ",
+        "Promptuarium",
+        "roslynator"
     ]
 }

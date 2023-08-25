@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The number of nodes without children
+
 ```csharp
 public int NodesWithoutChildren
 ```

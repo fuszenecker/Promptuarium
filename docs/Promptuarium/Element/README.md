@@ -37,10 +37,10 @@ public class Element : System.Collections.Generic.IEnumerable<Promptuarium.Eleme
 
 | Property | Summary |
 | -------- | ------- |
-| [Children](Children/README.md) | List of children\. it is never null\. |
+| [Children](Children/README.md) | List of children\. it is never null, but can be empty |
 | [Data](Data/README.md) | Data storage |
 | [MetaData](MetaData/README.md) | Metadata storage |
-| [Parent](Parent/README.md) | Reference to the parent node; root node has null as parent\. |
+| [Parent](Parent/README.md) | Reference to the parent node; root node has null as parent |
 
 ## Methods
 
@@ -53,20 +53,20 @@ public class Element : System.Collections.Generic.IEnumerable<Promptuarium.Eleme
 | [Equals(Object)](https://docs.microsoft.com/en-us/dotnet/api/system.object.equals) |  \(Inherited from [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)\) |
 | [FromBase64StringAsync(String, CancellationToken)](FromBase64StringAsync/README.md#142880008) | Creates a tree from a Base64 string\. |
 | [FromBase64StringAsync(String)](FromBase64StringAsync/README.md#3836437132) | Creates a tree from a Base64 string\. |
-| [GetEnumerator()](GetEnumerator/README.md) |  \(Implements [IEnumerable\<Element\>.GetEnumerator](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerable-1.getenumerator)\) |
+| [GetEnumerator()](GetEnumerator/README.md) | Returns an enumerator that iterates through the Children \(Implements [IEnumerable\<Element\>.GetEnumerator](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerable-1.getenumerator)\) |
 | [GetHashCode()](https://docs.microsoft.com/en-us/dotnet/api/system.object.gethashcode) |  \(Inherited from [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)\) |
-| [GetStatistics()](GetStatistics/README.md) | |
+| [GetStatistics()](GetStatistics/README.md) | Gets the statistics about the tree |
 | [GetType()](https://docs.microsoft.com/en-us/dotnet/api/system.object.gettype) |  \(Inherited from [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)\) |
-| [LoadAsync(Stream, CancellationToken)](LoadAsync/README.md#2169171820) | Loads a tree from a stream \(synchronously\)\. |
-| [LoadAsync(Stream)](LoadAsync/README.md#2517542937) | |
-| [LoadAsync(String, CancellationToken)](LoadAsync/README.md#25283078) | Loads a tree from a file \(synchronously\)\. |
-| [LoadAsync(String)](LoadAsync/README.md#1926306021) | |
+| [LoadAsync(Stream, CancellationToken)](LoadAsync/README.md#2169171820) | Loads a tree from a stream\. |
+| [LoadAsync(Stream)](LoadAsync/README.md#2517542937) | Loads a tree from a stream\. |
+| [LoadAsync(String, CancellationToken)](LoadAsync/README.md#25283078) | Loads a tree from a file\. |
+| [LoadAsync(String)](LoadAsync/README.md#1926306021) | Loads a tree from a file\. |
 | [MemberwiseClone()](https://docs.microsoft.com/en-us/dotnet/api/system.object.memberwiseclone) |  \(Inherited from [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)\) |
 | [Remove(Element)](Remove/README.md) | Removes a subtree or node recursively\. |
-| [SaveAsync(Stream, CancellationToken)](SaveAsync/README.md#404143214) | Saves the tree into a stream \(synchronously\)\. |
-| [SaveAsync(Stream)](SaveAsync/README.md#2654619920) | |
-| [SaveAsync(String, CancellationToken)](SaveAsync/README.md#717888685) | Saves the tree into a file \(synchronously\)\. |
-| [SaveAsync(String)](SaveAsync/README.md#3052064839) | Saves the tree into a file \(synchronously\)\. |
+| [SaveAsync(Stream, CancellationToken)](SaveAsync/README.md#404143214) | Saves the tree into a stream\. |
+| [SaveAsync(Stream)](SaveAsync/README.md#2654619920) | Saves the tree into a stream\. |
+| [SaveAsync(String, CancellationToken)](SaveAsync/README.md#717888685) | Saves the tree into a file\. |
+| [SaveAsync(String)](SaveAsync/README.md#3052064839) | Saves the tree into a file\. |
 | [ToBase64StringAsync()](ToBase64StringAsync/README.md#579211045) | Converts the tree to Base64 string\. |
 | [ToBase64StringAsync(CancellationToken)](ToBase64StringAsync/README.md#154336211) | Converts the tree to Base64 string\. |
 | [ToString()](ToString/README.md) | Converts the element to string \(for debugging purposes\)\. \(Overrides [Object.ToString](https://docs.microsoft.com/en-us/dotnet/api/system.object.tostring)\) |
@@ -84,20 +84,20 @@ public class Element : System.Collections.Generic.IEnumerable<Promptuarium.Eleme
 
 | Event | Summary |
 | ----- | ------- |
-| [OnDataLoaded](OnDataLoaded/README.md) | |
-| [OnDataLoading](OnDataLoading/README.md) | |
-| [OnDataSaved](OnDataSaved/README.md) | |
-| [OnDataSaving](OnDataSaving/README.md) | |
-| [OnMetaDataLoaded](OnMetaDataLoaded/README.md) | |
-| [OnMetaDataLoading](OnMetaDataLoading/README.md) | |
-| [OnMetaDataSaved](OnMetaDataSaved/README.md) | |
-| [OnMetaDataSaving](OnMetaDataSaving/README.md) | |
+| [OnDataLoaded](OnDataLoaded/README.md) | Event handler for all Promptuarium data loaded events |
+| [OnDataLoading](OnDataLoading/README.md) | Event handler for all Promptuarium data loading events |
+| [OnDataSaved](OnDataSaved/README.md) | Event handler for all Promptuarium data saved events |
+| [OnDataSaving](OnDataSaving/README.md) | Event handler for all Promptuarium data saving events |
+| [OnMetaDataLoaded](OnMetaDataLoaded/README.md) | Event handler for all Promptuarium metadata loaded events |
+| [OnMetaDataLoading](OnMetaDataLoading/README.md) | Event handler for all Promptuarium metadata loading events |
+| [OnMetaDataSaved](OnMetaDataSaved/README.md) | Event handler for all Promptuarium metadata saved events |
+| [OnMetaDataSaving](OnMetaDataSaving/README.md) | Event handler for all Promptuarium metadata saving events |
 
 ## Explicit Interface Implementations
 
 | Member | Summary |
 | ------ | ------- |
-| [IEnumerable.GetEnumerator()](System-Collections-IEnumerable-GetEnumerator/README.md) | |
+| [IEnumerable.GetEnumerator()](System-Collections-IEnumerable-GetEnumerator/README.md) | Returns an enumerator that iterates through the Children |
 
 ## Delegates
 

@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+The number of nodes without data and metadata
+
 ```csharp
 public int NodesWithoutDataAndMetaData
 ```

@@ -4,27 +4,96 @@ using System.Collections.Generic;
 namespace Promptuarium;
 
 #region Public types
+
+/// <summary>
+/// Statistics of the tree
+/// </summary>
+/// <remarks>
+/// This class is used to collect statistics of the tree.
+/// </remarks>
+/// <example>
+/// <code>
+/// var statistics = tree.GetStatistics().ToString();
+/// Console.WriteLine(statistics);
+/// </code>
+/// </example>
 public class Statistics
 {
+    /// <summary>
+    /// The number of nodes in the tree
+    /// </summary>
     public int Nodes;
 
+    /// <summary>
+    /// The number of nodes with data
+    /// </summary>
     public int NodesWithData;
+
+    /// <summary>
+    /// The number of nodes with metadata
+    /// </summary>
     public int NodesWithMetaData;
+
+    /// <summary>
+    /// The number of nodes with data and metadata
+    /// </summary>
     public int NodesWithDataAndMetaData;
+
+    /// <summary>
+    /// The number of nodes without data and metadata
+    /// </summary>
     public int NodesWithoutDataAndMetaData;
 
+    /// <summary>
+    /// The number of nodes without children
+    /// </summary>
     public int NodesWithoutChildren;
 
+    /// <summary>
+    /// The depth of the tree
+    /// </summary>
     public int Depth;
 
+    /// <summary>
+    /// The maximum number of children of a node
+    /// </summary>
     public int MaxChildren;
+
+    /// <summary>
+    /// The minimum number of children of a node
+    /// </summary>
     public int MinChildren;
 
+    /// <summary>
+    /// The longest data in the tree
+    /// </summary>
     public long LongestData;
+
+    /// <summary>
+    /// The longest metadata in the tree
+    /// </summary>
     public long LongestMetaData;
+
+    /// <summary>
+    /// The shortest data in the tree
+    /// </summary>
     public long ShortestData;
+
+    /// <summary>
+    /// The shortest metadata in the tree
+    /// </summary>
     public long ShortestMetaData;
 
+    /// <summary>
+    /// Returns a string that represents the current object.
+    /// </summary>
+    /// <returns>A string that represents the current object.</returns>
+    /// <example>
+    /// <code>
+    /// var statistics = tree.GetStatistics();
+    /// Console.WriteLine(statistics.ToString());
+    /// </code>
+    /// </example>
     public override string ToString()
     {
         return
@@ -43,11 +112,26 @@ public class Statistics
             $"ShortestMetaData: ............... {ShortestMetaData}{Environment.NewLine}";
     }
 }
+
 #endregion
 
 #region Private fields
+
 public partial class Element
 {
+    /// <summary>
+    /// Gets the statistics about the tree
+    /// </summary>
+    /// <returns>The statistics</returns>
+    /// <remarks>
+    /// This method walks the tree and collects statistics about the tree.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var statistics = tree.GetStatistics();
+    /// Console.WriteLine(statistics.ToString());
+    /// </code>
+    /// </example>
     public Statistics GetStatistics()
     {
         var statistics = new Statistics();

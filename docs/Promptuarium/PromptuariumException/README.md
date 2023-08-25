@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Base class for all Promptuarium exceptions
+
 ```csharp
 public class PromptuariumException : Exception
 ```
@@ -22,9 +25,9 @@ public class PromptuariumException : Exception
 
 | Constructor | Summary |
 | ----------- | ------- |
-| [PromptuariumException()](-ctor/README.md#2948304758) | |
-| [PromptuariumException(String, Exception)](-ctor/README.md#3569244339) | |
-| [PromptuariumException(String)](-ctor/README.md#2107054572) | |
+| [PromptuariumException()](-ctor/README.md#2948304758) | Initializes a new instance of the [PromptuariumException](./README.md) class\. |
+| [PromptuariumException(String, Exception)](-ctor/README.md#3569244339) | Initializes a new instance of the [PromptuariumException](./README.md) class\. |
+| [PromptuariumException(String)](-ctor/README.md#2107054572) | Initializes a new instance of the [PromptuariumException](./README.md) class\. |
 
 ## Properties
 
