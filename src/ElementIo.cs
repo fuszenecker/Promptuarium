@@ -63,6 +63,7 @@ public partial class Element
     /// Saves the tree into a file (synchronously).
     /// </summary>
     /// <param name="fileName">The target file name</param>
+    /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>True, if no error occurred</returns>
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
     {
@@ -70,6 +71,11 @@ public partial class Element
         await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Saves the tree into a file (synchronously).
+    /// </summary>
+    /// <param name="fileName">The target file name</param>
+    /// <returns>True, if no error occurred</returns>
     public Task SaveAsync(string fileName)
     {
         return SaveAsync(fileName, CancellationToken.None);

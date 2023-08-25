@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Converts a stream to a boolean value\.
+
 ```csharp
 public static bool AsBool(this System.IO.Stream stream)
 ```
@@ -14,7 +17,18 @@ public static bool AsBool(this System.IO.Stream stream)
 
 **stream** &ensp; [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
 
+The source stream
+
 ### Returns
 
 [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)
+
+The boolean value
+
+## Examples
+
+```
+bool data = node.Data.AsBool();
+bool metadata = node.MetaData.AsBool();
+```
 

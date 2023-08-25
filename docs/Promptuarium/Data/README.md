@@ -15,9 +15,9 @@ public static class Data
 | Method | Summary |
 | ------ | ------- |
 | [AsAsciiString(Stream)](AsAsciiString/README.md) | |
-| [AsBool(Stream)](AsBool/README.md) | |
-| [AsByte(Stream)](AsByte/README.md) | |
-| [AsByteArray(Stream)](AsByteArray/README.md) | |
+| [AsBool(Stream)](AsBool/README.md) | Converts a stream to a boolean value\. |
+| [AsByte(Stream)](AsByte/README.md) | Converts a stream to a byte value\. |
+| [AsByteArray(Stream)](AsByteArray/README.md) | Converts a stream to a byte array\. |
 | [AsChar(Stream)](AsChar/README.md) | |
 | [AsDateTime(Stream)](AsDateTime/README.md) | |
 | [AsDateTimeOffset(Stream)](AsDateTimeOffset/README.md) | |
@@ -39,9 +39,9 @@ public static class Data
 | [AsVarInt(Stream)](AsVarInt/README.md) | |
 | [AsVarUInt(Stream)](AsVarUInt/README.md) | |
 | [FromAsciiString(String)](FromAsciiString/README.md) | |
-| [FromBool(Boolean)](FromBool/README.md) | |
-| [FromByte(Byte)](FromByte/README.md) | |
-| [FromByteArray(Byte\[\])](FromByteArray/README.md) | |
+| [FromBool(Boolean)](FromBool/README.md) | Creates a stream from a boolean value\. |
+| [FromByte(Byte)](FromByte/README.md) | Creates a stream from a byte value\. |
+| [FromByteArray(Byte\[\])](FromByteArray/README.md) | Creates a stream from a byte array\. |
 | [FromChar(Char)](FromChar/README.md) | |
 | [FromDateTime(DateTime)](FromDateTime/README.md) | |
 | [FromDateTimeOffset(DateTimeOffset)](FromDateTimeOffset/README.md) | |

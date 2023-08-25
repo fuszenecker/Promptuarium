@@ -6,6 +6,9 @@
 
 **Assembly**: Promptuarium\.dll
 
+  
+Creates a stream from a boolean value\.
+
 ```csharp
 public static System.IO.Stream FromBool(bool value)
 ```
@@ -17,4 +20,13 @@ public static System.IO.Stream FromBool(bool value)
 ### Returns
 
 [Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
+
+The stream
+
+## Examples
+
+```
+node.Data = Data.FromBool(true);
+node.MetaData = Data.FromBool(false);
+```
 

@@ -5,9 +5,9 @@
 | Extension Method | Summary |
 | ---------------- | ------- |
 | [AsAsciiString(Stream)](../../../Promptuarium/Data/AsAsciiString/README.md) | |
-| [AsBool(Stream)](../../../Promptuarium/Data/AsBool/README.md) | |
-| [AsByte(Stream)](../../../Promptuarium/Data/AsByte/README.md) | |
-| [AsByteArray(Stream)](../../../Promptuarium/Data/AsByteArray/README.md) | |
+| [AsBool(Stream)](../../../Promptuarium/Data/AsBool/README.md) | Converts a stream to a boolean value\. |
+| [AsByte(Stream)](../../../Promptuarium/Data/AsByte/README.md) | Converts a stream to a byte value\. |
+| [AsByteArray(Stream)](../../../Promptuarium/Data/AsByteArray/README.md) | Converts a stream to a byte array\. |
 | [AsChar(Stream)](../../../Promptuarium/Data/AsChar/README.md) | |
 | [AsDateTime(Stream)](../../../Promptuarium/Data/AsDateTime/README.md) | |
 | [AsDateTimeOffset(Stream)](../../../Promptuarium/Data/AsDateTimeOffset/README.md) | |

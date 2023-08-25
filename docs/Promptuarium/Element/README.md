@@ -66,7 +66,7 @@ public class Element : System.Collections.Generic.IEnumerable<Promptuarium.Eleme
 | [SaveAsync(Stream, CancellationToken)](SaveAsync/README.md#404143214) | Saves the tree into a stream \(synchronously\)\. |
 | [SaveAsync(Stream)](SaveAsync/README.md#2654619920) | |
 | [SaveAsync(String, CancellationToken)](SaveAsync/README.md#717888685) | Saves the tree into a file \(synchronously\)\. |
-| [SaveAsync(String)](SaveAsync/README.md#3052064839) | |
+| [SaveAsync(String)](SaveAsync/README.md#3052064839) | Saves the tree into a file \(synchronously\)\. |
 | [ToBase64StringAsync()](ToBase64StringAsync/README.md#579211045) | Converts the tree to Base64 string\. |
 | [ToBase64StringAsync(CancellationToken)](ToBase64StringAsync/README.md#154336211) | Converts the tree to Base64 string\. |
 | [ToString()](ToString/README.md) | Converts the element to string \(for debugging purposes\)\. \(Overrides [Object.ToString](https://docs.microsoft.com/en-us/dotnet/api/system.object.tostring)\) |

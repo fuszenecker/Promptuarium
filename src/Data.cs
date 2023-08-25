@@ -8,11 +8,34 @@ namespace Promptuarium;
 public static class Data
 {
     #region Boolean Operations
+
+    /// <summary>
+    /// Creates a stream from a boolean value.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns>The stream</returns>
+    /// <example>
+    /// <code>
+    /// node.Data = Data.FromBool(true);
+    /// node.MetaData = Data.FromBool(false);
+    /// </code>
+    /// </example>
     public static Stream FromBool(bool value)
     {
         return new MemoryStream(BitConverter.GetBytes(value));
     }
 
+    /// <summary>
+    /// Converts a stream to a boolean value.
+    /// </summary>
+    /// <param name="stream">The source stream</param>
+    /// <returns>The boolean value</returns>
+    /// <example>
+    /// <code>
+    /// bool data = node.Data.AsBool();
+    /// bool metadata = node.MetaData.AsBool();
+    /// </code>
+    /// </example>
     public static bool AsBool(this Stream stream)
     {
         return BitConverter.ToBoolean(GetBuffer(stream, sizeof(bool)), 0);
@@ -20,6 +43,17 @@ public static class Data
     #endregion
 
     #region Byte Operations
+    /// <summary>
+    /// Creates a stream from a byte value.
+    /// </summary>
+    /// <param name="value">The byte value</param>
+    /// <returns>The stream</returns>
+    /// <example>
+    /// <code>
+    /// node.Data = Data.FromByte(0x12);
+    /// node.MetaData = Data.FromByte(0x34);
+    /// </code>
+    /// </example>
     public static Stream FromByte(byte value)
     {
         var result = new MemoryStream();
@@ -28,6 +62,17 @@ public static class Data
         return result;
     }
 
+    /// <summary>
+    /// Converts a stream to a byte value.
+    /// </summary>
+    /// <param name="stream">The source stream</param>
+    /// <returns>The byte value</returns>
+    /// <example>
+    /// <code>
+    /// byte data = node.Data.AsByte();
+    /// byte metadata = node.MetaData.AsByte();
+    /// </code>
+    /// </example>
     public static byte AsByte(this Stream stream)
     {
         byte result;
@@ -39,11 +84,33 @@ public static class Data
     #endregion
 
     #region Byte Array Operations
+
+    /// <summary>
+    /// Creates a stream from a byte array.
+    /// </summary>
+    /// <param name="value">The byte array</param>
+    /// <returns>The stream</returns>
+    /// <example>
+    /// <code>
+    /// node.Data = Data.FromByteArray(new byte[] { 0x12, 0x34, 0x56, 0x78 });
+    /// node.MetaData = Data.FromByteArray(new byte[] { 0x9A, 0xBC, 0xDE, 0xF0 });
+    /// </code>
+    /// </example>
     public static Stream FromByteArray(byte[] value)
     {
         return new MemoryStream(value);
     }
 
+    /// <summary>
+    /// Converts a stream to a byte array.
+    /// </summary>
+    /// <param name="stream">The source stream</param>
+    /// <returns>The byte array</returns>
+    /// <example>
+    /// <code>
+    /// byte[] data = node.Data.AsByteArray();
+    /// </code>
+    /// </example>
     public static byte[] AsByteArray(this Stream stream)
     {
         return GetBuffer(stream, (int)stream.Length);
