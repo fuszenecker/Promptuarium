@@ -42,7 +42,7 @@ The ```Statistics``` property gives information about i.e.
 
 ## Documentation
 
-See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples)
+See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples) or the [API Reference](docs/README.md).
 
 ## Unit tests
 
@@ -55,3 +55,12 @@ See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Exampl
 ## Licence
 
 This code is is distributed under the terms of the MIT licence.
+
+## Internals
+
+Generate documentation:
+
+```sh
+cd src
+roslynator.exe generate-doc .\Promptuarium.csproj -o ..\docs --host github --heading "Promptuarium API Reference"
+```

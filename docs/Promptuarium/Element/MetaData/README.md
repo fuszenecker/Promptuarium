@@ -1,0 +1,19 @@
+# Element\.MetaData Property
+
+[Home](../../../README.md)
+
+**Containing Type**: [Element](../README.md)
+
+**Assembly**: Promptuarium\.dll
+
+  
+Metadata storage
+
+```csharp
+public System.IO.Stream? MetaData { get; set; }
+```
+
+### Property Value
+
+[Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
+

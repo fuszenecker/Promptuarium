@@ -1,0 +1,20 @@
+# Data\.FromLong\(Int64\) Method
+
+[Home](../../../README.md)
+
+**Containing Type**: [Data](../README.md)
+
+**Assembly**: Promptuarium\.dll
+
+```csharp
+public static System.IO.Stream FromLong(long value)
+```
+
+### Parameters
+
+**value** &ensp; [Int64](https://docs.microsoft.com/en-us/dotnet/api/system.int64)
+
+### Returns
+
+[Stream](https://docs.microsoft.com/en-us/dotnet/api/system.io.stream)
+
