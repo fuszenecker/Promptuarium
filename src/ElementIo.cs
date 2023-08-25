@@ -12,7 +12,7 @@ public partial class Element
     /// Loads a tree from a stream (synchronously).
     /// </summary>
     /// <param name="stream">The source stream</param>
-    /// <returns>The tree, if no error occured</returns>
+    /// <returns>The tree, if no error occurred</returns>
     public static Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
     {
         return DeserializeAsync(stream, cancellationToken);
@@ -27,7 +27,7 @@ public partial class Element
     /// Loads a tree from a file (synchronously).
     /// </summary>
     /// <param name="fileName">The source file name</param>
-    /// <returns>The tree, if no error occured</returns>
+    /// <returns>The tree, if no error occurred</returns>
     public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
     {
         using var fileStream = new FileStream(fileName, FileMode.Open);
@@ -47,7 +47,7 @@ public partial class Element
     /// Saves the tree into a stream (synchronously).
     /// </summary>
     /// <param name="stream">The target stream</param>
-    /// <returns>True, if no error occured</returns>
+    /// <returns>True, if no error occurred</returns>
     public async Task SaveAsync(Stream stream, CancellationToken cancellationToken)
     {
         await SerializeAsync(stream, new SerializationArguments(), cancellationToken).ConfigureAwait(false);
@@ -63,7 +63,7 @@ public partial class Element
     /// Saves the tree into a file (synchronously).
     /// </summary>
     /// <param name="fileName">The target file name</param>
-    /// <returns>True, if no error occured</returns>
+    /// <returns>True, if no error occurred</returns>
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
     {
         using Stream stream = new FileStream(fileName, FileMode.Create);

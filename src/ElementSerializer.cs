@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System;
 
 namespace Promptuarium;
 
@@ -17,32 +18,32 @@ public partial class Element
 
     private class SerializationArguments
     {
-        public Element? previouslySerialized;
-        public int stepUpNodesRequired;
+        public Element? PreviouslySerialized;
+        public int StepUpNodesRequired;
     }
     #endregion
 
     #region Serialization routines
     private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments, CancellationToken cancellationToken)
     {
-        for (int x = 0; x < serializationArguments.stepUpNodesRequired; x++)
+        for (int x = 0; x < serializationArguments.StepUpNodesRequired; x++)
         {
             stream.WriteByte(ControlByte(Directions.Up, DataType.Data, SizeType.Linear, 0));
         }
 
-        serializationArguments.stepUpNodesRequired = 0;
+        serializationArguments.StepUpNodesRequired = 0;
 
         Directions direction;
 
-        if (serializationArguments.previouslySerialized == Parent || serializationArguments.previouslySerialized == null)
+        if (serializationArguments.PreviouslySerialized == Parent || serializationArguments.PreviouslySerialized == null)
         {
             direction = Directions.Down;
         }
-        else if (serializationArguments.previouslySerialized.Parent == Parent)
+        else if (serializationArguments.PreviouslySerialized.Parent == Parent)
         {
             direction = Directions.New;
         }
-        else if (serializationArguments.previouslySerialized?.Parent?.Parent == Parent)
+        else if (serializationArguments.PreviouslySerialized?.Parent?.Parent == Parent)
         {
             direction = Directions.Up;
         }
@@ -54,7 +55,7 @@ public partial class Element
         bool appending = false;
 
         // If the node has only children
-        if (!Contains(Data) && !Contains(MetaData) && this.Children.Count > 0)
+        if (!Contains(Data) && !Contains(MetaData) && Children.Count > 0)
         {
             stream.WriteByte(ControlByte(direction, DataType.Data, SizeType.Linear, 0));
         }
@@ -92,15 +93,15 @@ public partial class Element
 
         #endregion
 
-        serializationArguments.previouslySerialized = this;
+        serializationArguments.PreviouslySerialized = this;
 
-        if (this.Children.Count > 0)
+        if (Children.Count > 0)
         {
             var child = new Element();
 
-            for (int childIndex = 0; childIndex < this.Children.Count; childIndex++)
+            for (int childIndex = 0; childIndex < Children.Count; childIndex++)
             {
-                child = this.Children[childIndex];
+                child = Children[childIndex];
 
                 if (child != null)
                 {
@@ -110,8 +111,8 @@ public partial class Element
 
             if (child?.Children.Count > 0)
             {
-                serializationArguments.stepUpNodesRequired++;
-                serializationArguments.previouslySerialized = child;
+                serializationArguments.StepUpNodesRequired++;
+                serializationArguments.PreviouslySerialized = child;
             }
         }
     }
@@ -136,8 +137,8 @@ public partial class Element
             int bufferSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
 
             byte[] buffer = new byte[bufferSize];
-            await source.ReadAsync(buffer, 0, bufferSize, cancellationToken).ConfigureAwait(false);
-            await target.WriteAsync(buffer, 0, bufferSize, cancellationToken).ConfigureAwait(false);
+            await source.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
+            await target.WriteAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
         }
 
         return appending;
@@ -257,22 +258,19 @@ public partial class Element
             }
 
             byte[] buffer = new byte[chunkSize];
-            await stream.ReadAsync(buffer, 0, chunkSize, cancellationToken).ConfigureAwait(false);
+            await stream.ReadAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
 
             if (IsDataChunk(controlByte))
             {
                 if (chunkSize > 0)
                 {
-                    if (node.Data == null)
-                    {
-                        node.Data = new MemoryStream();
-                    }
+                    node.Data ??= new MemoryStream();
 
                     #region Firing event
                     OnDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
                     #endregion
 
-                    await node.Data.WriteAsync(buffer, 0, chunkSize, cancellationToken).ConfigureAwait(false);
+                    await node.Data.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
 
                     #region Firing event
                     OnDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
@@ -283,16 +281,13 @@ public partial class Element
             {
                 if (chunkSize > 0)
                 {
-                    if (node.MetaData == null)
-                    {
-                        node.MetaData = new MemoryStream();
-                    }
+                    node.MetaData ??= new MemoryStream();
 
                     #region Firing event
                     OnMetaDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
                     #endregion
 
-                    await node.MetaData.WriteAsync(buffer, 0, chunkSize, cancellationToken).ConfigureAwait(false);
+                    await node.MetaData.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
 
                     #region Firing event
                     OnMetaDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());

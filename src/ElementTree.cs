@@ -53,9 +53,9 @@ public partial class Element : IEnumerable<Element>
         MetaData = other.MetaData;
 
         Parent = other.Parent;
-        this.Children = new List<Element>(other.Children.Where(child => child != null));
+        Children = new List<Element>(other.Children.Where(child => child != null));
 
-        foreach (Element child in this.Children)
+        foreach (Element child in Children)
         {
             child.Parent = this;
         }
@@ -72,9 +72,9 @@ public partial class Element : IEnumerable<Element>
         Data = data;
         MetaData = metaData;
 
-        this.Children = new List<Element>(children.Where(child => child != null));
+        Children = new List<Element>(children.Where(child => child != null));
 
-        foreach (Element child in this.Children)
+        foreach (Element child in Children)
         {
             child.Parent = this;
         }
@@ -91,9 +91,9 @@ public partial class Element : IEnumerable<Element>
         Data = data;
         MetaData = metaData;
 
-        this.Children = new List<Element>(children.Where(child => child != null));
+        Children = new List<Element>(children.Where(child => child != null));
 
-        foreach (Element child in this.Children)
+        foreach (Element child in Children)
         {
             child.Parent = this;
         }
@@ -109,12 +109,12 @@ public partial class Element : IEnumerable<Element>
     {
         get
         {
-            if (index >= 0 && index < this.Children.Count)
+            if (index >= 0 && index < Children.Count)
             {
-                return this.Children[index];
+                return Children[index];
             }
 
-            throw new PromptuariumException($"Index {index} in out of range [0...{this.Children.Count}]");
+            throw new PromptuariumException($"Index {index} in out of range [0...{Children.Count}]");
         }
     }
     #endregion
@@ -325,7 +325,7 @@ public partial class Element : IEnumerable<Element>
     /// <param name="node">The node to be added</param>
     private void UnsafeAdd(Element node)
     {
-        this.Children.Add(node);
+        Children.Add(node);
         node.Parent = this;
     }
 
