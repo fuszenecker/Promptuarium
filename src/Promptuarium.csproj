@@ -13,7 +13,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>4.2.1</Version>
+    <Version>5.0.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -25,8 +25,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Element to be IEnumerable.</ReleaseNotes>
-    <PackageReleaseNotes>Element to be IEnumerable.</PackageReleaseNotes>
+    <ReleaseNotes>Children is IReadOnlyList.</ReleaseNotes>
+    <PackageReleaseNotes>Children is IReadOnlyList.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>

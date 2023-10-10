@@ -33,7 +33,7 @@ public partial class Element : IEnumerable<Element>
     /// <summary>
     /// List of children. it is never null, but can be empty
     /// </summary>
-    public IList<Element> Children { get; } = new List<Element>();
+    public IReadOnlyList<Element> Children { get; } = new List<Element>();
     
     #endregion
 
@@ -345,7 +345,7 @@ public partial class Element : IEnumerable<Element>
         {
             if (node.Parent.Children.Contains(node))
             {
-                node.Parent.Children.Remove(node);
+                ((List<Element>)(node.Parent.Children)).Remove(node);
             }
             else
             {
@@ -614,7 +614,7 @@ public partial class Element : IEnumerable<Element>
     /// <param name="node">The node to be added</param>
     private void UnsafeAdd(Element node)
     {
-        Children.Add(node);
+        ((List<Element>)Children).Add(node);
         node.Parent = this;
     }
 
