@@ -23,7 +23,7 @@
 Loads a tree from a stream\.
 
 ```csharp
-public static System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(System.IO.Stream stream, System.Threading.CancellationToken cancellationToken)
+public System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(System.IO.Stream stream, System.Threading.CancellationToken cancellationToken)
 ```
 
 ### Parameters
@@ -63,7 +63,7 @@ var tree = await Element.LoadAsync(stream, cancellationToken);
 Loads a tree from a stream\.
 
 ```csharp
-public static System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(System.IO.Stream stream)
+public System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(System.IO.Stream stream)
 ```
 
 ### Parameters
@@ -99,7 +99,7 @@ var tree = await Element.LoadAsync(stream);
 Loads a tree from a file\.
 
 ```csharp
-public static System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(string fileName, System.Threading.CancellationToken cancellationToken)
+public System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(string fileName, System.Threading.CancellationToken cancellationToken)
 ```
 
 ### Parameters
@@ -138,7 +138,7 @@ var tree = await Element.LoadAsync("test.prm", cancellationToken);
 Loads a tree from a file\.
 
 ```csharp
-public static System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(string fileName)
+public System.Threading.Tasks.Task<Promptuarium.Element> LoadAsync(string fileName)
 ```
 
 ### Parameters
