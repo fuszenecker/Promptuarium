@@ -17,7 +17,7 @@ public partial class Element
     /// <exception cref="PromptuariumException">Thrown if the stream is not a valid Promptuarium stream</exception>
     /// <example>
     /// <code>
-    /// using var stream = new FileStream("test.p", FileMode.Open);
+    /// using var stream = new FileStream("test.prm", FileMode.Open);
     /// var tree = await Element.LoadAsync(stream, cancellationToken);
     /// </code>
     /// </example>
@@ -34,7 +34,7 @@ public partial class Element
     /// <exception cref="PromptuariumException">Thrown if the stream is not a valid Promptuarium stream</exception>
     /// <example>
     /// <code>
-    /// using var stream = new FileStream("test.p", FileMode.Open);
+    /// using var stream = new FileStream("test.prm", FileMode.Open);
     /// var tree = await Element.LoadAsync(stream);
     /// </code>
     /// </example>
@@ -52,7 +52,7 @@ public partial class Element
     /// <exception cref="PromptuariumException">Thrown if the file is not a valid Promptuarium file</exception>
     /// <example>
     /// <code>
-    /// var tree = await Element.LoadAsync("test.p", cancellationToken);
+    /// var tree = await Element.LoadAsync("test.prm", cancellationToken);
     /// </code>
     /// </example>
     public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
@@ -69,7 +69,7 @@ public partial class Element
     /// <exception cref="PromptuariumException">Thrown if the file is not a valid Promptuarium file</exception>
     /// <example>
     /// <code>
-    /// var tree = await Element.LoadAsync("test.p");
+    /// var tree = await Element.LoadAsync("test.prm");
     /// </code>
     /// </example>
     public static Task<Element> LoadAsync(string fileName)
@@ -88,7 +88,7 @@ public partial class Element
     /// <param name="cancellationToken">The cancellation token</param>
     /// <example>
     /// <code>
-    /// using var stream = new FileStream("test.p", FileMode.Create);
+    /// using var stream = new FileStream("test.prm", FileMode.Create);
     /// await tree.SaveAsync(stream, cancellationToken);
     /// </code>
     /// </example>
@@ -105,7 +105,7 @@ public partial class Element
     /// <returns>True, if no error occurred</returns>
     /// <example>
     /// <code>
-    /// using var stream = new FileStream("test.p", FileMode.Create);
+    /// using var stream = new FileStream("test.prm", FileMode.Create);
     /// await tree.SaveAsync(stream);
     /// </code>
     /// </example>
@@ -121,7 +121,7 @@ public partial class Element
     /// <param name="cancellationToken">The cancellation token</param>
     /// <example>
     /// <code>
-    /// await tree.SaveAsync("test.p", cancellationToken);
+    /// await tree.SaveAsync("test.prm", cancellationToken);
     /// </code>
     /// </example>
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
@@ -136,7 +136,7 @@ public partial class Element
     /// <param name="fileName">The target file name</param>
     /// <example>
     /// <code>
-    /// await tree.SaveAsync("test.p");
+    /// await tree.SaveAsync("test.prm");
     /// </code>
     /// </example>
     public Task SaveAsync(string fileName)

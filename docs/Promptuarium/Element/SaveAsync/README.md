@@ -43,7 +43,7 @@ The cancellation token
 ### Examples
 
 ```
-using var stream = new FileStream("test.p", FileMode.Create);
+using var stream = new FileStream("test.prm", FileMode.Create);
 await tree.SaveAsync(stream, cancellationToken);
 ```
 
@@ -73,7 +73,7 @@ True, if no error occurred
 ### Examples
 
 ```
-using var stream = new FileStream("test.p", FileMode.Create);
+using var stream = new FileStream("test.prm", FileMode.Create);
 await tree.SaveAsync(stream);
 ```
 
@@ -105,7 +105,7 @@ The cancellation token
 ### Examples
 
 ```
-await tree.SaveAsync("test.p", cancellationToken);
+await tree.SaveAsync("test.prm", cancellationToken);
 ```
 
 <a id="3052064839"></a>
@@ -132,6 +132,6 @@ The target file name
 ### Examples
 
 ```
-await tree.SaveAsync("test.p");
+await tree.SaveAsync("test.prm");
 ```
 

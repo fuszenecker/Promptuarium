@@ -19,7 +19,7 @@ namespace PromptuariumTests
             const int maxChildren = 10;
             const double probability = 0.75;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.p").ConfigureAwait(false);
+            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.prm").ConfigureAwait(false);
         }
 
         [TestMethod]
@@ -30,7 +30,7 @@ namespace PromptuariumTests
             const int maxChildren = 20;
             const double probability = 0.95;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.p").ConfigureAwait(false);
+            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.prm").ConfigureAwait(false);
         }
 
         private Element GenerateTree(int minimumChildren, int maximumChildren, double probability)

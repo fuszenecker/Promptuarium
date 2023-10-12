@@ -981,7 +981,7 @@ namespace PromptuariumTests
                 Directory.CreateDirectory("test-data");
             }
 
-            return $"test-data{Path.DirectorySeparatorChar}{Guid.NewGuid()}.p";
+            return $"test-data{Path.DirectorySeparatorChar}{Guid.NewGuid()}.prm";
         }
         #endregion
     }

@@ -51,7 +51,7 @@ Thrown if the stream is not a valid Promptuarium stream
 ### Examples
 
 ```
-using var stream = new FileStream("test.p", FileMode.Open);
+using var stream = new FileStream("test.prm", FileMode.Open);
 var tree = await Element.LoadAsync(stream, cancellationToken);
 ```
 
@@ -87,7 +87,7 @@ Thrown if the stream is not a valid Promptuarium stream
 ### Examples
 
 ```
-using var stream = new FileStream("test.p", FileMode.Open);
+using var stream = new FileStream("test.prm", FileMode.Open);
 var tree = await Element.LoadAsync(stream);
 ```
 
@@ -127,7 +127,7 @@ Thrown if the file is not a valid Promptuarium file
 ### Examples
 
 ```
-var tree = await Element.LoadAsync("test.p", cancellationToken);
+var tree = await Element.LoadAsync("test.prm", cancellationToken);
 ```
 
 <a id="1926306021"></a>
@@ -162,6 +162,6 @@ Thrown if the file is not a valid Promptuarium file
 ### Examples
 
 ```
-var tree = await Element.LoadAsync("test.p");
+var tree = await Element.LoadAsync("test.prm");
 ```
 
