@@ -214,7 +214,7 @@ public partial class Element
 
     #region Deserialization routines
 
-    private static async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
+    private async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
     {
         var root = new Element();
         Element parent = root;

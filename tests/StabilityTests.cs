@@ -77,7 +77,7 @@ namespace PromptuariumTests
 
                 Assert.IsTrue(new FileInfo(fileName).Length > 0);
 
-                Element currentTree = await Element.LoadAsync(fileName).ConfigureAwait(false);
+                Element currentTree = await new Element().LoadAsync(fileName).ConfigureAwait(false);
                 string currentTreeString = currentTree.TreeToString();
 
                 Assert.AreEqual(originalTreeString, currentTreeString);

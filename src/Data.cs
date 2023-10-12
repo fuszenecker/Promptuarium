@@ -890,11 +890,12 @@ public static class Data
     /// var tree = await Data.AsTreeAsync(stream);
     /// </code>
     /// </example>
-    public static async Task<Element> AsElementAsync(this Stream stream)
+    public static async Task<Element> AsElementAsync(this Stream stream, Element loaderElement = default)
     {
+        loaderElement ??= new Element();
         Element result;
         stream.Position = 0;
-        result = await Element.LoadAsync(stream).ConfigureAwait(false);
+        result = await loaderElement.LoadAsync(stream).ConfigureAwait(false);
         stream.Position = 0;
         return result;
     }

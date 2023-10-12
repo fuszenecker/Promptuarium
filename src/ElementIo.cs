@@ -21,7 +21,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync(stream, cancellationToken);
     /// </code>
     /// </example>
-    public static Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
+    public Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
     {
         return DeserializeAsync(stream, cancellationToken);
     }
@@ -38,7 +38,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync(stream);
     /// </code>
     /// </example>
-    public static Task<Element> LoadAsync(Stream stream)
+    public Task<Element> LoadAsync(Stream stream)
     {
         return LoadAsync(stream, CancellationToken.None);
     }
@@ -55,7 +55,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync("test.prm", cancellationToken);
     /// </code>
     /// </example>
-    public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
+    public async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
     {
         using var fileStream = new FileStream(fileName, FileMode.Open);
         return await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
@@ -72,7 +72,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync("test.prm");
     /// </code>
     /// </example>
-    public static Task<Element> LoadAsync(string fileName)
+    public Task<Element> LoadAsync(string fileName)
     {
         return LoadAsync(fileName, CancellationToken.None);
     }

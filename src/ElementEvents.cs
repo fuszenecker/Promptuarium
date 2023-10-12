@@ -69,12 +69,12 @@ public partial class Element
     /// <summary>
     /// Event handler for all Promptuarium data loading events
     /// </summary>
-    public static event EventHandler<PromptuariumLoadingEventArgs>? OnDataLoading;
+    public event EventHandler<PromptuariumLoadingEventArgs>? OnDataLoading;
 
     /// <summary>
     /// Event handler for all Promptuarium data loaded events
     /// </summary>
-    public static event EventHandler<PromptuariumLoadedEventArgs>? OnDataLoaded;
+    public event EventHandler<PromptuariumLoadedEventArgs>? OnDataLoaded;
 
     /// <summary>
     /// Event handler for all Promptuarium data saving events
@@ -89,12 +89,12 @@ public partial class Element
     /// <summary>
     /// Event handler for all Promptuarium metadata loading events
     /// </summary>
-    public static event EventHandler<PromptuariumLoadingEventArgs>? OnMetaDataLoading;
+    public event EventHandler<PromptuariumLoadingEventArgs>? OnMetaDataLoading;
 
     /// <summary>
     /// Event handler for all Promptuarium metadata loaded events
     /// </summary>
-    public static event EventHandler<PromptuariumLoadedEventArgs>? OnMetaDataLoaded;
+    public event EventHandler<PromptuariumLoadedEventArgs>? OnMetaDataLoaded;
 
     /// <summary>
     /// Event handler for all Promptuarium metadata saving events

@@ -534,24 +534,14 @@ public partial class Element : IEnumerable<Element>
     /// var tree = await Element.FromBase64StringAsync(base64String);
     /// </code>
     /// </example>
-    public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
+    public static async Task<Element> FromBase64StringAsync(string base64String, 
+        Element loaderElement = default, CancellationToken cancellationToken = default)
     {
+        loaderElement ??= new Element();
         using var memoryStream = new MemoryStream(Convert.FromBase64String(base64String));
-        return await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+        return await loaderElement.LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Creates a tree from a Base64 string.
-    /// </summary>
-    /// <param name="base64String">The tree in Base64.</param>
-    /// <returns>The tree.</returns>
-    /// <example>
-    /// <code>
-    /// var tree = await Element.FromBase64StringAsync(base64String);
-    /// </code>
-    /// </example>
-    public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
-    
     #endregion
 
     #region IEnumerable<Element> implementation
