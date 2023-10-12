@@ -10,6 +10,6 @@
 Event handler for all Promptuarium metadata loading events
 
 ```csharp
-public static event EventHandler<Promptuarium.PromptuariumLoadingEventArgs>? OnMetaDataLoading
+public event EventHandler<Promptuarium.PromptuariumLoadingEventArgs>? OnMetaDataLoading
 ```
 

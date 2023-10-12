@@ -13,7 +13,7 @@
 | [AsDateTimeOffset(Stream)](../../../Promptuarium/Data/AsDateTimeOffset/README.md) | Converts a stream to a DateTimeOffset value\. |
 | [AsDecimal(Stream)](../../../Promptuarium/Data/AsDecimal/README.md) | Converts a stream to a decimal value\. |
 | [AsDouble(Stream)](../../../Promptuarium/Data/AsDouble/README.md) | Converts a stream to a double value\. |
-| [AsElementAsync(Stream)](../../../Promptuarium/Data/AsElementAsync/README.md) | Converts a stream to a tree\. |
+| [AsElementAsync(Stream, Element)](../../../Promptuarium/Data/AsElementAsync/README.md) | Converts a stream to a tree\. |
 | [AsFloat(Stream)](../../../Promptuarium/Data/AsFloat/README.md) | Converts a stream to a float value\. |
 | [AsGuid(Stream)](../../../Promptuarium/Data/AsGuid/README.md) | Converts a stream to a GUID value\. |
 | [AsInt(Stream)](../../../Promptuarium/Data/AsInt/README.md) | Converts a stream to an int value\. |

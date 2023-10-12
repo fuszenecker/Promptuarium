@@ -51,8 +51,7 @@ public class Element : System.Collections.Generic.IEnumerable<Promptuarium.Eleme
 | [Detach()](Detach/README.md#2614073258) | Detaches a subtree or node\. |
 | [Detach(Element)](Detach/README.md#119873975) | Detaches a subtree or node\. |
 | [Equals(Object)](https://docs.microsoft.com/en-us/dotnet/api/system.object.equals) |  \(Inherited from [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)\) |
-| [FromBase64StringAsync(String, CancellationToken)](FromBase64StringAsync/README.md#142880008) | Creates a tree from a Base64 string\. |
-| [FromBase64StringAsync(String)](FromBase64StringAsync/README.md#3836437132) | Creates a tree from a Base64 string\. |
+| [FromBase64StringAsync(String, Element, CancellationToken)](FromBase64StringAsync/README.md) | Creates a tree from a Base64 string\. |
 | [GetEnumerator()](GetEnumerator/README.md) | Returns an enumerator that iterates through the Children \(Implements [IEnumerable\<Element\>.GetEnumerator](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ienumerable-1.getenumerator)\) |
 | [GetHashCode()](https://docs.microsoft.com/en-us/dotnet/api/system.object.gethashcode) |  \(Inherited from [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)\) |
 | [GetStatistics()](GetStatistics/README.md) | Gets the statistics about the tree |
