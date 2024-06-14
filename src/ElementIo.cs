@@ -21,7 +21,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync(stream, cancellationToken);
     /// </code>
     /// </example>
-    public static Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
+    public Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
     {
         return DeserializeAsync(stream, cancellationToken);
     }
@@ -38,7 +38,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync(stream);
     /// </code>
     /// </example>
-    public static Task<Element> LoadAsync(Stream stream)
+    public Task<Element> LoadAsync(Stream stream)
     {
         return LoadAsync(stream, CancellationToken.None);
     }
@@ -55,10 +55,10 @@ public partial class Element
     /// var tree = await Element.LoadAsync("test.prm", cancellationToken);
     /// </code>
     /// </example>
-    public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
+    public async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
     {
         using var fileStream = new FileStream(fileName, FileMode.Open);
-        return await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        return await LoadAsync(fileStream, cancellationToken);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public partial class Element
     /// var tree = await Element.LoadAsync("test.prm");
     /// </code>
     /// </example>
-    public static Task<Element> LoadAsync(string fileName)
+    public Task<Element> LoadAsync(string fileName)
     {
         return LoadAsync(fileName, CancellationToken.None);
     }
@@ -94,7 +94,7 @@ public partial class Element
     /// </example>
     public async Task SaveAsync(Stream stream, CancellationToken cancellationToken)
     {
-        await SerializeAsync(stream, new SerializationArguments(), cancellationToken).ConfigureAwait(false);
+        await SerializeAsync(stream, new SerializationArguments(), cancellationToken);
         stream.WriteByte(ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0));
     }
 
@@ -127,7 +127,7 @@ public partial class Element
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
     {
         using Stream stream = new FileStream(fileName, FileMode.Create);
-        await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
+        await SaveAsync(stream, cancellationToken);
     }
 
     /// <summary>

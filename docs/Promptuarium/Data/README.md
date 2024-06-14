@@ -23,7 +23,7 @@ public static class Data
 | [AsDateTimeOffset(Stream)](AsDateTimeOffset/README.md) | Converts a stream to a DateTimeOffset value\. |
 | [AsDecimal(Stream)](AsDecimal/README.md) | Converts a stream to a decimal value\. |
 | [AsDouble(Stream)](AsDouble/README.md) | Converts a stream to a double value\. |
-| [AsElementAsync(Stream)](AsElementAsync/README.md) | Converts a stream to a tree\. |
+| [AsElementAsync(Stream, Element)](AsElementAsync/README.md) | Converts a stream to a tree\. |
 | [AsFloat(Stream)](AsFloat/README.md) | Converts a stream to a float value\. |
 | [AsGuid(Stream)](AsGuid/README.md) | Converts a stream to a GUID value\. |
 | [AsInt(Stream)](AsInt/README.md) | Converts a stream to an int value\. |

@@ -34,7 +34,7 @@ public partial class Element : IEnumerable<Element>
     /// List of children. it is never null, but can be empty
     /// </summary>
     public IReadOnlyList<Element> Children { get; } = new List<Element>();
-    
+
     #endregion
 
     #region Constructors
@@ -138,7 +138,7 @@ public partial class Element : IEnumerable<Element>
             child.Parent = this;
         }
     }
-    
+
     #endregion
 
     #region Indexer
@@ -154,23 +154,14 @@ public partial class Element : IEnumerable<Element>
     /// var node = tree[0];
     /// </code>
     /// </example>
-    public Element this[int index]
-    {
-        get
-        {
-            if (index >= 0 && index < Children.Count)
-            {
-                return Children[index];
-            }
-
-            throw new PromptuariumException($"Index {index} in out of range [0...{Children.Count}]");
-        }
-    }
+    public Element this[int index] => index >= 0 && index < Children.Count
+                ? Children[index]
+                : throw new PromptuariumException($"Index {index} in out of range [0...{Children.Count}]");
 
     #endregion
 
     #region Tree operations
-    
+
     /// <summary>
     /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
     /// </summary>
@@ -345,7 +336,7 @@ public partial class Element : IEnumerable<Element>
         {
             if (node.Parent.Children.Contains(node))
             {
-                ((List<Element>)(node.Parent.Children)).Remove(node);
+                ((List<Element>)node.Parent.Children).Remove(node);
             }
             else
             {
@@ -417,7 +408,7 @@ public partial class Element : IEnumerable<Element>
         Walk(this, ancestors, handler);
         return this;
     }
-    
+
     #endregion
 
     #region Conversion functions
@@ -492,7 +483,7 @@ public partial class Element : IEnumerable<Element>
     {
         using var memoryStream = new MemoryStream();
 
-        await SaveAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+        await SaveAsync(memoryStream, cancellationToken);
 
         byte[] buffer = new byte[memoryStream.Length];
         Array.Copy(memoryStream.ToArray(), buffer, (int)memoryStream.Length);
@@ -534,24 +525,14 @@ public partial class Element : IEnumerable<Element>
     /// var tree = await Element.FromBase64StringAsync(base64String);
     /// </code>
     /// </example>
-    public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
+    public static async Task<Element> FromBase64StringAsync(string base64String,
+        Element? loaderElement = default, CancellationToken cancellationToken = default)
     {
+        loaderElement ??= new Element();
         using var memoryStream = new MemoryStream(Convert.FromBase64String(base64String));
-        return await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+        return await loaderElement.LoadAsync(memoryStream, cancellationToken);
     }
 
-    /// <summary>
-    /// Creates a tree from a Base64 string.
-    /// </summary>
-    /// <param name="base64String">The tree in Base64.</param>
-    /// <returns>The tree.</returns>
-    /// <example>
-    /// <code>
-    /// var tree = await Element.FromBase64StringAsync(base64String);
-    /// </code>
-    /// </example>
-    public static Task<Element> FromBase64StringAsync(string base64String) => FromBase64StringAsync(base64String, CancellationToken.None);
-    
     #endregion
 
     #region IEnumerable<Element> implementation
@@ -638,7 +619,7 @@ public partial class Element : IEnumerable<Element>
             stringBuilder.Append(" = \"");
             stringBuilder.Append(node.MetaData!
                 .AsUtf8String()
-                .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
+                .Select(c => c is < '\u0020' or > '\u007F' ? '.' : c)
                 .ToArray());
             stringBuilder.Append('\"');
             stringBuilder.Append(']');
@@ -656,7 +637,7 @@ public partial class Element : IEnumerable<Element>
             stringBuilder.Append(" = \"");
             stringBuilder.Append(node.Data!
                 .AsUtf8String()
-                .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
+                .Select(c => c is < '\u0020' or > '\u007F' ? '.' : c)
                 .ToArray());
             stringBuilder.Append('\"');
         }

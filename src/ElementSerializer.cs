@@ -70,7 +70,7 @@ public partial class Element
 
         if (Contains(Data))
         {
-            appending = await SerializeContentAsync(stream, Data!, DataType.Data, direction, appending, cancellationToken).ConfigureAwait(false);
+            appending = await SerializeContentAsync(stream, Data!, DataType.Data, direction, appending, cancellationToken);
         }
 
         // Firing event
@@ -85,7 +85,7 @@ public partial class Element
 
         if (Contains(MetaData))
         {
-            appending = await SerializeContentAsync(stream, MetaData!, DataType.MetaData, direction, appending, cancellationToken).ConfigureAwait(false);
+            appending = await SerializeContentAsync(stream, MetaData!, DataType.MetaData, direction, appending, cancellationToken);
         }
 
         // Firing event
@@ -105,7 +105,7 @@ public partial class Element
 
                 if (child != null)
                 {
-                    await child.SerializeAsync(stream, serializationArguments, cancellationToken).ConfigureAwait(false);
+                    await child.SerializeAsync(stream, serializationArguments, cancellationToken);
                 }
             }
 
@@ -137,8 +137,8 @@ public partial class Element
             int bufferSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
 
             byte[] buffer = new byte[bufferSize];
-            await source.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
-            await target.WriteAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
+            await source.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken);
+            await target.WriteAsync(buffer.AsMemory(0, bufferSize), cancellationToken);
         }
 
         return appending;
@@ -146,12 +146,9 @@ public partial class Element
 
     private static byte ControlByte(Directions direction, DataType dataType, SizeType sizeType, byte sizeBits)
     {
-        if (sizeBits <= NibbleMaxValue)
-        {
-            return (byte)((byte)direction | (byte)dataType | (byte)sizeType | sizeBits);
-        }
-
-        throw new PromptuariumException($"Size bits greater than the max value ({NibbleMaxValue.ToString(CultureInfo.InvariantCulture)} bits)");
+        return sizeBits <= NibbleMaxValue
+            ? (byte)((byte)direction | (byte)dataType | (byte)sizeType | sizeBits)
+            : throw new PromptuariumException($"Size bits greater than the max value ({NibbleMaxValue.ToString(CultureInfo.InvariantCulture)} bits)");
     }
 
     private static IEnumerable<SizeDescriptor> GetSizes(long size)
@@ -176,7 +173,7 @@ public partial class Element
             {
                 byte bit;
 
-                for (bit = ChunkSizeInBits; (bit >= NibbleSizeInBits) && (word & ((long) 1 << bit)) == 0;)
+                for (bit = ChunkSizeInBits; (bit >= NibbleSizeInBits) && (word & ((long)1 << bit)) == 0;)
                 {
                     bit--;
                 }
@@ -214,7 +211,7 @@ public partial class Element
 
     #region Deserialization routines
 
-    private static async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
+    private async Task<Element> DeserializeAsync(Stream stream, CancellationToken cancellationToken)
     {
         var root = new Element();
         Element parent = root;
@@ -222,20 +219,20 @@ public partial class Element
 
         while (stream.Position < stream.Length)
         {
-            byte controlByte = (byte) stream.ReadByte();
+            byte controlByte = (byte)stream.ReadByte();
 
-            switch (controlByte & (byte) Directions.Mask)
+            switch (controlByte & (byte)Directions.Mask)
             {
-                case (byte) Directions.New:
+                case (byte)Directions.New:
                     node = AddNewNode(parent);
                     break;
 
-                case (byte) Directions.Down:
+                case (byte)Directions.Down:
                     parent = node;
                     node = AddNewNode(parent);
                     break;
 
-                case (byte) Directions.Up:
+                case (byte)Directions.Up:
                     if (parent.Parent != null)
                     {
                         parent = parent.Parent;
@@ -248,19 +245,22 @@ public partial class Element
 
                     break;
 
-                case (byte) Directions.Append:
+                case (byte)Directions.Append:
                     break;
+
+                default:
+                    throw new InvalidOperationException();
             }
 
             int chunkSize = GetChunkSize(controlByte);
 
-            if (((controlByte & (byte)Directions.Mask) == (byte) Directions.Append) && (chunkSize == 0))
+            if (((controlByte & (byte)Directions.Mask) == (byte)Directions.Append) && (chunkSize == 0))
             {
                 break;
             }
 
             byte[] buffer = new byte[chunkSize];
-            await stream.ReadAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
+            await stream.ReadAsync(buffer.AsMemory(0, chunkSize), cancellationToken);
 
             if (IsDataChunk(controlByte))
             {
@@ -271,7 +271,7 @@ public partial class Element
                     // Firing event
                     OnDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
 
-                    await node.Data.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
+                    await node.Data.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken);
 
                     // Firing event
                     OnDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
@@ -286,7 +286,7 @@ public partial class Element
                     // Firing event
                     OnMetaDataLoading?.Invoke(node, new PromptuariumLoadingEventArgs());
 
-                    await node.MetaData.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
+                    await node.MetaData.WriteAsync(buffer.AsMemory(0, chunkSize), cancellationToken);
 
                     // Firing event
                     OnMetaDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
@@ -296,14 +296,7 @@ public partial class Element
 
         PurgeEmptyNodes(root);
 
-        if (root.Children.Count > 0)
-        {
-            return root.Children[0];
-        }
-        else
-        {
-            return new Element();
-        }
+        return root.Children.Count > 0 ? root.Children[0] : new Element();
     }
 
     private static int GetChunkSize(byte controlByte) => IsSizeLogarithmic(controlByte) ?

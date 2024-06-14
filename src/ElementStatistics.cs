@@ -22,52 +22,52 @@ public class Statistics
     /// <summary>
     /// The number of nodes in the tree
     /// </summary>
-    public int Nodes;
+    public int Nodes { get; set; }
 
     /// <summary>
     /// The number of nodes with data
     /// </summary>
-    public int NodesWithData;
+    public int NodesWithData { get; set; }
 
     /// <summary>
     /// The number of nodes with metadata
     /// </summary>
-    public int NodesWithMetaData;
+    public int NodesWithMetaData { get; set; }
 
     /// <summary>
     /// The number of nodes with data and metadata
     /// </summary>
-    public int NodesWithDataAndMetaData;
+    public int NodesWithDataAndMetaData { get; set; }
 
     /// <summary>
     /// The number of nodes without data and metadata
     /// </summary>
-    public int NodesWithoutDataAndMetaData;
+    public int NodesWithoutDataAndMetaData { get; set; }
 
     /// <summary>
     /// The number of nodes without children
     /// </summary>
-    public int NodesWithoutChildren;
+    public int NodesWithoutChildren { get; set; }
 
     /// <summary>
     /// The depth of the tree
     /// </summary>
-    public int Depth;
+    public int Depth { get; set; }
 
     /// <summary>
     /// The maximum number of children of a node
     /// </summary>
-    public int MaxChildren;
+    public int MaxChildren { get; set; }
 
     /// <summary>
     /// The minimum number of children of a node
     /// </summary>
-    public int MinChildren;
+    public int MinChildren { get; set; }
 
     /// <summary>
     /// The longest data in the tree
     /// </summary>
-    public long LongestData;
+    public long LongestData { get; set; }
 
     /// <summary>
     /// The longest metadata in the tree
@@ -77,12 +77,12 @@ public class Statistics
     /// <summary>
     /// The shortest data in the tree
     /// </summary>
-    public long ShortestData;
+    public long ShortestData { get; set; }
 
     /// <summary>
     /// The shortest metadata in the tree
     /// </summary>
-    public long ShortestMetaData;
+    public long ShortestMetaData { get; set; }
 
     /// <summary>
     /// Returns a string that represents the current object.

@@ -508,7 +508,7 @@ public static class Data
     public static Stream FromVarInt(long value)
     {
         var result = new MemoryStream();
-        ulong buffer = (value >= 0) ? (ulong)(value << 1) : (((ulong)(-value) << 1) + 1);
+        ulong buffer = (value >= 0) ? (ulong)(value << 1) : (((ulong)-value << 1) + 1);
         CompactBytes(result, buffer);
         return result;
     }
@@ -876,7 +876,7 @@ public static class Data
         }
 
         var stream = new MemoryStream();
-        await value.SaveAsync(stream).ConfigureAwait(false);
+        await value.SaveAsync(stream);
         return stream;
     }
 
@@ -890,11 +890,12 @@ public static class Data
     /// var tree = await Data.AsTreeAsync(stream);
     /// </code>
     /// </example>
-    public static async Task<Element> AsElementAsync(this Stream stream)
+    public static async Task<Element> AsElementAsync(this Stream stream, Element? loaderElement = default)
     {
+        loaderElement ??= new Element();
         Element result;
         stream.Position = 0;
-        result = await Element.LoadAsync(stream).ConfigureAwait(false);
+        result = await loaderElement.LoadAsync(stream);
         stream.Position = 0;
         return result;
     }
