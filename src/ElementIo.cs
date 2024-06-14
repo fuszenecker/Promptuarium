@@ -58,7 +58,7 @@ public partial class Element
     public async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
     {
         using var fileStream = new FileStream(fileName, FileMode.Open);
-        return await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        return await LoadAsync(fileStream, cancellationToken);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public partial class Element
     /// </example>
     public async Task SaveAsync(Stream stream, CancellationToken cancellationToken)
     {
-        await SerializeAsync(stream, new SerializationArguments(), cancellationToken).ConfigureAwait(false);
+        await SerializeAsync(stream, new SerializationArguments(), cancellationToken);
         stream.WriteByte(ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0));
     }
 
@@ -127,7 +127,7 @@ public partial class Element
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
     {
         using Stream stream = new FileStream(fileName, FileMode.Create);
-        await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
+        await SaveAsync(stream, cancellationToken);
     }
 
     /// <summary>

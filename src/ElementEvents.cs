@@ -105,7 +105,7 @@ public partial class Element
     /// Event handler for all Promptuarium metadata saved events
     /// </summary>
     public event EventHandler<PromptuariumSavedEventArgs>? OnMetaDataSaved;
-    
+
     #endregion
 }
 #endregion

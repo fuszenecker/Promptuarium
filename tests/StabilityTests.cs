@@ -2,86 +2,83 @@
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Promptuarium;
 
-namespace PromptuariumTests
+namespace Promptuarium.Tests;
+
+[TestClass]
+public class StabilityTests
 {
-    [TestClass]
-    public class StabilityTests
+    private readonly Random random = new((int)DateTime.Now.Ticks);
+
+    [TestMethod]
+    public async Task Stability()
     {
-        private readonly Random random = new ((int)DateTime.Now.Ticks);
+        const int maxTests = 10000;
+        const int minChildren = 0;
+        const int maxChildren = 10;
+        const double probability = 0.75;
 
-        [TestMethod]
-        public async Task Stability()
+        await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.prm");
+    }
+
+    [TestMethod]
+    public async Task BigTrees()
+    {
+        const int maxTests = 10;
+        const int minChildren = 0;
+        const int maxChildren = 20;
+        const double probability = 0.95;
+
+        await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.prm");
+    }
+
+    private Element GenerateTree(int minimumChildren, int maximumChildren, double probability)
+    {
+        var root = new Element();
+
+        GenerateTree(root, minimumChildren, maximumChildren, probability);
+
+        return root;
+    }
+
+    private void GenerateTree(Element node, int minimumChildren, int maximumChildren, double probability, int level = 0)
+    {
+        if (random.NextDouble() < probability)
         {
-            const int maxTests = 10000;
-            const int minChildren = 0;
-            const int maxChildren = 10;
-            const double probability = 0.75;
+            int numChildren = random.Next(maximumChildren - minimumChildren) + minimumChildren;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.prm").ConfigureAwait(false);
-        }
-
-        [TestMethod]
-        public async Task BigTrees()
-        {
-            const int maxTests = 10;
-            const int minChildren = 0;
-            const int maxChildren = 20;
-            const double probability = 0.95;
-
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.prm").ConfigureAwait(false);
-        }
-
-        private Element GenerateTree(int minimumChildren, int maximumChildren, double probability)
-        {
-            var root = new Element();
-
-            GenerateTree(root, minimumChildren, maximumChildren, probability);
-
-            return root;
-        }
-
-        private void GenerateTree(Element node, int minimumChildren, int maximumChildren, double probability, int level = 0)
-        {
-            if (random.NextDouble() < probability)
+            for (int x = 0; x < numChildren; x++)
             {
-                int numChildren = random.Next(maximumChildren - minimumChildren) + minimumChildren;
+                var nodeGuid = Guid.NewGuid();
 
-                for (int x = 0; x < numChildren; x++)
+                var child = new Element()
                 {
-                    var nodeGuid = Guid.NewGuid();
+                    MetaData = Data.FromAsciiString(nodeGuid.ToString("N")),
+                    Data = Data.FromUtf8String(string.Format("LEVEL: {0}, NODE: {1}", level, nodeGuid))
+                };
 
-                    var child = new Element()
-                    {
-                        MetaData = Data.FromAsciiString(nodeGuid.ToString("N")),
-                        Data = Data.FromUtf8String(string.Format("LEVEL: {0}, NODE: {1}", level, nodeGuid))
-                    };
+                GenerateTree(child, minimumChildren, maximumChildren, probability * probability, level++);
 
-                    GenerateTree(child, minimumChildren, maximumChildren, probability * probability, level++);
-
-                    node.Add(child);
-                }
+                node.Add(child);
             }
         }
+    }
 
-        private async Task CreateAndVerifyTrees(int maxTests, int minChildren, int maxChildren, double probability, string fileName)
+    private async Task CreateAndVerifyTrees(int maxTests, int minChildren, int maxChildren, double probability, string fileName)
+    {
+        for (int x = 0; x < maxTests; x++)
         {
-            for (int x = 0; x < maxTests; x++)
-            {
-                Element originalTree = GenerateTree(minChildren, maxChildren, probability);
-                string originalTreeString = originalTree.TreeToString();
-                await originalTree.SaveAsync(fileName).ConfigureAwait(false);
+            Element originalTree = GenerateTree(minChildren, maxChildren, probability);
+            string originalTreeString = originalTree.TreeToString();
+            await originalTree.SaveAsync(fileName);
+            _ = originalTree.GetStatistics();
 
-                Statistics stats = originalTree.GetStatistics();
+            Assert.IsTrue(new FileInfo(fileName).Length > 0);
 
-                Assert.IsTrue(new FileInfo(fileName).Length > 0);
+            Element currentTree = await new Element().LoadAsync(fileName);
+            string currentTreeString = currentTree.TreeToString();
 
-                Element currentTree = await new Element().LoadAsync(fileName).ConfigureAwait(false);
-                string currentTreeString = currentTree.TreeToString();
-
-                Assert.AreEqual(originalTreeString, currentTreeString);
-            }
+            Assert.AreEqual(originalTreeString, currentTreeString);
         }
     }
 }
