@@ -13,7 +13,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>6.0.0</Version>
+    <Version>6.1.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -25,8 +25,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Targets .NET 10. Loading works with non-seekable streams (e.g. network streams) and does not read beyond the end of the tree. Fixed serialization of trees with empty leaf nodes.</ReleaseNotes>
-    <PackageReleaseNotes>Targets .NET 10. Loading works with non-seekable streams (e.g. network streams) and does not read beyond the end of the tree. Fixed serialization of trees with empty leaf nodes.</PackageReleaseNotes>
+    <ReleaseNotes>Fixed an encoder bug with nodes having only empty children (the next node was lost). Iterative algorithms for arbitrarily deep trees. Add moves nodes and refuses cycles, the copy constructor creates a deep copy, fixed statistics minimums and VarInt(long.MinValue), files are loaded read-only. Complete binary format specification (BINARY_FORMAT.md).</ReleaseNotes>
+    <PackageReleaseNotes>Fixed an encoder bug with nodes having only empty children (the next node was lost). Iterative algorithms for arbitrarily deep trees. Add moves nodes and refuses cycles, the copy constructor creates a deep copy, fixed statistics minimums and VarInt(long.MinValue), files are loaded read-only. Complete binary format specification (BINARY_FORMAT.md).</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>
