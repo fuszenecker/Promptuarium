@@ -1,30 +1,70 @@
-# Promptuarium Binary Format
+# Promptuarium Binary Format Specification
 
-This document describes the binary container format produced by `Element.SaveAsync` and consumed by `Element.LoadAsync`.
-The implementation lives in [`src/ElementSerializer.cs`](../src/ElementSerializer.cs) and [`src/ElementDefinitions.cs`](../src/ElementDefinitions.cs).
+This document specifies the binary container format written by `Element.SaveAsync` and read by `Element.LoadAsync`.
+It is self-contained: an independent implementation (in Rust, C, Python, …) that follows it reads every stream the reference implementation writes, and writes byte-identical streams.
 
-## Overview
+The reference implementation is [`src/ElementSerializer.cs`](src/ElementSerializer.cs) (container) and [`src/Data.cs`](src/Data.cs) (payload conventions).
 
-A Promptuarium stream is a flat sequence of **chunks**. There is no file header, no magic number, no version field and no checksum.
+**Contents**
 
-Each chunk is:
+1. [Conventions](#1-conventions)
+2. [Data model](#2-data-model)
+3. [Stream structure](#3-stream-structure)
+4. [Control byte](#4-control-byte)
+5. [Decoding](#5-decoding)
+6. [Encoding](#6-encoding)
+7. [Streaming](#7-streaming)
+8. [Errors](#8-errors)
+9. [Payload conventions (the `Data` class)](#9-payload-conventions-the-data-class)
+10. [Test vectors](#10-test-vectors)
+11. [Implementation notes](#11-implementation-notes)
+12. [Compatibility and history](#12-compatibility-and-history)
+
+---
+
+## 1. Conventions
+
+* **MUST**, **MUST NOT**, **SHOULD** and **MAY** are used as in RFC 2119.
+* Bytes are written in hexadecimal (`41`, `0x41`). Byte sequences are written left to right in stream order.
+* Bits are numbered from 0 (least significant) to 7 (most significant).
+* All multi-byte integers in this document are **little-endian**.
+* `2^n` is 2 to the power of `n`. `KiB` is 1024 bytes.
+* In tree diagrams, `X("abc")` is a node whose data is the ASCII bytes of `abc`, and `[...]` is the list of its children.
+
+## 2. Data model
+
+A Promptuarium tree consists of **nodes**. Every node has:
+
+| Field      | Type                            | Notes |
+|------------|---------------------------------|-------|
+| `data`     | byte sequence (0 or more bytes) | opaque to the container |
+| `metadata` | byte sequence (0 or more bytes) | opaque to the container |
+| `children` | ordered list of nodes           | may be empty |
+
+The container stores **no type information**, no names and no keys: data and metadata are plain bytes. Their meaning (string, integer, nested tree, …) is an agreement between the writer and the reader; [section 9](#9-payload-conventions-the-data-class) lists the conventions of the reference implementation.
+
+The format does not distinguish an *absent* content from an *empty* (zero-length) one. The reference implementation uses `null` for a content that did not receive any byte while loading; an implementation MAY use `Option<Vec<u8>>` or simply an empty `Vec<u8>`.
+
+A node is **empty** if its data and metadata are both zero-length and it has no children. Empty nodes are not stored (see [6.4](#64-empty-nodes)).
+
+A stream holds exactly **one tree** (one root node). Several trees can follow each other in the same stream (see [section 7](#7-streaming)).
+
+## 3. Stream structure
+
+A stream is a sequence of **chunks**, ended by a **terminator**. There is no header, no magic number, no version field, no length field and no checksum.
 
 ```text
-+--------------+---------------------------+
-| control byte | payload (0 .. 512 KiB)    |
-+--------------+---------------------------+
+stream     = *chunk terminator
+chunk      = control-byte payload
+payload    = 0 to 524288 bytes (the length is encoded in the control byte)
+terminator = the control byte of an Append chunk with length 0 (written as 00)
 ```
 
-The control byte tells the decoder:
+Every chunk either **starts a new node** (and positions it in the tree) or **appends** bytes to the node started last. The payload of a chunk is appended either to the data or to the metadata of that node.
 
-1. how to move in the tree before storing the payload (*direction*),
-2. whether the payload belongs to the node's **data** or **metadata** (*type*),
-3. how long the payload is (*size type* + *size nibble*).
+The nodes are written in **depth-first pre-order**: a node, then the subtree of its first child, then the subtree of its second child, and so on.
 
-The tree is written in depth-first, pre-order traversal: a node's own content first, then its children from first to last.
-The stream ends with a single `0x00` byte (or at the physical end of the stream).
-
-## Control byte layout
+## 4. Control byte
 
 ```text
   bit:   7   6   5   4   3   2   1   0
@@ -36,175 +76,431 @@ The stream ends with a single `0x00` byte (or at the physical end of the stream)
 | Bits | Mask   | Field              | Values |
 |------|--------|--------------------|--------|
 | 7–6  | `0xC0` | Direction (`DIR`)  | `00` Append, `01` Down, `10` Up, `11` New |
-| 5    | `0x20` | Content type (`T`) | `0` Data, `1` MetaData |
-| 4    | `0x10` | Size type (`S`)    | `0` Linear, `1` Logarithmic |
+| 5    | `0x20` | Content type (`T`) | `0` data, `1` metadata |
+| 4    | `0x10` | Size type (`S`)    | `0` linear, `1` logarithmic |
 | 3–0  | `0x0F` | Size nibble (`n`)  | `0`–`15` |
 
-### Direction (bits 7–6)
+So `control = DIR | T | S | n`, with these values:
 
-The decoder keeps two cursors: the **current parent** and the **current node**.
-Initially both point to a virtual root that is not part of the result; the real root becomes the virtual root's first child.
+| Name        | Value  |
+|-------------|--------|
+| Append      | `0x00` |
+| Down        | `0x40` |
+| Up          | `0x80` |
+| New         | `0xC0` |
+| Data        | `0x00` |
+| MetaData    | `0x20` |
+| Linear      | `0x00` |
+| Logarithmic | `0x10` |
 
-| Value | Name   | Byte mask | Effect on the decoder |
-|-------|--------|-----------|-----------------------|
-| `00`  | Append | `0x00`    | Stay on the current node; the payload continues the current node's content. |
-| `01`  | Down   | `0x40`    | The current node becomes the parent; create a new node as its child (first child). |
-| `10`  | Up     | `0x80`    | The parent's parent becomes the parent; create a new node under it (i.e. a new sibling of the former parent). |
-| `11`  | New    | `0xC0`    | Create a new node under the current parent (a new sibling of the current node). |
+### 4.1 Direction
 
-Every direction except Append starts a new node; the payload of the chunk is stored in that new node.
-Moving Up above the virtual root raises a `PromptuariumException`.
+The decoder keeps two cursors, `parent` and `node` (see [section 5](#5-decoding)).
 
-### Content type (bit 5)
+| Direction | Effect |
+|-----------|--------|
+| Append    | No navigation. The payload is appended to the current `node`. |
+| Down      | `parent = node`, then a new node is created as the last child of `parent` and becomes `node`. (The new node is the first child of the previous node.) |
+| Up        | `parent = parent.parent`, then a new node is created as the last child of `parent` and becomes `node`. (The new node is a sibling of the previous parent.) |
+| New       | A new node is created as the last child of `parent` and becomes `node`. (The new node is a sibling of the previous node.) |
 
-| Value | Name     | Byte mask | Payload is appended to |
-|-------|----------|-----------|------------------------|
-| `0`   | Data     | `0x00`    | `Element.Data` |
-| `1`   | MetaData | `0x20`    | `Element.MetaData` |
+### 4.2 Content type
 
-### Size type (bit 4) and size nibble (bits 3–0)
+The payload is appended to `node.data` (`T = 0`) or to `node.metadata` (`T = 1`). For a zero-length payload the content type has no effect.
 
-The payload length `L` that follows the control byte is computed from the size type and the nibble `n`:
+### 4.3 Payload length
 
-| Size type   | Bit 4 | Length              | Range |
-|-------------|-------|---------------------|-------|
-| Linear      | `0`   | `L = n`             | 0 – 15 bytes |
-| Logarithmic | `1`   | `L = 2^(n + 4)`     | 16 B (`n = 0`) – 512 KiB (`n = 15`) |
+| Size type   | `S` | Payload length | Range |
+|-------------|-----|----------------|-------|
+| Linear      | `0` | `n`            | 0 – 15 bytes |
+| Logarithmic | `1` | `2^(n + 4)`    | 16 bytes (`n = 0`) – 512 KiB (`n = 15`) |
 
-Logarithmic lengths for each nibble value:
+| `n` | Logarithmic length | `n` | Logarithmic length | `n` | Logarithmic length | `n` | Logarithmic length |
+|-----|------|-----|------|-----|-------|-----|--------|
+| 0   | 16   | 4   | 256  | 8   | 4096  | 12  | 65536  |
+| 1   | 32   | 5   | 512  | 9   | 8192  | 13  | 131072 |
+| 2   | 64   | 6   | 1024 | 10  | 16384 | 14  | 262144 |
+| 3   | 128  | 7   | 2048 | 11  | 32768 | 15  | 524288 |
 
-| `n` | Length    | `n` | Length    | `n` | Length    | `n` | Length    |
-|-----|-----------|-----|-----------|-----|-----------|-----|-----------|
-| 0   | 16 B      | 4   | 256 B     | 8   | 4 KiB     | 12  | 64 KiB    |
-| 1   | 32 B      | 5   | 512 B     | 9   | 8 KiB     | 13  | 128 KiB   |
-| 2   | 64 B      | 6   | 1 KiB     | 10  | 16 KiB    | 14  | 256 KiB   |
-| 3   | 128 B     | 7   | 2 KiB     | 11  | 32 KiB    | 15  | 512 KiB   |
+### 4.4 Special control bytes
 
-## Encoding the length of a content stream
+| Byte(s)    | Meaning |
+|------------|---------|
+| `00`, `20` | Terminator (Append, linear, length 0). The encoder writes `00`; the decoder MUST accept both. |
+| `10`, `30` | **Not** a terminator: Append with a logarithmic length of 16 bytes. |
+| `40`, `60` | Down with an empty payload: a **placeholder** (a node that has only children). The encoder writes `40`. |
+| `80`, `A0` | Up with an empty payload: an **Up marker**, used to climb more than one level. The encoder writes `80`. |
+| `C0`, `E0` | New with an empty payload: an empty sibling. Never written by the encoder, but valid. |
 
-A data or metadata stream of arbitrary length is split into one or more chunks. The encoder (`GetSizes`) works like this, starting with `remaining = length`:
+## 5. Decoding
 
-1. While `remaining > 512 KiB`: emit a logarithmic chunk with `n = 15` (512 KiB) and subtract 512 KiB.
-2. While `remaining > 15`: take the highest set bit `b` of `remaining` (`4 <= b <= 19`), emit a logarithmic chunk with `n = b - 4` (`2^b` bytes) and subtract `2^b`.
-3. If `1 <= remaining <= 15`: emit one linear chunk with `n = remaining`.
+### 5.1 Algorithm
 
-In other words, after the full 512 KiB chunks, the remainder is written as its binary representation: one logarithmic chunk per set bit from bit 19 down to bit 4, then the low 4 bits as a single linear chunk.
-The total length is not stored anywhere; it is the sum of the chunk lengths.
-
-The overhead is one control byte per chunk, so a stream of `L` bytes costs at most `floor(L / 512 KiB) + 16` extra bytes.
-
-Example: 37 bytes = 32 + 5 is written as two chunks:
-
-```text
-51  <32 bytes>      Down | Data | Logarithmic | n=1  (2^5 = 32 bytes)
-05  <5 bytes>       Append | Data | Linear | n=5
-```
-
-## Serializing a node
-
-For each node the encoder writes, in order:
-
-1. **Pending Up markers** (see below), if any.
-2. **A placeholder chunk**, only if the node has neither data nor metadata but has children: the control byte `DIR | Data | Linear | 0` with no payload. Its only purpose is to create the node in the decoder.
-3. **Data chunks**, if `Data` is non-empty.
-4. **MetaData chunks**, if `MetaData` is non-empty.
-5. **The children**, recursively, from first to last.
-
-The very first chunk of a node carries the navigation direction; every following chunk of the same node (the remaining data chunks *and* all metadata chunks) uses **Append**.
-Data always precedes metadata within a node.
-
-### Choosing the direction
-
-The direction of a node's first chunk depends on the node that was serialized before it:
-
-| Previously serialized node                   | Direction |
-|----------------------------------------------|-----------|
-| none (this is the root)                      | Down |
-| the node's parent                            | Down (first child) |
-| a sibling of the node                        | New |
-| a child of a sibling (sibling's subtree ended) | Up |
-
-### Climbing more than one level
-
-`Up` climbs only one level. When a subtree that ends more than one level deeper than the next node is closed, the encoder emits additional **Up markers** before the next node: each marker is the byte `0x80` (`Up | Data | Linear | 0`, no payload).
-Each marker moves the decoder's parent cursor one level up and creates an empty placeholder node, which is removed after loading (see [Empty nodes](#empty-nodes)).
-Markers that would be needed after the last node of the tree are never written; the terminator ends the stream instead.
-
-## End of stream
-
-`SaveAsync` writes a final `0x00` byte (`Append | Data | Linear | 0`). The decoder stops when it reads an Append chunk with a length of 0, or when it reaches the end of the stream.
-Because of this, an Append chunk with zero length never appears in the middle of a valid stream.
-
-The terminator keeps the format streamable: the reader does not need to know the total length in advance, so a tree can be sent over a network connection, several trees can be concatenated in one stream, and a tree can be nested inside another tree's payload (`Data.FromElementAsync`).
-
-The reader relies on this (since version 6.0.0):
-
-* it never seeks and never queries `Length` or `Position`, so non-seekable streams (e.g. `NetworkStream`) work;
-* it tolerates partial reads, as a network stream may return fewer bytes than requested;
-* it never reads beyond the terminator, so the next tree (or any other data) can be read from the same stream right after `LoadAsync` returns;
-* a stream that ends in the middle of a chunk raises a `PromptuariumException`. A stream that ends between two chunks without a terminator is accepted.
-
-## Empty nodes
-
-After decoding, every node that has no data, no metadata and no children is removed (`PurgeEmptyNodes`). This removes the placeholders created by Up markers.
-
-The encoder writes nothing for a node that has no data, no metadata and no children. Such nodes are not preserved by a save/load round trip.
-
-Empty nodes are skipped entirely: they do not count as the "previously serialized" node when the encoder picks the direction of the next node.
-(Versions up to 5.0.0 did not skip them, so an empty first child — or an empty last child following a subtree — could make the next node attach to the wrong parent.)
-
-## Worked example
-
-Tree (ASCII strings; `c` has no data or metadata):
+This algorithm is normative: a conforming decoder MUST produce the same tree for every input.
 
 ```text
-R ("R")
-├── X ("X")
-│   └── c (empty, only children)
-│       └── d ("d")
-└── Y (data "Y", metadata "m")
+function decode(stream) -> Node:
+    virtual = new Node                  // a virtual root, never returned
+    parent  = virtual
+    node    = virtual
+
+    loop:
+        c = read 1 byte
+        if end of stream: break         // a missing terminator is accepted
+
+        dir = c & 0xC0
+        len = (c & 0x10) != 0 ? 2^((c & 0x0F) + 4) : (c & 0x0F)
+
+        if dir == New:
+            node = new Node; append node to parent.children
+        else if dir == Down:
+            parent = node
+            node = new Node; append node to parent.children
+        else if dir == Up:
+            if parent is virtual: error "navigating above the root"
+            parent = parent.parent
+            node = new Node; append node to parent.children
+        // else Append: no navigation
+
+        if dir == Append and len == 0: break      // terminator
+
+        if len > 0:
+            bytes = read exactly len bytes        // end of stream here is an error
+            if (c & 0x20) == 0: append bytes to node.data
+            else:               append bytes to node.metadata
+
+    remove_empty_nodes(virtual)
+    if virtual.children is empty: return new Node      // no data, no metadata, no children
+    root = virtual.children[0]
+    root.parent = none
+    return root                         // further children of the virtual root are ignored
+
+function remove_empty_nodes(virtual):
+    // Bottom-up: every node is processed after all of its descendants.
+    for each node in reverse pre-order of the tree under virtual (including virtual):
+        remove every child c of node where
+            c.data is empty and c.metadata is empty and c.children is empty
 ```
 
-Serialized bytes:
+Reverse pre-order visits every node after all of its descendants, so a node whose children were all removed is removed in turn when its parent is processed.
+
+### 5.2 Rules and edge cases
+
+* **Content before the first node.** An Append chunk before any node was started appends to the virtual root; the bytes are discarded.
+* **First node.** The first chunk that starts a node is normally a Down chunk (`41`, `40`, …). A New chunk (`C1`, …) has the same effect at the beginning, because `parent` and `node` are both the virtual root. An Up chunk at the beginning is an error.
+* **Siblings of the root.** Up or New chunks that create further nodes at the root level (more children of the virtual root) are valid, but these nodes are ignored.
+* **Interleaving.** Data and metadata chunks of the same node MAY be interleaved; each payload is appended to its own content in stream order. (The encoder writes all data chunks first.)
+* **Chunk sizes.** Any split of a content into chunks is valid, e.g. a decoder MUST accept 100 linear chunks of 15 bytes. The split of the encoder is described in [6.2](#62-splitting-a-content-into-chunks).
+* **Zero-length chunks.** A Down, Up or New chunk with length 0 only creates a node. An Append chunk with length 0 is always the terminator.
+* **Empty nodes.** Placeholders and Up markers create nodes that may end up empty; `remove_empty_nodes` removes them. The removal is bottom-up, so a placeholder whose whole subtree has no content disappears as well.
+* **Terminator.** After the terminator the decoder MUST NOT read any further byte.
+* **Parent of the root.** The returned root has no parent.
+
+## 6. Encoding
+
+A writer MAY produce any stream that decodes to the intended tree (section 5). To be **byte-identical** with the reference implementation, it MUST follow this section exactly.
+
+### 6.1 Algorithm
 
 ```text
-41 52 41 58 40 41 64 80 81 59 21 6D 00
+function encode(root, out):
+    stack = [(root, 0)]                 // (node, depth); the root is at depth 0
+    prev  = -1                          // depth of the previously written node; -1 is the virtual root
+
+    while stack is not empty:
+        (n, d) = stack.pop()
+
+        if is_empty(n): continue        // see 6.4
+
+        if d > prev:                    // always d == prev + 1
+            dir = Down
+        else if d == prev:
+            dir = New
+        else:                           // d < prev: climb prev - d levels
+            repeat (prev - d - 1) times: write byte 0x80      // Up markers
+            dir = Up
+
+        if len(n.data) == 0 and len(n.metadata) == 0:
+            write byte (dir | Data | Linear | 0)              // placeholder: 0x40, 0xC0 or 0x80
+
+        for each (S, nibble, length) in split(len(n.data)):
+            write byte (dir | Data | S | nibble)
+            write the next `length` bytes of n.data
+            dir = Append
+
+        for each (S, nibble, length) in split(len(n.metadata)):
+            write byte (dir | MetaData | S | nibble)
+            write the next `length` bytes of n.metadata
+            dir = Append
+
+        prev = d
+        for each child c of n, from the LAST to the FIRST:
+            stack.push((c, d + 1))
+
+    write byte 0x00                     // terminator
+
+function is_empty(n):
+    return len(n.data) == 0 and len(n.metadata) == 0 and n.children is empty
 ```
 
-| Bytes   | Control byte decoded                | Meaning |
-|---------|-------------------------------------|---------|
-| `41 52` | Down, Data, Linear, 1               | Create root `R`, data `"R"` |
-| `41 58` | Down, Data, Linear, 1               | Create `X` as first child of `R`, data `"X"` |
-| `40`    | Down, Data, Linear, 0               | Placeholder: create `c` as first child of `X` (no data) |
-| `41 64` | Down, Data, Linear, 1               | Create `d` as first child of `c`, data `"d"` |
-| `80`    | Up, Data, Linear, 0                 | Up marker: parent becomes `X`, empty node is created (purged later) |
-| `81 59` | Up, Data, Linear, 1                 | Parent becomes `R`; create `Y`, data `"Y"` |
-| `21 6D` | Append, MetaData, Linear, 1         | Metadata `"m"` for `Y` |
-| `00`    | Append, Data, Linear, 0             | End of stream |
+Notes:
 
-## Payload contents
+* `is_empty` only looks at the node itself: a node whose children are all empty is **not** empty. It is written (as a placeholder if it has no content of its own), its children are skipped, and for the next node it counts as a node without children.
+* The first chunk of a node carries `dir`; every further chunk of the same node (data and metadata) is an Append chunk.
+* `d > prev + 1` never happens: a node is pushed only after its parent was written, and the subtree of the parent is processed right after it.
+* Up markers are only written before a node. After the last node no markers are written; the terminator follows directly.
 
-The container itself treats data and metadata as opaque byte sequences. The helpers in the `Data` class ([`src/Data.cs`](../src/Data.cs)) use the following encodings:
+### 6.2 Splitting a content into chunks
 
-| Type | Encoding | Size |
-|------|----------|------|
-| `bool` | `BitConverter`: `0x00` / `0x01` | 1 |
-| `byte` | the byte itself | 1 |
-| `byte[]` | raw bytes | n |
-| `char` | UTF-16 code unit, `BitConverter` | 2 |
-| `short` / `ushort` | `BitConverter` | 2 |
-| `int` / `uint` / `float` | `BitConverter` | 4 |
-| `long` / `ulong` / `double` | `BitConverter` | 8 |
-| `decimal` | `BinaryWriter.Write(decimal)`: lo, mid, hi, flags as 4 × 32-bit little-endian integers | 16 |
-| `Guid` | `Guid.ToByteArray()` | 16 |
-| `DateTime` | `Ticks` as `long` | 8 |
-| `TimeSpan` | `Ticks` as `long` | 8 |
-| `DateTimeOffset` | `Ticks` as `long`, then `Offset.Ticks` as `long` | 16 |
-| ASCII / UTF-8 / UTF-16LE / UTF-32LE string | `Encoding.*.GetBytes`, no length prefix, no terminator, no BOM | n |
-| `VarUInt` | little-endian `ulong` with trailing zero bytes removed (at least 1 byte) | 1–8 |
-| `VarInt` | `(abs(value) << 1) \| sign` (sign bit is 1 for negative), then encoded as `VarUInt` | 1–8 |
-| `Element` | a complete nested Promptuarium stream (including its `0x00` terminator) | n |
+```text
+function split(L) -> list of (S, nibble, length):
+    result = []
+    while L > 0:
+        if L > 524288:
+            result.add((Logarithmic, 15, 524288));  L = L - 524288
+        else if L > 15:
+            b = index of the highest set bit of L    // 4 <= b <= 19
+            result.add((Logarithmic, b - 4, 2^b));   L = L - 2^b
+        else:
+            result.add((Linear, L, L));              L = 0
+    return result
+```
 
-`BitConverter` uses the machine's byte order, which is little-endian on all mainstream .NET platforms.
+In words: if `L > 524288`, full 512 KiB chunks are written until at most 524288 bytes remain. The remainder (`1..524288` bytes) is written in binary: one logarithmic chunk for every set bit from bit 19 down to bit 4, then the low 4 bits as one linear chunk (if they are not all zero).
+A zero-length content produces no chunk at all.
 
-Examples: `VarUInt(300)` is `2C 01`; `VarInt(-3)` is `07` (`3 << 1 | 1`).
+The overhead is one control byte per chunk: at most `floor(L / 524288) + 16` bytes for a content of `L` bytes.
+
+Examples (the control bytes of the data chunks of a root node; its first chunk is Down):
+
+| Length  | Split                                                | Control bytes |
+|---------|------------------------------------------------------|---------------|
+| 5       | 5                                                    | `45` |
+| 15      | 15                                                   | `4F` |
+| 16      | 16                                                   | `50` |
+| 37      | 32 + 5                                               | `51 05` |
+| 600000  | 524288 + 65536 + 8192 + 1024 + 512 + 256 + 128 + 64  | `5F 1C 19 16 15 14 13 12` |
+| 1048576 | 524288 + 524288                                      | `5F 1F` |
+| 1048577 | 524288 + 524288 + 1                                  | `5F 1F 01` |
+
+### 6.3 Directions illustrated
+
+```text
+R("R")                      41 52         Down, d=0 (prev=-1)
+├── A("A")                  41 41         Down, d=1
+│   └── B("B")              41 42         Down, d=2
+│       └── C("C")          41 43         Down, d=3
+│           └── D("D")      41 44         Down, d=4
+└── E("E")                  80 80 81 45   d=1, prev=4: 4 - 1 - 1 = 2 Up markers, then Up
+                            00            terminator
+```
+
+Decoding the markers: after `D` the parent is `C`. `80` makes `B` the parent (and creates an empty node), the next `80` makes `A` the parent (and creates an empty node), `81 45` makes `R` the parent and creates `E`. The two empty nodes are removed at the end.
+
+### 6.4 Empty nodes
+
+Empty nodes (no data, no metadata, no children) are never written and do not change `prev`, so they do not influence the direction of the next node. Consequently they are not preserved by a save/load round trip, and neither are subtrees that consist only of empty nodes and nodes without content.
+
+## 7. Streaming
+
+The terminator makes the format streamable:
+
+* The reader needs neither the total length nor the end of the stream; it reads exactly up to and including the terminator.
+* The reader never seeks, so it works on sockets, pipes and other non-seekable streams. It MUST tolerate partial reads (a read may return fewer bytes than requested).
+* After a tree has been read, the stream is positioned right after its terminator, so **several trees can be concatenated** in one stream and read one after the other. Any other data may follow a tree as well.
+* A tree can be **nested** into the data or metadata of another tree (`Data.FromElementAsync`); the nested stream contains its own terminator.
+* The writer only writes forward, so it works on non-seekable streams too. It needs the length of each content in advance (to compute the split), but not the size of the whole tree.
+
+Control bytes are read one at a time, so a reader on an unbuffered OS stream SHOULD add buffering. A buffered reader may consume bytes beyond the terminator into its buffer; the next tree must then be read through the same buffered reader.
+
+## 8. Errors
+
+A decoder MUST report an error (the reference implementation throws `PromptuariumException`) when:
+
+* an Up chunk is read while `parent` is the virtual root ("navigating above the root");
+* the stream ends inside a payload ("unexpected end of stream").
+
+Everything else is valid input, including a stream that ends between two chunks without a terminator, and an empty stream (which decodes to an empty node).
+
+## 9. Payload conventions (the `Data` class)
+
+The container does not know these types. They are the encodings of the `Data.FromXxx(...)` / `stream.AsXxx()` helpers of the reference implementation; the reader has to know which one was used.
+
+General rules of the reference decoders:
+
+* Fixed-size values read the first `size` bytes: a shorter content is padded with zero bytes, bytes after `size` are ignored.
+* Strings have no length prefix, no terminator and no byte order mark.
+
+| Type | Size | Encoding |
+|------|------|----------|
+| `bool` | 1 | `01` for true, `00` for false. Decoding: true if the first byte is not zero. |
+| `byte` | 1 | The byte itself. (Decoding an empty content returns `0xFF` in the reference implementation; treat it as undefined.) |
+| `byte[]` | n | The bytes themselves. |
+| `char` | 2 | UTF-16 code unit. |
+| `short` / `ushort` | 2 | Two's complement / unsigned. |
+| `int` / `uint` | 4 | Two's complement / unsigned. |
+| `long` / `ulong` | 8 | Two's complement / unsigned. |
+| `float` | 4 | IEEE 754 binary32. |
+| `double` | 8 | IEEE 754 binary64. |
+| `decimal` | 16 | See [9.1](#91-decimal). |
+| `Guid` | 16 | See [9.2](#92-guid). Decoding requires exactly 16 bytes. |
+| `DateTime` | 8 | `Ticks` as `long`: 100 ns intervals since 0001-01-01 00:00:00 (proleptic Gregorian calendar). The `Kind` (UTC / local / unspecified) is **not** stored. |
+| `TimeSpan` | 8 | `Ticks` as `long` (100 ns units, may be negative). |
+| `DateTimeOffset` | 16 | The local clock time in `Ticks` as `long`, then the UTC offset in `Ticks` as `long`. UTC ticks = local ticks − offset ticks. |
+| ASCII string | n | One byte per character; characters above U+007F are written as `?` (`3F`). |
+| UTF-8 string | n | UTF-8. |
+| UTF-16 string | n | UTF-16 little-endian. |
+| UTF-32 string | n | UTF-32 little-endian. |
+| `VarUInt` | 1–8 | See [9.3](#93-varuint-and-varint). |
+| `VarInt` | 1–8 | See [9.3](#93-varuint-and-varint). |
+| `Element` | n | A complete nested Promptuarium stream, including its terminator. |
+
+All integers and floating-point numbers are little-endian. Invalid string encodings are decoded with the replacement character U+FFFD (.NET default behaviour).
+
+### 9.1 Decimal
+
+16 bytes: four 32-bit integers `lo`, `mid`, `hi`, `flags` (the layout of .NET `decimal.GetBits` and `BinaryWriter.Write(decimal)`).
+
+* `hi:mid:lo` is a 96-bit unsigned integer `m` (`lo` holds the lowest 32 bits).
+* `flags` bits 16–23: the scale `e` (0–28). Bit 31: the sign (1 = negative). All other bits are zero.
+* value = `(-1)^sign × m / 10^e`
+
+Example: `1.978 = 1978 × 10^-3`, so `m = 1978 = 0x7BA` and `e = 3`:
+
+```text
+BA 07 00 00  00 00 00 00  00 00 00 00  00 00 03 00     1.978
+BA 07 00 00  00 00 00 00  00 00 00 00  00 00 03 80    -1.978
+```
+
+### 9.2 Guid
+
+The .NET `Guid.ToByteArray()` layout: the first three groups are little-endian integers (32, 16 and 16 bits), the last 8 bytes are written as they are.
+
+```text
+00112233-4455-6677-8899-aabbccddeeff  →  33 22 11 00  55 44  77 66  88 99 AA BB CC DD EE FF
+```
+
+### 9.3 VarUInt and VarInt
+
+**VarUInt** (unsigned 64-bit): the value in little-endian byte order without its trailing (most significant) zero bytes; at least one byte is written.
+Decoding reads up to the first 8 bytes as a little-endian unsigned integer (missing bytes are zero).
+This is **not** LEB128: there are no continuation bits, the length is the length of the content.
+
+**VarInt** (signed 64-bit): sign and magnitude, then encoded as VarUInt:
+
+```text
+encode(v):  if v == -2^63:      u = 1                     // "negative zero"
+            else if v >= 0:     u = v << 1
+            else:               u = ((-v) << 1) | 1
+decode(u):  if u == 1:          v = -2^63
+            else if u & 1 == 0: v = u >> 1
+            else:               v = -(u >> 1)
+```
+
+This is **not** ZigZag encoding: `-1` is `03`, not `01`.
+
+| Value    | VarInt                    | Value    | VarUInt |
+|----------|---------------------------|----------|---------|
+| 0        | `00`                      | 0        | `00` |
+| 1        | `02`                      | 1        | `01` |
+| -1       | `03`                      | 255      | `FF` |
+| 63       | `7E`                      | 256      | `00 01` |
+| 64       | `80`                      | 300      | `2C 01` |
+| -64      | `81`                      | 65536    | `00 00 01` |
+| 300      | `58 02`                   | 2^64 − 1 | `FF FF FF FF FF FF FF FF` |
+| -300     | `59 02`                   |          | |
+| 2^63 − 1 | `FE FF FF FF FF FF FF FF` |          | |
+| −2^63    | `01`                      |          | |
+
+### 9.4 Further test vectors
+
+| Value | Bytes |
+|-------|-------|
+| `true` / `false` | `01` / `00` |
+| `'é'` (char) | `E9 00` |
+| `(short)-2` | `FE FF` |
+| `0x12345678` (int) | `78 56 34 12` |
+| `1.5f` (float) | `00 00 C0 3F` |
+| `1.5` (double) | `00 00 00 00 00 00 F8 3F` |
+| `DateTime(2000-01-01 00:00:00)` | `00 40 E4 47 02 22 C1 08` (630822816000000000 ticks) |
+| `DateTimeOffset(2000-01-01 12:00:00 +02:00)` | `00 20 19 DD 66 22 C1 08 00 D0 88 C3 10 00 00 00` |
+| `TimeSpan(1 s)` | `80 96 98 00 00 00 00 00` |
+| `"aé"` ASCII | `61 3F` |
+| `"aé"` UTF-8 | `61 C3 A9` |
+| `"aé"` UTF-16 | `61 00 E9 00` |
+| `"aé"` UTF-32 | `61 00 00 00 E9 00 00 00` |
+
+## 10. Test vectors
+
+All payloads are ASCII. `(empty)` is a node without data, metadata and children; `c` is a node without data and metadata.
+
+### 10.1 Encoding (tree → bytes)
+
+An encoder MUST produce exactly these bytes, and a decoder MUST reproduce the tree from them (except for the empty nodes, which are not stored).
+
+| Tree | Bytes |
+|------|-------|
+| `(empty)` | `00` |
+| `R("R")` | `41 52 00` |
+| node with data `"ab"` and metadata `"c"` | `42 61 62 21 63 00` |
+| node with metadata `"m"` only, child `a("a")` | `61 6D 41 61 00` |
+| `R("R") [A("A"), B("B"), C("C")]` | `41 52 41 41 C1 42 C1 43 00` |
+| `R("R") [X("X") [c [d("d")]], Y(data "Y", metadata "m")]` | `41 52 41 58 40 41 64 80 81 59 21 6D 00` |
+| `R("R") [A("A") [B("B") [C("C") [D("D")]]], E("E")]` | `41 52 41 41 41 42 41 43 41 44 80 80 81 45 00` |
+| `R("R") [X("X") [c [(empty)]], Y("Y")]` | `41 52 41 58 40 81 59 00` |
+| `P("P") [(empty), M("M")]` | `41 50 41 4D 00` |
+| data of 37 zero bytes | `51`, 32 × `00`, `05`, 5 × `00`, `00` |
+
+The worked example `41 52 41 58 40 41 64 80 81 59 21 6D 00`, byte by byte:
+
+| Bytes   | Control byte                | Decoder |
+|---------|-----------------------------|---------|
+| `41 52` | Down, data, linear, 1       | parent = virtual, node = `R`; data `"R"` |
+| `41 58` | Down, data, linear, 1       | parent = `R`, node = `X`; data `"X"` |
+| `40`    | Down, data, linear, 0       | parent = `X`, node = `c` (placeholder) |
+| `41 64` | Down, data, linear, 1       | parent = `c`, node = `d`; data `"d"` |
+| `80`    | Up, data, linear, 0         | parent = `X`, node = new empty node (removed later) |
+| `81 59` | Up, data, linear, 1         | parent = `R`, node = `Y`; data `"Y"` |
+| `21 6D` | Append, metadata, linear, 1 | metadata of `Y`: `"m"` |
+| `00`    | Append, data, linear, 0     | terminator |
+
+### 10.2 Decoding only (bytes → tree)
+
+The encoder never writes these streams, but a decoder MUST handle them like this:
+
+| Bytes | Result |
+|-------|--------|
+| (empty stream) | `(empty)` |
+| `41 61` (no terminator) | `a("a")` |
+| `42 61` (truncated payload) | error: unexpected end of stream |
+| `81 52 00` | error: navigating above the root |
+| `C1 52 00` | `R("R")` |
+| `01 58 41 52 00` | `R("R")` (the `"X"` before the first node is discarded) |
+| `41 52 C1 53 00` | `R("R")` (the sibling of the root is ignored) |
+| `41 61 21 6D 01 62 00` | data `"ab"`, metadata `"m"` (interleaved chunks) |
+| `41 61 10`, 16 × `62`, `00` | data `"a"` followed by 16 × `"b"` (`10` is not a terminator) |
+| `41 61 20 41 62 00` | `a("a")`: `20` is a terminator, `41 62 00` is not read |
+| `60 41 61 00` | a root without content, with child `a("a")` |
+| `41 52 41 41`, N × `C0`, `C1 42 00` | `R("R") [A("A"), B("B")]` (the N empty siblings are removed) |
+| N × `40`, `00` | `(empty)` (all placeholders are removed) |
+
+## 11. Implementation notes
+
+* **No recursion.** Trees can be arbitrarily deep (a malicious stream may contain millions of `40` bytes). Use explicit stacks for encoding, decoding, removing empty nodes, copying and freeing trees. In Rust, the default recursive `Drop` of a deeply nested `Box`/`Vec` tree overflows the stack as well: store the nodes in an arena (`Vec<Node>` with indices) or implement an iterative `Drop`.
+* **Linear removal of empty nodes.** Remove the empty children of a node in one pass (e.g. `retain`), not one by one; otherwise a stream with many empty siblings takes quadratic time.
+* **Buffers.** One buffer of 524289 bytes (control byte + largest payload) is enough for encoding, 524288 bytes for decoding.
+* **Lengths.** Content lengths are only limited by the implementation (the reference implementation uses 64-bit signed lengths). A content of more than 512 KiB is simply a sequence of chunks.
+* **Untrusted input.** The format has no length prefix to validate: a decoder simply grows the contents. Limit the total number of bytes or nodes if the input is untrusted.
+* **Equality.** Two trees are equal for the format if they have the same structure and contents after removing the empty nodes; absent and zero-length contents are the same.
+
+## 12. Compatibility and history
+
+The format and the decoding rules have not changed: every stream written by any version can be loaded.
+The current encoder writes the same bytes as older versions for every tree that they encoded correctly. Older encoders had bugs with empty nodes:
+
+* **Up to 5.0.0:** an empty first child (or an empty last child after a subtree) still counted as the previous node, so the next node was attached to the wrong parent.
+  `P("P") [(empty), M("M")]` was written as `41 50 C1 4D 00`: `M` became a sibling of the root and was lost.
+* **Up to 6.0.0:** a node with only empty children produced a superfluous Up marker, so the next node was attached one level too high: it was lost, or the stream could not be loaded at all ("navigating above the root").
+  `R("R") [X("X") [c [(empty)]], Y("Y")]` was written as `41 52 41 58 40 80 81 59 00`: `Y` was lost.
+
+Since 6.0.0 the reader works on non-seekable streams, handles partial reads and never reads beyond the terminator.
