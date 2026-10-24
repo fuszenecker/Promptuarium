@@ -144,7 +144,7 @@ public partial class Element
             int bufferSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
 
             byte[] buffer = new byte[bufferSize];
-            await source.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
+            await source.ReadExactlyAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
             await target.WriteAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
         }
 
@@ -231,10 +231,13 @@ public partial class Element
         var root = new Element();
         Element parent = root;
         Element node = root;
+        byte[] controlBuffer = new byte[1];
 
-        while (stream.Position < stream.Length)
+        // Reading stops at the terminator (or at the end of the stream), and never reads beyond it,
+        // so the stream does not need to be seekable and may contain further data after the tree.
+        while (await stream.ReadAsync(controlBuffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false) > 0)
         {
-            byte controlByte = (byte) stream.ReadByte();
+            byte controlByte = controlBuffer[0];
 
             switch (controlByte & (byte) Directions.Mask)
             {
@@ -272,7 +275,15 @@ public partial class Element
             }
 
             byte[] buffer = new byte[chunkSize];
-            await stream.ReadAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                await stream.ReadExactlyAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
+            }
+            catch (EndOfStreamException ex)
+            {
+                throw new PromptuariumException("Unexpected end of stream during deserialization.", ex);
+            }
 
             if (IsDataChunk(controlByte))
             {

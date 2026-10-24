@@ -25,8 +25,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Targets .NET 10. Fixed serialization of trees with empty leaf nodes.</ReleaseNotes>
-    <PackageReleaseNotes>Targets .NET 10. Fixed serialization of trees with empty leaf nodes.</PackageReleaseNotes>
+    <ReleaseNotes>Targets .NET 10. Loading works with non-seekable streams (e.g. network streams) and does not read beyond the end of the tree. Fixed serialization of trees with empty leaf nodes.</ReleaseNotes>
+    <PackageReleaseNotes>Targets .NET 10. Loading works with non-seekable streams (e.g. network streams) and does not read beyond the end of the tree. Fixed serialization of trees with empty leaf nodes.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>

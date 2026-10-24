@@ -137,6 +137,13 @@ Because of this, an Append chunk with zero length never appears in the middle of
 
 The terminator keeps the format streamable: the reader does not need to know the total length in advance, so a tree can be sent over a network connection, several trees can be concatenated in one stream, and a tree can be nested inside another tree's payload (`Data.FromElementAsync`).
 
+The reader relies on this (since version 6.0.0):
+
+* it never seeks and never queries `Length` or `Position`, so non-seekable streams (e.g. `NetworkStream`) work;
+* it tolerates partial reads, as a network stream may return fewer bytes than requested;
+* it never reads beyond the terminator, so the next tree (or any other data) can be read from the same stream right after `LoadAsync` returns;
+* a stream that ends in the middle of a chunk raises a `PromptuariumException`. A stream that ends between two chunks without a terminator is accepted.
+
 ## Empty nodes
 
 After decoding, every node that has no data, no metadata and no children is removed (`PurgeEmptyNodes`). This removes the placeholders created by Up markers.
