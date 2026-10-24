@@ -18,7 +18,8 @@ The reference implementation is [`src/ElementSerializer.cs`](src/ElementSerializ
 9. [Payload conventions (the `Data` class)](#9-payload-conventions-the-data-class)
 10. [Test vectors](#10-test-vectors)
 11. [Implementation notes](#11-implementation-notes)
-12. [Compatibility and history](#12-compatibility-and-history)
+12. [File identification (optional convention)](#12-file-identification-optional-convention)
+13. [Compatibility and history](#13-compatibility-and-history)
 
 ---
 
@@ -493,7 +494,78 @@ The encoder never writes these streams, but a decoder MUST handle them like this
 * **Untrusted input.** The format has no length prefix to validate: a decoder simply grows the contents. Limit the total number of bytes or nodes if the input is untrusted.
 * **Equality.** Two trees are equal for the format if they have the same structure and contents after removing the empty nodes; absent and zero-length contents are the same.
 
-## 12. Compatibility and history
+## 12. File identification (optional convention)
+
+The format has no magic number, so tools like `file` (libmagic) can not recognize a Promptuarium file on their own.
+A **signature** can be added without changing the format, purely by the way the tree is built. This section describes such a convention; it is optional, and plain decoders do not need to know about it.
+
+### 12.1 Idea
+
+The first bytes of a stream are fully determined by the root node:
+
+* the root is the first node, so its first chunk is a **Down** chunk;
+* within a node, data chunks are written before metadata chunks.
+
+So if the root has **no data** and a **fixed metadata** (the signature), the stream always starts with the same bytes: the control byte of the metadata chunk, then the signature itself. The real content of the file goes into the children of the root.
+
+```text
+signed root (no data, metadata = signature)
+├── child 1   ← the actual content of the file
+├── child 2
+└── ...
+```
+
+The first control byte is `Down | MetaData | Linear | length` = `0x60 | length`. With a signature of 1 to 15 bytes this is a single linear chunk, so the file starts with `0x60 + length` followed by the signature bytes, at offset 0.
+
+(A longer signature also gives a fixed prefix, since the split of a fixed length is always the same, but it is split into several chunks with control bytes in between, see [6.2](#62-splitting-a-content-into-chunks). Keep it at most 15 bytes.)
+
+Rules of the convention:
+
+* The root MUST NOT have data; otherwise the data chunks come first and the signature is no longer at offset 0.
+* The signature MUST be the whole metadata of the root, 1 to 15 bytes long.
+* The root SHOULD have at least one child; a root with no children is still a valid file (`64 50 52 4D 54 00`).
+* A reader that knows the convention checks the root metadata after loading (or the first bytes before loading), then uses the children of the root.
+* A reader that does not know the convention simply sees a root with some metadata and the content as its children.
+
+### 12.2 Example
+
+Signature: the 4 ASCII bytes `PRMT` (`50 52 4D 54`). Content: one child `a("a")`.
+
+```text
+root (metadata "PRMT")
+└── a("a")
+```
+
+```text
+64 50 52 4D 54    Down, metadata, linear, 4: the signature "PRMT" (root)
+41 61             Down, data, linear, 1:     child a("a")
+00                terminator
+```
+
+Every file built this way starts with `64 50 52 4D 54`, whatever its content is.
+
+A version number can be part of the signature, e.g. `PRMT` followed by the byte `01` (5 bytes): the file then starts with `65 50 52 4D 54 01`. An application can use its own signature as well (e.g. `MYAPP-CONFIG`, 12 bytes, starting with `6C`); different applications are then distinguished by their signatures.
+
+### 12.3 Rule for `file` (libmagic)
+
+A magic rule matches the first bytes at offset 0:
+
+```text
+# Promptuarium container with the "PRMT" signature
+0       string      \x64PRMT       Promptuarium container
+!:mime  application/x-promptuarium
+
+# The same with a version byte
+0       string      \x65PRMT       Promptuarium container
+>5      byte        x               version %d
+!:mime  application/x-promptuarium
+```
+
+The rules can be put into `~/.magic` (per user) or into `/etc/magic` (system wide), or tried out directly with `file -m promptuarium.magic test.prm`.
+
+Without a signature, a Promptuarium stream can not be recognized reliably: it usually starts with a Down chunk (`40`–`7F`), but so do many other files.
+
+## 13. Compatibility and history
 
 The format and the decoding rules have not changed: every stream written by any version can be loaded.
 The current encoder writes the same bytes as older versions for every tree that they encoded correctly. Older encoders had bugs with empty nodes:
