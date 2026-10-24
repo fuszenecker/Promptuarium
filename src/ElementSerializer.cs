@@ -29,6 +29,12 @@ public partial class Element
 
     private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments, CancellationToken cancellationToken)
     {
+        // Empty nodes are not written, so they must not affect the navigation of the following nodes
+        if (IsEmpty(this))
+        {
+            return;
+        }
+
         for (int x = 0; x < serializationArguments.StepUpNodesRequired; x++)
         {
             stream.WriteByte(ControlByte(Directions.Up, DataType.Data, SizeType.Linear, 0));
@@ -97,22 +103,23 @@ public partial class Element
 
         if (Children.Count > 0)
         {
-            var child = new Element();
+            Element? lastSerializedChild = null;
 
             for (int childIndex = 0; childIndex < Children.Count; childIndex++)
             {
-                child = Children[childIndex];
+                Element child = Children[childIndex];
 
-                if (child != null)
+                if (child != null && !IsEmpty(child))
                 {
                     await child.SerializeAsync(stream, serializationArguments, cancellationToken).ConfigureAwait(false);
+                    lastSerializedChild = child;
                 }
             }
 
-            if (child?.Children.Count > 0)
+            if (lastSerializedChild?.Children.Count > 0)
             {
                 serializationArguments.StepUpNodesRequired++;
-                serializationArguments.PreviouslySerialized = child;
+                serializationArguments.PreviouslySerialized = lastSerializedChild;
             }
         }
     }
@@ -208,6 +215,11 @@ public partial class Element
     private static bool Contains(Stream? stream)
     {
         return stream?.Length > 0;
+    }
+
+    private static bool IsEmpty(Element node)
+    {
+        return !Contains(node.Data) && !Contains(node.MetaData) && node.Children.Count == 0;
     }
 
     #endregion

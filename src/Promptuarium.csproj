@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
@@ -13,20 +13,20 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>5.0.0</Version>
+    <Version>5.0.1</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
     <ProjectUrl>https://github.com/fuszenecker/Promptuarium</ProjectUrl>
     <Description>Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, can be used in F#, too.</Description>
-    <Copyright>Copyright 2012-2023, Fuszenecker Róbert</Copyright>
+    <Copyright>Copyright 2012-2026, Fuszenecker Róbert</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/fuszenecker/Promptuarium</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Children is IReadOnlyList.</ReleaseNotes>
-    <PackageReleaseNotes>Children is IReadOnlyList.</PackageReleaseNotes>
+    <ReleaseNotes>Targets .NET 10. Fixed serialization of trees with empty leaf nodes.</ReleaseNotes>
+    <PackageReleaseNotes>Targets .NET 10. Fixed serialization of trees with empty leaf nodes.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>

@@ -305,6 +305,48 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task EmptyFirstChild()
+        {
+            var tree = new Element(Data.FromAsciiString("P"), null,
+                new Element(),
+                new Element(Data.FromAsciiString("M"), null));
+
+            using var stream = new MemoryStream();
+            await tree.SaveAsync(stream).ConfigureAwait(false);
+            stream.Position = 0;
+
+            var tree2 = await Element.LoadAsync(stream).ConfigureAwait(false);
+
+            Assert.AreEqual("P", tree2.Data?.AsAsciiString());
+            Assert.AreEqual(1, tree2.Children.Count);
+            Assert.AreEqual("M", tree2[0].Data?.AsAsciiString());
+        }
+
+        [TestMethod]
+        public async Task EmptyLastChildAfterSubtree()
+        {
+            var tree = new Element(Data.FromAsciiString("R"), null,
+                new Element(Data.FromAsciiString("X"), null,
+                    new Element(Data.FromAsciiString("C"), null,
+                        new Element(Data.FromAsciiString("D"), null)),
+                    new Element()),
+                new Element(Data.FromAsciiString("Y"), null));
+
+            using var stream = new MemoryStream();
+            await tree.SaveAsync(stream).ConfigureAwait(false);
+            stream.Position = 0;
+
+            var tree2 = await Element.LoadAsync(stream).ConfigureAwait(false);
+
+            Assert.AreEqual(2, tree2.Children.Count);
+            Assert.AreEqual("X", tree2[0].Data?.AsAsciiString());
+            Assert.AreEqual(1, tree2[0].Children.Count);
+            Assert.AreEqual("C", tree2[0][0].Data?.AsAsciiString());
+            Assert.AreEqual("D", tree2[0][0][0].Data?.AsAsciiString());
+            Assert.AreEqual("Y", tree2[1].Data?.AsAsciiString());
+        }
+
+        [TestMethod]
         public async Task TreeToStringTest()
         {
             var tree = CreateTestTree();
