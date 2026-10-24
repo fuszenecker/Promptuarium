@@ -134,7 +134,12 @@ public partial class Element
     /// </example>
     public Statistics GetStatistics()
     {
-        var statistics = new Statistics();
+        var statistics = new Statistics
+        {
+            MinChildren = int.MaxValue,
+            ShortestData = long.MaxValue,
+            ShortestMetaData = long.MaxValue
+        };
 
         Walk((Element node, IReadOnlyCollection<Element> ancestors) =>
             {
@@ -197,6 +202,17 @@ public partial class Element
                     statistics.NodesWithoutChildren++;
                 }
             });
+
+        // The minimums are 0 if there are no nodes with data or metadata
+        if (statistics.ShortestData == long.MaxValue)
+        {
+            statistics.ShortestData = 0;
+        }
+
+        if (statistics.ShortestMetaData == long.MaxValue)
+        {
+            statistics.ShortestMetaData = 0;
+        }
 
         return statistics;
     }

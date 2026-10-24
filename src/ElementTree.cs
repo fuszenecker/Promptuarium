@@ -68,15 +68,28 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element(Element other)
     {
-        Data = other.Data;
-        MetaData = other.MetaData;
+        ArgumentNullException.ThrowIfNull(other);
 
-        Parent = other.Parent;
-        Children = new List<Element>(other.Children.Where(child => child != null));
+        // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack
+        var nodes = new Stack<(Element Source, Element Copy)>();
+        nodes.Push((other, this));
 
-        foreach (Element child in Children)
+        while (nodes.Count > 0)
         {
-            child.Parent = this;
+            (Element source, Element copy) = nodes.Pop();
+
+            copy.Data = CopyStream(source.Data);
+            copy.MetaData = CopyStream(source.MetaData);
+
+            foreach (Element child in source.Children)
+            {
+                if (child != null)
+                {
+                    var childCopy = new Element();
+                    copy.UnsafeAdd(childCopy);
+                    nodes.Push((child, childCopy));
+                }
+            }
         }
     }
 
@@ -100,15 +113,12 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element(Stream? data, Stream? metaData, params Element[] children)
     {
+        ArgumentNullException.ThrowIfNull(children);
+
         Data = data;
         MetaData = metaData;
 
-        Children = new List<Element>(children.Where(child => child != null));
-
-        foreach (Element child in Children)
-        {
-            child.Parent = this;
-        }
+        Add(children.Where(child => child != null));
     }
 
     /// <summary>
@@ -128,15 +138,12 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element(Stream? data, Stream? metaData, IEnumerable<Element> children)
     {
+        ArgumentNullException.ThrowIfNull(children);
+
         Data = data;
         MetaData = metaData;
 
-        Children = new List<Element>(children.Where(child => child != null));
-
-        foreach (Element child in Children)
-        {
-            child.Parent = this;
-        }
+        Add(children.Where(child => child != null));
     }
     
     #endregion
@@ -163,7 +170,7 @@ public partial class Element : IEnumerable<Element>
                 return Children[index];
             }
 
-            throw new PromptuariumException($"Index {index} in out of range [0...{Children.Count}]");
+            throw new PromptuariumException($"Index {index} is out of range [0...{Children.Count - 1}]");
         }
     }
 
@@ -198,16 +205,26 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element Add(params Element[] nodes)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
+
         foreach (Element node in nodes)
         {
-            if (!Children.Contains(node))
-            {
-                UnsafeAdd(node);
-            }
-            else
+            ArgumentNullException.ThrowIfNull(node, nameof(nodes));
+
+            if (node.Parent == this)
             {
                 throw new PromptuariumException("Node already exists in the tree");
             }
+
+            // Only a node with children can be an ancestor of this node, so leaves need no walk up the tree
+            if (node == this || (node.Children.Count > 0 && IsAncestor(node, this)))
+            {
+                throw new PromptuariumException("A node can not be added to itself or to its own descendant");
+            }
+
+            // A node can have only one parent
+            Detach(node);
+            UnsafeAdd(node);
         }
 
         return this;
@@ -231,6 +248,8 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element Add(IEnumerable<Element> nodes)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
+
         foreach (Element node in nodes)
         {
             Add(node);
@@ -260,6 +279,7 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public static Element operator +(Element tree, Element node)
     {
+        ArgumentNullException.ThrowIfNull(tree);
         tree.Add(node);
         return tree;
     }
@@ -284,14 +304,21 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element Remove(Element node)
     {
-        var elementsToRemove = new List<Element>(node.Children);
-
-        foreach (Element child in elementsToRemove)
-        {
-            Remove(child);
-        }
+        ArgumentNullException.ThrowIfNull(node);
 
         Detach(node);
+
+        // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack
+        foreach (Element descendant in PreOrder(node))
+        {
+            foreach (Element child in descendant.Children)
+            {
+                child.Parent = null;
+            }
+
+            ((List<Element>)descendant.Children).Clear();
+        }
+
         return this;
     }
 
@@ -316,6 +343,7 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public static Element operator -(Element tree, Element node)
     {
+        ArgumentNullException.ThrowIfNull(tree);
         tree.Remove(node);
         return tree;
     }
@@ -341,13 +369,11 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element Detach(Element node)
     {
+        ArgumentNullException.ThrowIfNull(node);
+
         if (node.Parent != null)
         {
-            if (node.Parent.Children.Contains(node))
-            {
-                ((List<Element>)(node.Parent.Children)).Remove(node);
-            }
-            else
+            if (!((List<Element>)node.Parent.Children).Remove(node))
             {
                 throw new PromptuariumException("Node can not be detached from its parent");
             }
@@ -385,7 +411,7 @@ public partial class Element : IEnumerable<Element>
     /// The method is called for each nodes.
     /// </summary>
     /// <param name="node">The current node</param>
-    /// <param name="ancestors">A list of ancestors</param>
+    /// <param name="ancestors">The ancestors of the node, from the root to the parent. The collection is only valid during the call: copy it if it is needed later.</param>
     public delegate void WalkHandler(Element node, IReadOnlyCollection<Element> ancestors);
 
     /// <summary>
@@ -412,9 +438,27 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element Walk(WalkHandler handler)
     {
+        ArgumentNullException.ThrowIfNull(handler);
+
+        // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack.
+        // The list of ancestors is the path from this node, it is updated in place (instead of copying it for every node).
+        var nodes = new Stack<(Element Node, int Depth)>();
         var ancestors = new List<Element>();
-        handler.Invoke(this, ancestors);
-        Walk(this, ancestors, handler);
+        nodes.Push((this, 0));
+
+        while (nodes.Count > 0)
+        {
+            (Element node, int depth) = nodes.Pop();
+            ancestors.RemoveRange(depth, ancestors.Count - depth);
+            handler.Invoke(node, ancestors);
+            ancestors.Add(node);
+
+            for (int childIndex = node.Children.Count - 1; childIndex >= 0; childIndex--)
+            {
+                nodes.Push((node.Children[childIndex], depth + 1));
+            }
+        }
+
         return this;
     }
     
@@ -434,8 +478,8 @@ public partial class Element : IEnumerable<Element>
     public override string ToString()
     {
         var stringBuilder = new StringBuilder();
-        NodeToString(this, 0, stringBuilder, false, string.Empty);
-        return stringBuilder.ToString().Trim();
+        NodeToString(this, stringBuilder);
+        return stringBuilder.ToString();
     }
 
     /// <summary>
@@ -462,7 +506,18 @@ public partial class Element : IEnumerable<Element>
     public string TreeToString(string tabulator = ">")
     {
         var stringBuilder = new StringBuilder();
-        NodeToString(this, 0, stringBuilder, true, tabulator);
+
+        Walk((node, ancestors) =>
+        {
+            for (int i = 0; i < ancestors.Count; ++i)
+            {
+                stringBuilder.Append(tabulator);
+            }
+
+            NodeToString(node, stringBuilder);
+            stringBuilder.Append('\n');
+        });
+
         return stringBuilder.ToString();
     }
 
@@ -494,10 +549,7 @@ public partial class Element : IEnumerable<Element>
 
         await SaveAsync(memoryStream, cancellationToken).ConfigureAwait(false);
 
-        byte[] buffer = new byte[memoryStream.Length];
-        Array.Copy(memoryStream.ToArray(), buffer, (int)memoryStream.Length);
-
-        return Convert.ToBase64String(buffer);
+        return Convert.ToBase64String(memoryStream.GetBuffer(), 0, (int)memoryStream.Length);
     }
 
     /// <summary>
@@ -618,29 +670,14 @@ public partial class Element : IEnumerable<Element>
         node.Parent = this;
     }
 
-    private void NodeToString(Element node, int level, StringBuilder stringBuilder, bool recursive, string tabulator)
+    private static void NodeToString(Element node, StringBuilder stringBuilder)
     {
-        if (recursive)
-        {
-            for (int i = 0; i < level; ++i)
-            {
-                stringBuilder.Append(tabulator);
-            }
-        }
-
         stringBuilder.Append('(');
 
         if (Contains(node.MetaData))
         {
             stringBuilder.Append('[');
-            StreamToString(node.MetaData!, stringBuilder);
-
-            stringBuilder.Append(" = \"");
-            stringBuilder.Append(node.MetaData!
-                .AsUtf8String()
-                .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
-                .ToArray());
-            stringBuilder.Append('\"');
+            ContentToString(node.MetaData!, stringBuilder);
             stringBuilder.Append(']');
         }
 
@@ -651,49 +688,45 @@ public partial class Element : IEnumerable<Element>
 
         if (Contains(node.Data))
         {
-            StreamToString(node.Data!, stringBuilder);
-
-            stringBuilder.Append(" = \"");
-            stringBuilder.Append(node.Data!
-                .AsUtf8String()
-                .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
-                .ToArray());
-            stringBuilder.Append('\"');
+            ContentToString(node.Data!, stringBuilder);
         }
 
-        stringBuilder.Append(")\n");
+        stringBuilder.Append(')');
+    }
 
-        if (recursive)
+    private static void ContentToString(Stream content, StringBuilder stringBuilder)
+    {
+        byte[] bytes = content.AsByteArray();
+
+        stringBuilder.Append(Convert.ToHexString(bytes));
+        stringBuilder.Append(" = \"");
+        stringBuilder.Append(Encoding.UTF8.GetString(bytes)
+            .Select(c => c < '\u0020' || c > '\u007F' ? '.' : c)
+            .ToArray());
+        stringBuilder.Append('\"');
+    }
+
+    private static bool IsAncestor(Element ancestor, Element node)
+    {
+        for (Element? current = node.Parent; current != null; current = current.Parent)
         {
-            foreach (Element child in node.Children)
+            if (current == ancestor)
             {
-                NodeToString(child, level + 1, stringBuilder, true, tabulator);
+                return true;
             }
         }
+
+        return false;
     }
 
-    private static void StreamToString(Stream data, StringBuilder stringBuilder)
+    private static MemoryStream? CopyStream(Stream? source)
     {
-        data.Position = 0;
-
-        while (data.Position < data.Length)
+        if (source == null)
         {
-            stringBuilder.AppendFormat("{0:X2}", data.ReadByte());
+            return null;
         }
-    }
 
-    private void Walk(Element parent, List<Element> ancestors, WalkHandler handler)
-    {
-        var _ancestors = new List<Element>(ancestors)
-        {
-            parent
-        };
-
-        foreach (Element child in parent.Children)
-        {
-            handler.Invoke(child, _ancestors);
-            Walk(child, _ancestors, handler);
-        }
+        return new MemoryStream(source.AsByteArray());
     }
 
     private string DebuggerDisplay => ToString();

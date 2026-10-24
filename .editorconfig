@@ -2,3 +2,12 @@ is_global = true
 roslynator_analyzers.enabled_by_default = true
 roslynator_refactorings.enabled = true
 roslynator_compiler_diagnostic_fixes.enabled = true
+# The public API is kept for compatibility: the Data class name, the public fields of Statistics,
+# the exception type of the indexer and the operators without named alternatives
+dotnet_diagnostic.CA1724.severity = none
+dotnet_diagnostic.CA1051.severity = none
+dotnet_diagnostic.CA1065.severity = none
+dotnet_diagnostic.CA2225.severity = none
+
+# The Mask members of the control byte enumerations share their values with the flags by design
+dotnet_diagnostic.CA1069.severity = none

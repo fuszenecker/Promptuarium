@@ -148,7 +148,7 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(NullReferenceException))]
+        [ExpectedException(typeof(ArgumentNullException))]
         public void AddNullThrowsException()
         {
             new Element().Add(null!);
@@ -936,8 +936,8 @@ namespace PromptuariumTests
             Assert.AreEqual(4, stats.MaxChildren);
             Assert.AreEqual(4, stats.LongestData);
             Assert.AreEqual(9, stats.LongestMetaData);
-            Assert.AreEqual(0, stats.ShortestData);
-            Assert.AreEqual(0, stats.ShortestMetaData);
+            Assert.AreEqual(4, stats.ShortestData);
+            Assert.AreEqual(9, stats.ShortestMetaData);
             Assert.AreEqual(10, stats.NodesWithData);
             Assert.AreEqual(1, stats.NodesWithDataAndMetaData);
             Assert.AreEqual(7, stats.NodesWithoutChildren);

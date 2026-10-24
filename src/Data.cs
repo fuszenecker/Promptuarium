@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,6 +8,9 @@ namespace Promptuarium;
 
 public static class Data
 {
+    // VarInt encoding of long.MinValue
+    private const ulong NegativeZero = 1;
+
     #region Boolean Operations
 
     /// <summary>
@@ -38,6 +42,8 @@ public static class Data
     /// </example>
     public static bool AsBool(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToBoolean(GetBuffer(stream, sizeof(bool)), 0);
     }
 
@@ -77,6 +83,8 @@ public static class Data
     /// </example>
     public static byte AsByte(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         byte result;
         stream.Position = 0;
         result = (byte)stream.ReadByte();
@@ -116,6 +124,8 @@ public static class Data
     /// </example>
     public static byte[] AsByteArray(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return GetBuffer(stream, (int)stream.Length);
     }
 
@@ -151,6 +161,8 @@ public static class Data
     /// </example>
     public static char AsChar(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToChar(GetBuffer(stream, sizeof(char)), 0);
     }
 
@@ -186,6 +198,8 @@ public static class Data
     /// </example>
     public static double AsDouble(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToDouble(GetBuffer(stream, sizeof(double)), 0);
     }
 
@@ -221,6 +235,8 @@ public static class Data
     /// </example>
     public static short AsShort(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToInt16(GetBuffer(stream, sizeof(short)), 0);
     }
 
@@ -256,6 +272,8 @@ public static class Data
     /// </example>
     public static int AsInt(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToInt32(GetBuffer(stream, sizeof(int)), 0);
     }
 
@@ -291,6 +309,8 @@ public static class Data
     /// </example>
     public static long AsLong(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToInt64(GetBuffer(stream, sizeof(long)), 0);
     }
 
@@ -326,6 +346,8 @@ public static class Data
     /// </example>
     public static float AsFloat(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToSingle(GetBuffer(stream, sizeof(float)), 0);
     }
 
@@ -361,6 +383,8 @@ public static class Data
     /// </example>
     public static ushort AsUShort(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToUInt16(GetBuffer(stream, sizeof(ushort)), 0);
     }
 
@@ -396,6 +420,8 @@ public static class Data
     /// </example>
     public static uint AsUInt(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToUInt32(GetBuffer(stream, sizeof(uint)), 0);
     }
 
@@ -431,6 +457,8 @@ public static class Data
     /// </example>
     public static ulong AsULong(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return BitConverter.ToUInt64(GetBuffer(stream, sizeof(ulong)), 0);
     }
 
@@ -462,11 +490,16 @@ public static class Data
     /// </example>
     public static Stream FromDecimal(decimal value)
     {
-        var stream = new MemoryStream();
-        var binaryWriter = new BinaryWriter(stream);
-        binaryWriter.Write(value);
-        stream.Position = 0;
-        return stream;
+        // Same layout as BinaryWriter.Write(decimal): lo, mid, hi, flags as 32-bit little-endian integers
+        int[] bits = decimal.GetBits(value);
+        byte[] bytes = new byte[sizeof(decimal)];
+
+        for (int i = 0; i < bits.Length; i++)
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(i * sizeof(int)), bits[i]);
+        }
+
+        return new MemoryStream(bytes);
     }
 
 
@@ -482,12 +515,17 @@ public static class Data
     /// </example>
     public static decimal AsDecimal(this Stream stream)
     {
-        decimal result;
-        stream.Position = 0;
-        var binaryReader = new BinaryReader(stream);
-        result = binaryReader.ReadDecimal();
-        stream.Position = 0;
-        return result;
+        ArgumentNullException.ThrowIfNull(stream);
+
+        byte[] bytes = GetBuffer(stream, sizeof(decimal));
+        int[] bits = new int[sizeof(decimal) / sizeof(int)];
+
+        for (int i = 0; i < bits.Length; i++)
+        {
+            bits[i] = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(i * sizeof(int)));
+        }
+
+        return new decimal(bits);
     }
 
     #endregion
@@ -508,7 +546,14 @@ public static class Data
     public static Stream FromVarInt(long value)
     {
         var result = new MemoryStream();
-        ulong buffer = (value >= 0) ? (ulong)(value << 1) : (((ulong)(-value) << 1) + 1);
+        // Sign and magnitude: the magnitude is shifted left by one bit, the lowest bit is the sign.
+        // The magnitude of long.MinValue does not fit, so it is encoded as "negative zero".
+        ulong buffer = value switch
+        {
+            long.MinValue => NegativeZero,
+            >= 0 => (ulong)value << 1,
+            _ => ((ulong)(-value) << 1) + 1
+        };
         CompactBytes(result, buffer);
         return result;
     }
@@ -525,7 +570,14 @@ public static class Data
     /// </example>
     public static long AsVarInt(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         ulong buffer = BitConverter.ToUInt64(GetBuffer(stream, sizeof(ulong)), 0);
+        if (buffer == NegativeZero)
+        {
+            return long.MinValue;
+        }
+
         return ((buffer & 1) == 0) ? (long)(buffer >> 1) : -(long)(buffer >> 1);
     }
 
@@ -563,6 +615,8 @@ public static class Data
     /// </example>
     public static ulong AsVarUInt(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return AsULong(stream);
     }
 
@@ -597,6 +651,8 @@ public static class Data
     /// </example>
     public static Guid AsGuid(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return new Guid(GetBuffer(stream, (int)stream.Length));
     }
 
@@ -632,6 +688,8 @@ public static class Data
     /// </example>
     public static DateTime AsDateTime(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return new DateTime(stream.AsLong());
     }
 
@@ -667,6 +725,8 @@ public static class Data
     /// </example>
     public static DateTimeOffset AsDateTimeOffset(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         var bytes = GetBuffer(stream, 2 * sizeof(long));
         var datetimeBytes = new Span<byte>(bytes, 0, sizeof(long));
         var offsetBytes = new Span<byte>(bytes, sizeof(long), sizeof(long));
@@ -705,6 +765,8 @@ public static class Data
     /// </example>
     public static TimeSpan AsTimeSpan(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return new TimeSpan(stream.AsLong());
     }
 
@@ -740,6 +802,8 @@ public static class Data
     /// </example>
     public static string AsAsciiString(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return Encoding.ASCII.GetString(GetBuffer(stream, (int)stream.Length));
     }
 
@@ -775,6 +839,8 @@ public static class Data
     /// </example>
     public static string AsUtf8String(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return Encoding.UTF8.GetString(GetBuffer(stream, (int)stream.Length));
     }
 
@@ -810,6 +876,8 @@ public static class Data
     /// </example>
     public static string AsUtf16String(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return Encoding.Unicode.GetString(GetBuffer(stream, (int)stream.Length));
     }
 
@@ -845,6 +913,8 @@ public static class Data
     /// </example>
     public static string AsUtf32String(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         return Encoding.UTF32.GetString(GetBuffer(stream, (int)stream.Length));
     }
 
@@ -870,13 +940,11 @@ public static class Data
     /// </example>
     public static async Task<Stream> FromElementAsync(Element value)
     {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
+        ArgumentNullException.ThrowIfNull(value);
 
         var stream = new MemoryStream();
         await value.SaveAsync(stream).ConfigureAwait(false);
+        stream.Position = 0;
         return stream;
     }
 
@@ -892,6 +960,8 @@ public static class Data
     /// </example>
     public static async Task<Element> AsElementAsync(this Stream stream)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         Element result;
         stream.Position = 0;
         result = await Element.LoadAsync(stream).ConfigureAwait(false);
@@ -905,23 +975,22 @@ public static class Data
     {
         byte[] buffer = new byte[size];
         stream.Position = 0;
-        stream.Read(buffer, 0, size);
+
+        // A shorter stream leaves the rest of the buffer zero (e.g. VarInt)
+        stream.ReadAtLeast(buffer, size, throwOnEndOfStream: false);
         stream.Position = 0;
         return buffer;
     }
 
     private static void CompactBytes(MemoryStream result, ulong buffer)
     {
-        for (int x = 0; x < sizeof(ulong); x++)
+        // Little-endian, without the trailing zero bytes (but at least one byte)
+        do
         {
-            byte lsb = (byte)(buffer & 0xFF);
-            buffer >>= sizeof(byte) * 8;
-
-            if (x == 0 || lsb != 0 || (lsb == 0 && buffer != 0))
-            {
-                result.WriteByte(lsb);
-            }
+            result.WriteByte((byte)(buffer & 0xFF));
+            buffer >>= 8;
         }
+        while (buffer != 0);
 
         result.Position = 0;
     }

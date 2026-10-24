@@ -42,7 +42,7 @@ The ```Statistics``` property gives information about i.e.
 
 ## Documentation
 
-See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples), the [API Reference](docs/README.md) or the [Binary Format specification](docs/BinaryFormat.md).
+See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples), the [API Reference](docs/README.md) or the [Binary Format specification](BINARY_FORMAT.md).
 
 ## Unit tests
 

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -6,6 +7,9 @@ namespace Promptuarium;
 
 public partial class Element
 {
+    // Buffer size of the file streams
+    private const int BufferSize = 64 * 1024;
+
     #region Load functions
 
     /// <summary>
@@ -23,6 +27,7 @@ public partial class Element
     /// </example>
     public static Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(stream);
         return DeserializeAsync(stream, cancellationToken);
     }
 
@@ -57,7 +62,7 @@ public partial class Element
     /// </example>
     public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
     {
-        using var fileStream = new FileStream(fileName, FileMode.Open);
+        using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
         return await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
     }
 
@@ -92,10 +97,10 @@ public partial class Element
     /// await tree.SaveAsync(stream, cancellationToken);
     /// </code>
     /// </example>
-    public async Task SaveAsync(Stream stream, CancellationToken cancellationToken)
+    public Task SaveAsync(Stream stream, CancellationToken cancellationToken)
     {
-        await SerializeAsync(stream, new SerializationArguments(), cancellationToken).ConfigureAwait(false);
-        stream.WriteByte(ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0));
+        ArgumentNullException.ThrowIfNull(stream);
+        return SerializeAsync(stream, cancellationToken);
     }
 
     /// <summary>
@@ -126,7 +131,7 @@ public partial class Element
     /// </example>
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
     {
-        using Stream stream = new FileStream(fileName, FileMode.Create);
+        using Stream stream = new FileStream(fileName, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
         await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
     }
 

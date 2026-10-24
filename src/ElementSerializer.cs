@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Buffers;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -17,56 +18,82 @@ public partial class Element
         public byte SizeBits;
     }
 
-    private class SerializationArguments
-    {
-        public Element? PreviouslySerialized;
-        public int StepUpNodesRequired;
-    }
-
     #endregion
 
     #region Serialization routines
 
-    private async Task SerializeAsync(Stream stream, SerializationArguments serializationArguments, CancellationToken cancellationToken)
+    private async Task SerializeAsync(Stream stream, CancellationToken cancellationToken)
     {
-        // Empty nodes are not written, so they must not affect the navigation of the following nodes
-        if (IsEmpty(this))
-        {
-            return;
-        }
+        // The buffer holds a control byte and the largest possible payload
+        byte[] buffer = ArrayPool<byte>.Shared.Rent((int)ChunkMaxValue + 1);
 
-        for (int x = 0; x < serializationArguments.StepUpNodesRequired; x++)
+        try
         {
-            stream.WriteByte(ControlByte(Directions.Up, DataType.Data, SizeType.Linear, 0));
-        }
+            // The tree is written in pre-order. The decoder starts on a virtual root (depth -1),
+            // so the direction of each node follows from its depth and the depth of the previously written node.
+            var nodes = new Stack<(Element Node, int Depth)>();
+            nodes.Push((this, 0));
+            int previousDepth = -1;
 
-        serializationArguments.StepUpNodesRequired = 0;
+            while (nodes.Count > 0)
+            {
+                (Element node, int depth) = nodes.Pop();
 
-        Directions direction;
+                // Empty nodes are not written, so they must not affect the navigation of the following nodes
+                if (IsEmpty(node))
+                {
+                    continue;
+                }
 
-        if (serializationArguments.PreviouslySerialized == Parent || serializationArguments.PreviouslySerialized == null)
-        {
-            direction = Directions.Down;
-        }
-        else if (serializationArguments.PreviouslySerialized.Parent == Parent)
-        {
-            direction = Directions.New;
-        }
-        else if (serializationArguments.PreviouslySerialized?.Parent?.Parent == Parent)
-        {
-            direction = Directions.Up;
-        }
-        else
-        {
-            throw new PromptuariumException("Previously serialized node is invalid");
-        }
+                Directions direction;
 
-        bool appending = false;
+                if (depth > previousDepth)
+                {
+                    direction = Directions.Down;
+                }
+                else if (depth == previousDepth)
+                {
+                    direction = Directions.New;
+                }
+                else
+                {
+                    // Up climbs one level only, the extra levels are climbed by empty Up markers
+                    for (int x = 0; x < previousDepth - depth - 1; x++)
+                    {
+                        await WriteControlByteAsync(stream, buffer, ControlByte(Directions.Up, DataType.Data, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
+                    }
 
-        // If the node has only children
-        if (!Contains(Data) && !Contains(MetaData) && Children.Count > 0)
+                    direction = Directions.Up;
+                }
+
+                await node.SerializeNodeAsync(stream, buffer, direction, cancellationToken).ConfigureAwait(false);
+                previousDepth = depth;
+
+                for (int childIndex = node.Children.Count - 1; childIndex >= 0; childIndex--)
+                {
+                    Element child = node.Children[childIndex];
+
+                    if (child != null)
+                    {
+                        nodes.Push((child, depth + 1));
+                    }
+                }
+            }
+
+            await WriteControlByteAsync(stream, buffer, ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
+        }
+        finally
         {
-            stream.WriteByte(ControlByte(direction, DataType.Data, SizeType.Linear, 0));
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private async Task SerializeNodeAsync(Stream stream, byte[] buffer, Directions direction, CancellationToken cancellationToken)
+    {
+        // If the node has only children, an empty chunk creates the node in the decoder
+        if (!Contains(Data) && !Contains(MetaData))
+        {
+            await WriteControlByteAsync(stream, buffer, ControlByte(direction, DataType.Data, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
         }
 
         #region Saving Data
@@ -76,7 +103,7 @@ public partial class Element
 
         if (Contains(Data))
         {
-            appending = await SerializeContentAsync(stream, Data!, DataType.Data, direction, appending, cancellationToken).ConfigureAwait(false);
+            direction = await SerializeContentAsync(stream, Data!, buffer, DataType.Data, direction, cancellationToken).ConfigureAwait(false);
         }
 
         // Firing event
@@ -91,64 +118,40 @@ public partial class Element
 
         if (Contains(MetaData))
         {
-            appending = await SerializeContentAsync(stream, MetaData!, DataType.MetaData, direction, appending, cancellationToken).ConfigureAwait(false);
+            await SerializeContentAsync(stream, MetaData!, buffer, DataType.MetaData, direction, cancellationToken).ConfigureAwait(false);
         }
 
         // Firing event
         OnMetaDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
 
         #endregion
-
-        serializationArguments.PreviouslySerialized = this;
-
-        if (Children.Count > 0)
-        {
-            Element? lastSerializedChild = null;
-
-            for (int childIndex = 0; childIndex < Children.Count; childIndex++)
-            {
-                Element child = Children[childIndex];
-
-                if (child != null && !IsEmpty(child))
-                {
-                    await child.SerializeAsync(stream, serializationArguments, cancellationToken).ConfigureAwait(false);
-                    lastSerializedChild = child;
-                }
-            }
-
-            if (lastSerializedChild?.Children.Count > 0)
-            {
-                serializationArguments.StepUpNodesRequired++;
-                serializationArguments.PreviouslySerialized = lastSerializedChild;
-            }
-        }
     }
 
-    private static async Task<bool> SerializeContentAsync(Stream target, Stream source, DataType dataType, Directions direction, bool appending, CancellationToken cancellationToken)
+    /// <returns>The direction of the next chunk of the same node (always Append)</returns>
+    private static async Task<Directions> SerializeContentAsync(Stream target, Stream source, byte[] buffer, DataType dataType, Directions direction, CancellationToken cancellationToken)
     {
-        IEnumerable<SizeDescriptor> chunks = GetSizes(source.Length);
+        List<SizeDescriptor> chunks = GetSizes(source.Length);
         source.Position = 0;
 
         foreach (SizeDescriptor size in chunks)
         {
-            if (!appending)
-            {
-                target.WriteByte(ControlByte(direction, dataType, size.SizeType, size.SizeBits));
-                appending = true;
-            }
-            else
-            {
-                target.WriteByte(ControlByte(Directions.Append, dataType, size.SizeType, size.SizeBits));
-            }
+            int chunkSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
 
-            int bufferSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
+            // The control byte and the payload are written at once
+            buffer[0] = ControlByte(direction, dataType, size.SizeType, size.SizeBits);
+            await source.ReadExactlyAsync(buffer.AsMemory(1, chunkSize), cancellationToken).ConfigureAwait(false);
+            await target.WriteAsync(buffer.AsMemory(0, chunkSize + 1), cancellationToken).ConfigureAwait(false);
 
-            byte[] buffer = new byte[bufferSize];
-            await source.ReadExactlyAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
-            await target.WriteAsync(buffer.AsMemory(0, bufferSize), cancellationToken).ConfigureAwait(false);
+            direction = Directions.Append;
         }
 
-        return appending;
+        return direction;
+    }
+
+    private static async Task WriteControlByteAsync(Stream stream, byte[] buffer, byte controlByte, CancellationToken cancellationToken)
+    {
+        buffer[0] = controlByte;
+        await stream.WriteAsync(buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
     }
 
     private static byte ControlByte(Directions direction, DataType dataType, SizeType sizeType, byte sizeBits)
@@ -161,7 +164,7 @@ public partial class Element
         throw new PromptuariumException($"Size bits greater than the max value ({NibbleMaxValue.ToString(CultureInfo.InvariantCulture)} bits)");
     }
 
-    private static IEnumerable<SizeDescriptor> GetSizes(long size)
+    private static List<SizeDescriptor> GetSizes(long size)
     {
         var sizes = new List<SizeDescriptor>();
         long word = size;
@@ -231,63 +234,66 @@ public partial class Element
         var root = new Element();
         Element parent = root;
         Element node = root;
-        byte[] controlBuffer = new byte[1];
+        byte[] buffer = ArrayPool<byte>.Shared.Rent((int)ChunkMaxValue);
 
-        // Reading stops at the terminator (or at the end of the stream), and never reads beyond it,
-        // so the stream does not need to be seekable and may contain further data after the tree.
-        while (await stream.ReadAsync(controlBuffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false) > 0)
+        try
         {
-            byte controlByte = controlBuffer[0];
-
-            switch (controlByte & (byte) Directions.Mask)
+            // Reading stops at the terminator (or at the end of the stream), and never reads beyond it,
+            // so the stream does not need to be seekable and may contain further data after the tree.
+            while (await stream.ReadAsync(buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false) > 0)
             {
-                case (byte) Directions.New:
-                    node = AddNewNode(parent);
-                    break;
+                byte controlByte = buffer[0];
 
-                case (byte) Directions.Down:
-                    parent = node;
-                    node = AddNewNode(parent);
-                    break;
-
-                case (byte) Directions.Up:
-                    if (parent.Parent != null)
-                    {
-                        parent = parent.Parent;
+                switch (controlByte & (byte) Directions.Mask)
+                {
+                    case (byte) Directions.New:
                         node = AddNewNode(parent);
-                    }
-                    else
-                    {
-                        throw new PromptuariumException("Navigating upper the root node during deserialization.");
-                    }
+                        break;
 
+                    case (byte) Directions.Down:
+                        parent = node;
+                        node = AddNewNode(parent);
+                        break;
+
+                    case (byte) Directions.Up:
+                        if (parent.Parent != null)
+                        {
+                            parent = parent.Parent;
+                            node = AddNewNode(parent);
+                        }
+                        else
+                        {
+                            throw new PromptuariumException("Navigating upper the root node during deserialization.");
+                        }
+
+                        break;
+
+                    case (byte) Directions.Append:
+                        break;
+                }
+
+                int chunkSize = GetChunkSize(controlByte);
+
+                if (((controlByte & (byte)Directions.Mask) == (byte) Directions.Append) && (chunkSize == 0))
+                {
                     break;
+                }
 
-                case (byte) Directions.Append:
-                    break;
-            }
+                if (chunkSize == 0)
+                {
+                    continue;
+                }
 
-            int chunkSize = GetChunkSize(controlByte);
+                try
+                {
+                    await stream.ReadExactlyAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
+                }
+                catch (EndOfStreamException ex)
+                {
+                    throw new PromptuariumException("Unexpected end of stream during deserialization.", ex);
+                }
 
-            if (((controlByte & (byte)Directions.Mask) == (byte) Directions.Append) && (chunkSize == 0))
-            {
-                break;
-            }
-
-            byte[] buffer = new byte[chunkSize];
-
-            try
-            {
-                await stream.ReadExactlyAsync(buffer.AsMemory(0, chunkSize), cancellationToken).ConfigureAwait(false);
-            }
-            catch (EndOfStreamException ex)
-            {
-                throw new PromptuariumException("Unexpected end of stream during deserialization.", ex);
-            }
-
-            if (IsDataChunk(controlByte))
-            {
-                if (chunkSize > 0)
+                if (IsDataChunk(controlByte))
                 {
                     node.Data ??= new MemoryStream();
 
@@ -299,10 +305,7 @@ public partial class Element
                     // Firing event
                     OnDataLoaded?.Invoke(node, new PromptuariumLoadedEventArgs());
                 }
-            }
-            else
-            {
-                if (chunkSize > 0)
+                else
                 {
                     node.MetaData ??= new MemoryStream();
 
@@ -316,12 +319,18 @@ public partial class Element
                 }
             }
         }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
 
-        PurgeEmptyNodes(root);
+        FinishLoadedTree(root);
 
         if (root.Children.Count > 0)
         {
-            return root.Children[0];
+            Element result = root.Children[0];
+            result.Parent = null;
+            return result;
         }
         else
         {
@@ -344,17 +353,43 @@ public partial class Element
         return node;
     }
 
-    private static void PurgeEmptyNodes(Element node)
+    /// <summary>
+    /// Removes the empty nodes (placeholders) and rewinds the loaded streams.
+    /// </summary>
+    private static void FinishLoadedTree(Element root)
     {
-        foreach (Element child in new List<Element>(node.Children))
+        // In reverse pre-order every node comes after its descendants,
+        // so a node's children are already purged when the node itself is processed.
+        // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack.
+        List<Element> nodes = PreOrder(root);
+
+        for (int index = nodes.Count - 1; index >= 0; index--)
         {
-            PurgeEmptyNodes(child);
+            Element node = nodes[index];
+            node.Data?.Seek(0, SeekOrigin.Begin);
+            node.MetaData?.Seek(0, SeekOrigin.Begin);
+            ((List<Element>)node.Children).RemoveAll(child => child.Data == null && child.MetaData == null && child.Children.Count == 0);
+        }
+    }
+
+    private static List<Element> PreOrder(Element root)
+    {
+        var result = new List<Element>();
+        var nodes = new Stack<Element>();
+        nodes.Push(root);
+
+        while (nodes.Count > 0)
+        {
+            Element node = nodes.Pop();
+            result.Add(node);
+
+            for (int childIndex = node.Children.Count - 1; childIndex >= 0; childIndex--)
+            {
+                nodes.Push(node.Children[childIndex]);
+            }
         }
 
-        if (node.Data == null && node.MetaData == null && node.Children.Count == 0)
-        {
-            node.Parent?.Remove(node);
-        }
+        return result;
     }
 
     #endregion
