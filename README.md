@@ -1,6 +1,9 @@
 ﻿# Promptuarium
 
-[![.NET](https://github.com/fuszenecker/Promptuarium/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fuszenecker/Promptuarium/actions/workflows/dotnet.yml)
+[![CI](https://github.com/fuszenecker/Promptuarium/actions/workflows/ci.yml/badge.svg)](https://github.com/fuszenecker/Promptuarium/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/fuszenecker/Promptuarium)](https://github.com/fuszenecker/Promptuarium/releases/latest)
+[![NuGet](https://img.shields.io/nuget/v/Promptuarium)](https://www.nuget.org/packages/Promptuarium/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Project summary
 
@@ -72,6 +75,10 @@ See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Exampl
 
 The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits trees, and lists the chunks of a file. It is non-interactive and has JSON output, so it can be driven by scripts and AI agents, and it serves as the reference when the format is implemented in another language.
 
+Other implementations:
+
+* TypeScript / JavaScript: [promptuarium-js](https://github.com/fuszenecker/promptuarium-js), byte-identical with this one (cross-checked with `pedit`).
+
 ## Unit tests
 
 **Unit tests** help to keep the project code robust. The stability tests (random trees) are slow, they can be left out:
@@ -80,13 +87,21 @@ The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits 
 dotnet test --filter "TestCategory!=Slow"
 ```
 
-## NuGet packages
+## Packages and releases
 
-* [Promptuarium](https://www.nuget.org/packages/Promptuarium/)
+* NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/)
+* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet package, the symbol package and `pedit` of every version.
+
+A release is created automatically for every version tag:
+
+1. set the new `Version` (and the release notes) in `src/Promptuarium.csproj`, and commit;
+2. tag the commit with the version (`git tag 7.1.0`) and push the tag (`git push origin 7.1.0`).
+
+The release workflow checks that the tag is the version of the package, runs the tests, and publishes the release as the latest one (a tag like `7.1.0-beta.1` is a pre-release). Releases of existing tags can be created by hand: `gh workflow run release.yml -f tag=7.0.0`.
 
 ## License
 
-This code is is distributed under the terms of the MIT license.
+This code is distributed under the terms of the MIT license.
 
 ## Internals
 

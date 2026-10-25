@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Restore
+        run: dotnet restore
+
+      # The library and pedit have no warnings, and they should stay so
+      - name: Build (warnings are errors)
+        run: |
+          dotnet build src/Promptuarium.csproj --no-restore -c Release -warnaserror
+          dotnet build tools/PEdit/PEdit.csproj --no-restore -c Release -warnaserror
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release --filter "TestCategory!=Slow" --logger trx --results-directory TestResults
+
+      - name: Upload the test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+
+      - name: Pack
+        run: dotnet pack src/Promptuarium.csproj --no-build -c Release -o packages
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: packages
+
+  stability:
+    name: Stability tests (slow)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Test
+        run: dotnet test -c Release --filter "TestCategory=Slow"

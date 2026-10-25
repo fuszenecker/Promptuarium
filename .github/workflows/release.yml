@@ -1,0 +1,79 @@
+name: Release
+
+# A new version tag (e.g. 7.1.0, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
+# with the NuGet package, the symbol package and pedit. It can also be started by hand for an existing tag.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing tag to release (e.g. 7.0.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      # The tag must be the version of the package, so the version is always bumped before tagging
+      - name: Check the version
+        run: |
+          VERSION=$(dotnet msbuild src/Promptuarium.csproj -getProperty:Version)
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "::error::The tag ($TAG) is not the version of src/Promptuarium.csproj ($VERSION)."
+            exit 1
+          fi
+
+      - name: Test
+        run: dotnet test -c Release --filter "TestCategory!=Slow"
+
+      - name: Pack
+        run: dotnet pack src/Promptuarium.csproj -c Release -o artifacts
+
+      - name: Publish pedit
+        if: hashFiles('tools/PEdit/PEdit.csproj') != ''
+        run: |
+          dotnet publish tools/PEdit/PEdit.csproj -c Release -o publish/pedit
+          (cd publish && zip -qr "../artifacts/pedit-$TAG.zip" pedit)
+
+      - name: Release notes
+        run: |
+          {
+            dotnet msbuild src/Promptuarium.csproj -getProperty:PackageReleaseNotes
+            echo
+            echo "Attached: the NuGet package and the symbol package (upload both to nuget.org), and pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
+          } > release-notes.md
+
+      - name: Create the release
+        run: |
+          case "$TAG" in
+            *-*) KIND=(--prerelease --latest=false) ;;
+            *) KIND=(--latest) ;;
+          esac
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/* --clobber
+          else
+            gh release create "$TAG" artifacts/* --title "$TAG" --notes-file release-notes.md --generate-notes --verify-tag "${KIND[@]}"
+          fi

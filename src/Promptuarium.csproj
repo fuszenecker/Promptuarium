@@ -12,7 +12,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>7.0.0</Version>
+    <Version>7.1.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -24,8 +24,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Empty nodes are preserved (the structure is always kept). Breaking changes: the + and - operators are removed (use Add and Remove); Parent has a private setter and Children is a real read-only list (use Add, Remove, Detach); the static load events moved to LoadOptions and are fired once per node; Statistics has properties instead of fields and ignores empty streams; Detach(node) returns the detached node and, like Remove, throws if the node is not a child; the indexer throws ArgumentOutOfRangeException; AsByte of an empty content is 0, AsVarInt/AsVarUInt throw for more than 8 bytes, FromByteArray copies the array. New: LoadOptions with MaxBytes and MaxNodes; buffered writing and read-ahead on seekable streams; saving keeps the position of the content streams; StructurallyEquals compares trees; reading contents (ToString, conversions, copying) does not change the stream positions.</ReleaseNotes>
-    <PackageReleaseNotes>Empty nodes are preserved (the structure is always kept). Breaking changes: the + and - operators are removed (use Add and Remove); Parent has a private setter and Children is a real read-only list (use Add, Remove, Detach); the static load events moved to LoadOptions and are fired once per node; Statistics has properties instead of fields and ignores empty streams; Detach(node) returns the detached node and, like Remove, throws if the node is not a child; the indexer throws ArgumentOutOfRangeException; AsByte of an empty content is 0, AsVarInt/AsVarUInt throw for more than 8 bytes, FromByteArray copies the array. New: LoadOptions with MaxBytes and MaxNodes; buffered writing and read-ahead on seekable streams; saving keeps the position of the content streams; StructurallyEquals compares trees; reading contents (ToString, conversions, copying) does not change the stream positions.</PackageReleaseNotes>
+    <ReleaseNotes>New: ElementBuilder (with signed roots), Element.Insert, the pedit command line tool (attached to the GitHub release). Releases are created automatically from version tags.</ReleaseNotes>
+    <PackageReleaseNotes>New: ElementBuilder (with signed roots), Element.Insert, the pedit command line tool (attached to the GitHub release). Releases are created automatically from version tags.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>
