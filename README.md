@@ -49,6 +49,15 @@ var received = await Element.LoadAsync(networkStream, options, cancellationToken
 The **structure is always preserved**: every node is saved and loaded in the same position, empty nodes included. `StructurallyEquals` compares two trees (structure and contents).
 Reading the contents (`ToString`, the conversions, copying, comparing) never changes the position of the content streams.
 
+A file can carry a **signature** (see [File identification](BINARY_FORMAT.md#10-file-identification-optional-convention)), so that it can be recognized e.g. by the `file` command. The `ElementBuilder` creates such a root:
+
+```csharp
+var root = new ElementBuilder()
+    .WithSignature(Data.FromAsciiString("PRMT"))
+    .WithChildren(content)
+    .Build();
+```
+
 The `GetStatistics()` method gives information about i.e.
 
 * the number of nodes,
