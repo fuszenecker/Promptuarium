@@ -33,7 +33,6 @@ The format is complete and has **no version**: there is no version field, and no
 * **MUST**, **MUST NOT**, **SHOULD** and **MAY** are used as in RFC 2119.
 * Bytes are written in hexadecimal (`41`, `0x41`). Byte sequences are written left to right in stream order.
 * Bits are numbered from 0 (least significant) to 7 (most significant).
-* All multi-byte integers in this document are **little-endian**.
 * `2^n` is 2 to the power of `n`. `KiB` is 1024 bytes.
 * In tree diagrams, `X("abc")` is a node whose data is the ASCII bytes of `abc`, and `[...]` is the list of its children.
 
