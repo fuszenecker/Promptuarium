@@ -92,10 +92,22 @@ public partial class MainWindow : Window
         base.OnClosed(e);
     }
 
-    // The hidden chunk panel gives its row back to the editor (and gets its height back when it is shown again)
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(MainWindowViewModel.IsChunkPanelVisible) || viewModel is null)
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        // The first chunk of the selected node is scrolled into view
+        if (e.PropertyName == nameof(MainWindowViewModel.SelectedChunk) && viewModel.SelectedChunk is { } chunk)
+        {
+            ChunkGrid.ScrollIntoView(chunk, null);
+            return;
+        }
+
+        // The hidden chunk panel gives its row back to the editor (and gets its height back when it is shown again)
+        if (e.PropertyName != nameof(MainWindowViewModel.IsChunkPanelVisible))
         {
             return;
         }

@@ -102,7 +102,7 @@ public sealed class EditorScenarios
         Editor.Pump();
 
         CollectionAssert.AreEqual(new[] { "40", "43", "00" }, editor.ViewModel.Chunks.Select(chunk => chunk.Row.Control).ToArray());
-        ListBoxItem[] rows = editor.Find<ListBoxItem>().ToArray();
+        DataGridRow[] rows = editor.Find<DataGridRow>().OrderBy(row => row.Index).ToArray();
         Assert.AreEqual(3, rows.Length);
         CollectionAssert.AreEqual(new[] { false, true, false }, rows.Select(row => row.Classes.Contains("ofSelectedNode")).ToArray());
         editor.Screenshot("chunks");
@@ -111,11 +111,29 @@ public sealed class EditorScenarios
         ClickAt(editor, rows[0], new Point(20, 8), MouseButton.Left);
         Assert.AreSame(editor.ViewModel.Root, editor.ViewModel.SelectedNode);
 
-        // F6 hides the panel
+        // The columns can be resized
+        Assert.IsTrue(editor.Find<DataGrid>().Single().CanUserResizeColumns);
+
+        // View / Chunks hides the panel, and gives its place to the editor; F6 shows it again
+        Grid grid = editor.Window.FindControl<Grid>("MainGrid")!;
+        MenuItem view = editor.Find<MenuItem>().Single(item => (string?)item.Header == "_View");
+        view.Open();
+        Editor.Pump();
+        MenuItem chunks = view.Items.OfType<MenuItem>().Single();
+        chunks.Command!.Execute(chunks.CommandParameter);
+        view.Close();
+        Editor.Pump();
+
+        Assert.IsFalse(editor.ViewModel.IsChunkPanelVisible);
+        Assert.IsFalse(chunks.IsChecked);
+        Assert.AreEqual(0, grid.RowDefinitions[2].ActualHeight);
+        Assert.IsFalse(editor.Find<DataGridRow>().Any(row => row.IsEffectivelyVisible));
+
         editor.Window.KeyPress(Key.F6, RawInputModifiers.None, PhysicalKey.F6, null);
         Editor.Pump();
-        Assert.IsFalse(editor.ViewModel.IsChunkPanelVisible);
-        Assert.IsFalse(editor.Find<ListBoxItem>().Any(row => row.IsEffectivelyVisible));
+        Assert.IsTrue(editor.ViewModel.IsChunkPanelVisible);
+        Assert.IsTrue(chunks.IsChecked);
+        Assert.AreEqual(220, grid.RowDefinitions[2].ActualHeight);
         return Task.CompletedTask;
     });
 
