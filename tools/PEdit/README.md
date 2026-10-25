@@ -9,6 +9,18 @@
 
 So it can be driven by scripts and AI agents, and it is the reference to compare another implementation (e.g. a port to another language) with.
 
+## Installing
+
+Every [release](https://github.com/fuszenecker/Promptuarium/releases) has a Debian package (amd64; self-contained, .NET is not needed), with a man page (`man pedit`):
+
+```sh
+sudo apt install ./pedit_8.0.0_amd64.deb
+```
+
+To build it (needs `dpkg-deb`; the result is in `artifacts/`): `tools/PEdit/packaging/build-deb.sh [--version 8.0.0] [--runtime linux-x64|linux-arm64]`.
+
+On other systems, the `pedit-<version>.zip` of the release runs with .NET 10: `dotnet pedit/pedit.dll help`.
+
 ## Running
 
 ```sh

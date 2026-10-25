@@ -10,6 +10,8 @@
     <AssemblyName>pedit</AssemblyName>
     <RootNamespace>PEdit</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- The texts are formatted with the invariant culture, so the self-contained build needs no ICU -->
+    <InvariantGlobalization>true</InvariantGlobalization>
     <Nullable>enable</Nullable>
     <AnalysisLevel>preview</AnalysisLevel>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
