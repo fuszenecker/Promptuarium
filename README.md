@@ -87,6 +87,8 @@ See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Exampl
 
 The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits trees, and lists the chunks of a file. It is non-interactive and has JSON output, so it can be driven by scripts and AI agents, and it serves as the reference when the format is implemented in another language.
 
+[PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents as hex, UTF-8, ASCII or base64, import and export, a chunk view, and nested trees in their own windows.
+
 Other implementations:
 
 * TypeScript / JavaScript: [promptuarium-js](https://github.com/fuszenecker/promptuarium-js), byte-identical with this one (cross-checked with `pedit`).
@@ -102,7 +104,7 @@ dotnet test --filter "TestCategory!=Slow"
 ## Packages and releases
 
 * NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/)
-* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet package, the symbol package and `pedit` of every version.
+* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet package, the symbol package, `pedit` and PStudio of every version.
 
 A release is created automatically for every version tag:
 

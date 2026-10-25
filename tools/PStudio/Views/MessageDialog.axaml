@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PStudio.ViewModels"
+        x:Class="PStudio.Views.MessageDialog"
+        x:DataType="vm:MessageDialogViewModel"
+        x:Name="Dialog"
+        Title="{Binding Title}"
+        Width="480" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+  <Grid RowDefinitions="*,Auto">
+    <TextBlock Grid.Row="0" Margin="20" Text="{Binding Message}" TextWrapping="Wrap" MinHeight="60" />
+    <ItemsControl Grid.Row="1" ItemsSource="{Binding Buttons}" HorizontalAlignment="Right" Margin="12">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:DialogButton">
+          <Button Content="{Binding Text}"
+                  IsDefault="{Binding IsDefault}"
+                  IsCancel="{Binding IsCancel}"
+                  MinWidth="90"
+                  HorizontalContentAlignment="Center"
+                  Command="{Binding #Dialog.((vm:MessageDialogViewModel)DataContext).PressCommand}"
+                  CommandParameter="{Binding}" />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </Grid>
+</Window>

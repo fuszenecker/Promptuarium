@@ -2,6 +2,9 @@
   <Folder Name="/tools/">
     <Project Path="tools/Dump/Dump.csproj" />
     <Project Path="tools/PEdit/PEdit.csproj" />
+    <Project Path="tools/PStudio/PStudio.csproj" />
+    <Project Path="tools/PStudio.Tests/PStudio.Tests.csproj" />
+    <Project Path="tools/PStudio.Headless.Tests/PStudio.Headless.Tests.csproj" />
   </Folder>
   <Project Path="src/Promptuarium.csproj" />
   <Project Path="tests/Promptuarium.Tests.csproj" />
