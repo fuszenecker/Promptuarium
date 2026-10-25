@@ -5,7 +5,6 @@
 //   ppak unpack FILE DIRECTORY    unpacks into the directory
 //   ppak list FILE                lists the entries
 //   ppak verify FILE              checks the CRCs
-//   ppak                          packs and unpacks a sample directory, and compares the result
 
 using PPak;
 using Promptuarium;
@@ -38,9 +37,6 @@ try
             corrupted.ForEach(path => Console.WriteLine($"CRC mismatch: {path}"));
             Console.WriteLine(corrupted.Count == 0 ? "OK" : $"{corrupted.Count} corrupted files");
             return corrupted.Count == 0 ? 0 : 1;
-
-        case []:
-            return await Demo.RunAsync();
 
         default:
             Console.Error.WriteLine("Usage: ppak pack DIRECTORY FILE | unpack FILE DIRECTORY | list FILE | verify FILE");

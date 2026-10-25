@@ -8,7 +8,6 @@ ppak pack DIRECTORY FILE      # packs the contents of the directory
 ppak unpack FILE DIRECTORY    # unpacks into the directory
 ppak list FILE                # lists the entries, like ls -l
 ppak verify FILE              # checks the CRCs
-ppak                          # packs and unpacks a sample directory, and compares the result
 ```
 
 ```sh

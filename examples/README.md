@@ -1,7 +1,7 @@
 # Examples
 
-Small applications that show how the library is used. Every example builds with the solution, and runs
-without arguments (it checks itself, so CI runs them too):
+Small applications that show how the library is used. Every example builds with the solution, and CI runs
+them:
 
 ```sh
 dotnet run --project examples/GettingStarted
