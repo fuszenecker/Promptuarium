@@ -35,7 +35,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private NodeViewModel? hostNode;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NodeInfo))]
+    [NotifyPropertyChangedFor(nameof(NodePath), nameof(NodeSummary), nameof(NodeEncoding))]
     [NotifyCanExecuteChangedFor(
         nameof(AddChildCommand), nameof(AddSiblingCommand), nameof(DeleteCommand),
         nameof(MoveUpCommand), nameof(MoveDownCommand), nameof(IndentCommand), nameof(OutdentCommand),
@@ -58,7 +58,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private bool isStatusError;
 
     [ObservableProperty]
-    private bool isChunkViewActive;
+    private bool isChunkPanelVisible = true;
+
+    [ObservableProperty]
+    private ChunkRowViewModel? selectedChunk;
+
+    // The nodes in pre-order: the chunks refer to them by index
+    private List<NodeViewModel> preOrder = [];
+
+    // Set while the selection of the chunk panel follows the selected node
+    private bool syncingChunks;
 
     [ObservableProperty]
     private string chunkSummary = string.Empty;
@@ -107,8 +116,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>The editor of the metadata of the selected node.</summary>
     public ContentEditorViewModel MetaData { get; }
 
-    /// <summary>The chunks of the tree, shown while the chunk view is active.</summary>
-    public ObservableCollection<ChunkRow> Chunks { get; } = [];
+    /// <summary>The chunks of the tree, as it would be saved.</summary>
+    public ObservableCollection<ChunkRowViewModel> Chunks { get; } = [];
 
     /// <summary>Whether the tree is stored in the data of a node of another editor.</summary>
     public bool IsNested => hostEditor is not null;
@@ -124,26 +133,45 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>The title of the window.</summary>
     public string Title => $"{DocumentName}{(IsNested ? " (nested)" : string.Empty)}{(IsModified ? " *" : string.Empty)} - Promptuarium Studio";
 
-    /// <summary>A description of the selected node.</summary>
-    public string NodeInfo
+    /// <summary>The path of the selected node.</summary>
+    public string NodePath => SelectedNode?.Path ?? "No node is selected";
+
+    /// <summary>The children and the contents of the selected node.</summary>
+    public string NodeSummary
     {
         get
         {
             if (SelectedNode is not { } node)
             {
-                return "No node is selected.";
+                return string.Empty;
             }
 
             Element element = node.Element;
-            string info = $"{node.Path}    {Count(element.Children.Count, "child", "children")}    data {Count(element.Data.Length, "byte", "bytes")}    metadata {Count(element.MetaData.Length, "byte", "bytes")}";
+            string summary = $"{Count(element.Children.Count, "child", "children")}  ·  data {Count(element.Data.Length, "byte", "bytes")}  ·  metadata {Count(element.MetaData.Length, "byte", "bytes")}";
 
             // See BINARY_FORMAT.md, 10: a root without data, with a short metadata, identifies the file
             if (node.IsRoot && element.Data.IsEmpty && element.MetaData.Length is > 0 and <= ElementBuilder.MaxSignatureLength)
             {
-                info += $"    signature {Services.ContentFormat.Preview(element.MetaData.Span)}";
+                summary += $"  ·  signature {Services.ContentFormat.Preview(element.MetaData.Span)}";
             }
 
-            return info;
+            return summary;
+        }
+    }
+
+    /// <summary>The chunks of the selected node in the saved form.</summary>
+    public string NodeEncoding
+    {
+        get
+        {
+            List<ChunkRow> chunks = Chunks.Where(chunk => chunk.IsOfSelectedNode).Select(chunk => chunk.Row).ToList();
+
+            if (chunks.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return $"saved as {Count(chunks.Count, "chunk", "chunks")}, {Count(chunks.Sum(chunk => (long)chunk.Size), "byte", "bytes")}, from offset {chunks[0].Offset}";
         }
     }
 
@@ -260,6 +288,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void Close() => CloseRequested?.Invoke();
+
+    [RelayCommand]
+    private void ToggleChunkPanel() => IsChunkPanelVisible = !IsChunkPanelVisible;
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void AddChild()
@@ -412,14 +443,73 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         editedNode = value;
         Data.Load(value?.Element.Data ?? ReadOnlyMemory<byte>.Empty, value is not null);
         MetaData.Load(value?.Element.MetaData ?? ReadOnlyMemory<byte>.Empty, value is not null);
+        HighlightChunks();
     }
 
-    partial void OnIsChunkViewActiveChanged(bool value)
+    partial void OnSelectedChunkChanged(ChunkRowViewModel? value)
     {
-        if (value)
+        // A chunk chosen in the chunk panel selects its node
+        if (!syncingChunks && value is { Row.NodeIndex: >= 0 and int index } && index < preOrder.Count)
         {
-            RefreshChunks();
+            SelectedNode = preOrder[index];
         }
+    }
+
+    /// <summary>
+    /// Moves a node (dragged and dropped) before, after or into another one.
+    /// </summary>
+    /// <returns>False if the move is not possible: the root, or into the node itself or into its descendant</returns>
+    public bool MoveNode(NodeViewModel node, NodeViewModel target, DropPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(target);
+
+        if (!CanMoveNode(node, target, position))
+        {
+            return false;
+        }
+
+        CommitEdits();
+        node.Parent!.Detach(node);
+
+        if (position == DropPosition.Inside)
+        {
+            target.Insert(target.Children.Count, node);
+        }
+        else
+        {
+            target.Parent!.Insert(target.Index + (position == DropPosition.After ? 1 : 0), node);
+        }
+
+        Changed(node, $"Moved to {node.Path}");
+
+        // The selection is the same node, but the tree view lost it while the node was detached
+        OnPropertyChanged(nameof(SelectedNode));
+        return true;
+    }
+
+    /// <summary>
+    /// Whether a node can be dropped there.
+    /// </summary>
+    public static bool CanMoveNode(NodeViewModel node, NodeViewModel target, DropPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(target);
+
+        if (node.IsRoot || (target.IsRoot && position != DropPosition.Inside))
+        {
+            return false;
+        }
+
+        for (NodeViewModel? ancestor = target; ancestor is not null; ancestor = ancestor.Parent)
+        {
+            if (ancestor == node)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void MoveBy(int offset)
@@ -537,7 +627,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(Root));
         OnPropertyChanged(nameof(DocumentName));
         OnPropertyChanged(nameof(Title));
-        RefreshChunksIfActive();
+        RefreshChunks();
     }
 
     // After a change of the tree: selects the node (if given), and refreshes everything that depends on the tree
@@ -551,30 +641,62 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         NotifyNodeCommands();
-        OnPropertyChanged(nameof(NodeInfo));
-        RefreshChunksIfActive();
+        OnPropertyChanged(nameof(NodePath));
+        OnPropertyChanged(nameof(NodeSummary));
+        RefreshChunks();
         ShowStatus(status, error: false);
-    }
-
-    private void RefreshChunksIfActive()
-    {
-        if (IsChunkViewActive)
-        {
-            RefreshChunks();
-        }
     }
 
     private void RefreshChunks()
     {
-        Chunks.Clear();
+        preOrder = [];
+        var stack = new Stack<NodeViewModel>();
+        stack.Push(Root);
 
-        foreach (ChunkRow chunk in chunkAnalyzer.Analyze(Root.Element))
+        while (stack.Count > 0)
         {
-            Chunks.Add(chunk);
+            NodeViewModel node = stack.Pop();
+            preOrder.Add(node);
+
+            for (int i = node.Children.Count - 1; i >= 0; i--)
+            {
+                stack.Push(node.Children[i]);
+            }
         }
 
-        long bytes = Root.Element.ToBytes().LongLength;
-        ChunkSummary = $"{Count(Chunks.Count, "chunk", "chunks")}, {Count(bytes, "byte", "bytes")}";
+        IReadOnlyList<ChunkRow> rows = chunkAnalyzer.Analyze(Root.Element);
+
+        syncingChunks = true;
+        Chunks.Clear();
+
+        foreach (ChunkRow row in rows)
+        {
+            Chunks.Add(new ChunkRowViewModel(row));
+        }
+
+        syncingChunks = false;
+
+        long bytes = rows.Count == 0 ? 0 : rows[^1].Position + rows[^1].Size;
+        ChunkSummary = $"{Count(rows.Count, "chunk", "chunks")}, {Count(bytes, "byte", "bytes")}";
+        HighlightChunks();
+    }
+
+    // The chunks of the selected node are highlighted, and the first one is selected (so it is scrolled into view)
+    private void HighlightChunks()
+    {
+        int index = SelectedNode is null ? -1 : preOrder.IndexOf(SelectedNode);
+        ChunkRowViewModel? first = null;
+
+        foreach (ChunkRowViewModel chunk in Chunks)
+        {
+            chunk.IsOfSelectedNode = index >= 0 && chunk.Row.NodeIndex == index;
+            first ??= chunk.IsOfSelectedNode ? chunk : null;
+        }
+
+        syncingChunks = true;
+        SelectedChunk = first;
+        syncingChunks = false;
+        OnPropertyChanged(nameof(NodeEncoding));
     }
 
     // The position of the selection changed, so the moves are possible or not

@@ -35,4 +35,23 @@ public sealed class ChunkAnalyzerTests
         Assert.AreEqual("50", chunks[0].Control);
         Assert.AreEqual("16 (log)", chunks[0].Length);
     }
+
+    [TestMethod]
+    public void Analyze_TellsTheNodeOfEveryChunk()
+    {
+        // root (no content) > a > (b > c), d: the root is a placeholder, and Up markers lead back from c to d
+        var root = new Element(null, null,
+            new Element(Data.FromAsciiString("a"), null,
+                new Element(Data.FromAsciiString("b"), null,
+                    new Element(Data.FromAsciiString("c"), null))),
+            new Element(Data.FromAsciiString("d"), new byte[20]));
+
+        var chunks = new ChunkAnalyzer().Analyze(root);
+
+        // Pre-order: root 0, a 1, b 2, c 3, d 4; the metadata of d is two chunks (16 + 4 bytes)
+        Assert.AreEqual(
+            "40:0 41:1 41:2 41:3 80:-1 81:4 30:4 24:4 00:-1",
+            string.Join(" ", chunks.Select(chunk => $"{chunk.Control}:{chunk.NodeIndex}")));
+        Assert.AreEqual(chunks[^1].Position + chunks[^1].Size, root.ToBytes().Length);
+    }
 }

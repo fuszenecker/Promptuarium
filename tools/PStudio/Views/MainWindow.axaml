@@ -1,19 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PStudio.ViewModels"
-        xmlns:m="using:PStudio.Models"
         xmlns:v="using:PStudio.Views"
         x:Class="PStudio.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
-        Width="1100" Height="720"
-        MinWidth="640" MinHeight="400">
+        Width="1200" Height="800"
+        MinWidth="640" MinHeight="480">
 
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+N" Command="{Binding NewCommand}" />
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}" />
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}" />
+    <KeyBinding Gesture="F6" Command="{Binding ToggleChunkPanelCommand}" />
   </Window.KeyBindings>
 
   <DockPanel>
@@ -45,85 +45,129 @@
         <Separator />
         <MenuItem Header="Open Data as _Nested Tree…" Command="{Binding OpenNestedCommand}" />
       </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="_Chunks" ToggleType="CheckBox" IsChecked="{Binding IsChunkPanelVisible}" InputGesture="F6" />
+      </MenuItem>
     </Menu>
 
     <Border DockPanel.Dock="Bottom" Padding="8,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
       <TextBlock Text="{Binding StatusText}" Classes.error="{Binding IsStatusError}" TextTrimming="CharacterEllipsis" />
     </Border>
 
-    <Grid ColumnDefinitions="2*,Auto,3*">
-      <TreeView Grid.Column="0"
-                Margin="6"
-                ItemsSource="{Binding Roots}"
-                SelectedItem="{Binding SelectedNode}">
-        <TreeView.KeyBindings>
-          <KeyBinding Gesture="Insert" Command="{Binding AddChildCommand}" />
-          <KeyBinding Gesture="Ctrl+Insert" Command="{Binding AddSiblingCommand}" />
-          <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
-          <KeyBinding Gesture="Alt+Up" Command="{Binding MoveUpCommand}" />
-          <KeyBinding Gesture="Alt+Down" Command="{Binding MoveDownCommand}" />
-          <KeyBinding Gesture="Alt+Right" Command="{Binding IndentCommand}" />
-          <KeyBinding Gesture="Alt+Left" Command="{Binding OutdentCommand}" />
-          <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}" />
-          <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}" />
-          <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteAsChildCommand}" />
-          <KeyBinding Gesture="Ctrl+Shift+V" Command="{Binding PasteAfterCommand}" />
-        </TreeView.KeyBindings>
-        <TreeView.Styles>
-          <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
-            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
-          </Style>
-        </TreeView.Styles>
-        <TreeView.ItemTemplate>
-          <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
-            <TextBlock Text="{Binding Header}" FontFamily="{StaticResource MonoFont}" />
-          </TreeDataTemplate>
-        </TreeView.ItemTemplate>
-      </TreeView>
+    <Grid x:Name="MainGrid" RowDefinitions="*,Auto,220">
+      <Grid Grid.Row="0" ColumnDefinitions="2*,Auto,3*">
+        <TreeView x:Name="Tree"
+                  Grid.Column="0"
+                  Margin="6"
+                  ItemsSource="{Binding Roots}"
+                  SelectedItem="{Binding SelectedNode}">
+          <TreeView.KeyBindings>
+            <KeyBinding Gesture="Insert" Command="{Binding AddChildCommand}" />
+            <KeyBinding Gesture="Ctrl+Insert" Command="{Binding AddSiblingCommand}" />
+            <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+            <KeyBinding Gesture="Alt+Up" Command="{Binding MoveUpCommand}" />
+            <KeyBinding Gesture="Alt+Down" Command="{Binding MoveDownCommand}" />
+            <KeyBinding Gesture="Alt+Right" Command="{Binding IndentCommand}" />
+            <KeyBinding Gesture="Alt+Left" Command="{Binding OutdentCommand}" />
+            <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}" />
+            <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}" />
+            <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteAsChildCommand}" />
+            <KeyBinding Gesture="Ctrl+Shift+V" Command="{Binding PasteAfterCommand}" />
+          </TreeView.KeyBindings>
+          <TreeView.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Add Child" Command="{Binding AddChildCommand}" InputGesture="Insert" />
+              <MenuItem Header="Add Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Ctrl+Insert" />
+              <Separator />
+              <MenuItem Header="Cut" Command="{Binding CutCommand}" InputGesture="Ctrl+X" />
+              <MenuItem Header="Copy" Command="{Binding CopyCommand}" InputGesture="Ctrl+C" />
+              <MenuItem Header="Paste as Child" Command="{Binding PasteAsChildCommand}" InputGesture="Ctrl+V" />
+              <MenuItem Header="Paste After" Command="{Binding PasteAfterCommand}" InputGesture="Ctrl+Shift+V" />
+              <Separator />
+              <MenuItem Header="Move Up" Command="{Binding MoveUpCommand}" InputGesture="Alt+Up" />
+              <MenuItem Header="Move Down" Command="{Binding MoveDownCommand}" InputGesture="Alt+Down" />
+              <MenuItem Header="Indent" Command="{Binding IndentCommand}" InputGesture="Alt+Right" />
+              <MenuItem Header="Outdent" Command="{Binding OutdentCommand}" InputGesture="Alt+Left" />
+              <Separator />
+              <MenuItem Header="Open Data as Nested Tree…" Command="{Binding OpenNestedCommand}" />
+              <Separator />
+              <MenuItem Header="Delete" Command="{Binding DeleteCommand}" InputGesture="Delete" />
+            </ContextMenu>
+          </TreeView.ContextMenu>
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            </Style>
+          </TreeView.Styles>
+          <TreeView.ItemTemplate>
+            <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
+              <Border Classes="nodeHeader" Padding="2,1" BorderThickness="0,2" BorderBrush="Transparent" CornerRadius="3">
+                <TextBlock Text="{Binding Header}" FontFamily="{StaticResource MonoFont}" />
+              </Border>
+            </TreeDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
 
-      <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
+        <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
 
-      <TabControl Grid.Column="2" Margin="6,0,6,6">
-        <TabItem Header="Node">
-          <Grid RowDefinitions="Auto,*,Auto,*" Margin="0,6,0,0">
-            <TextBlock Grid.Row="0" Text="{Binding NodeInfo}" FontFamily="{StaticResource MonoFont}" Margin="0,0,0,10" TextTrimming="CharacterEllipsis" />
-            <v:ContentEditorView Grid.Row="1" DataContext="{Binding Data}" />
-            <GridSplitter Grid.Row="2" Height="4" ResizeDirection="Rows" Margin="0,6" />
-            <v:ContentEditorView Grid.Row="3" DataContext="{Binding MetaData}" />
-          </Grid>
-        </TabItem>
-        <TabItem Header="Chunks" IsSelected="{Binding IsChunkViewActive}">
-          <DockPanel Margin="0,6,0,0">
-            <TextBlock DockPanel.Dock="Top" Text="{Binding ChunkSummary}" Margin="0,0,0,6" />
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="70,40,64,76,90,104,52,*" Margin="12,0,0,4" TextElement.FontWeight="SemiBold">
-              <TextBlock Grid.Column="0" Text="Offset" />
-              <TextBlock Grid.Column="1" Text="Ctl" />
-              <TextBlock Grid.Column="2" Text="Dir" />
-              <TextBlock Grid.Column="3" Text="Type" />
-              <TextBlock Grid.Column="4" Text="Length" />
-              <TextBlock Grid.Column="5" Text="Kind" />
-              <TextBlock Grid.Column="6" Text="Depth" />
-              <TextBlock Grid.Column="7" Text="Payload" />
-            </Grid>
-            <ListBox ItemsSource="{Binding Chunks}" FontFamily="{StaticResource MonoFont}">
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="m:ChunkRow">
-                  <Grid ColumnDefinitions="70,40,64,76,90,104,52,*">
-                    <TextBlock Grid.Column="0" Text="{Binding Offset}" />
-                    <TextBlock Grid.Column="1" Text="{Binding Control}" />
-                    <TextBlock Grid.Column="2" Text="{Binding Direction}" />
-                    <TextBlock Grid.Column="3" Text="{Binding ContentType}" />
-                    <TextBlock Grid.Column="4" Text="{Binding Length}" />
-                    <TextBlock Grid.Column="5" Text="{Binding Kind}" />
-                    <TextBlock Grid.Column="6" Text="{Binding Depth}" />
-                    <TextBlock Grid.Column="7" Text="{Binding Payload}" TextTrimming="CharacterEllipsis" />
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </DockPanel>
-        </TabItem>
-      </TabControl>
+        <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
+          <Border Grid.Row="0" Classes="card" Margin="0,0,0,12">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="path" Text="{Binding NodePath}" />
+              <TextBlock Text="{Binding NodeSummary}" />
+              <TextBlock Classes="dim" Text="{Binding NodeEncoding}" IsVisible="{Binding IsChunkPanelVisible}" />
+            </StackPanel>
+          </Border>
+          <v:ContentEditorView Grid.Row="1" DataContext="{Binding Data}" />
+          <GridSplitter Grid.Row="2" Height="4" ResizeDirection="Rows" Margin="0,6" />
+          <v:ContentEditorView Grid.Row="3" DataContext="{Binding MetaData}" />
+        </Grid>
+      </Grid>
+
+      <GridSplitter x:Name="ChunkSplitter" Grid.Row="1" Height="4" ResizeDirection="Rows" IsVisible="{Binding IsChunkPanelVisible}" />
+
+      <DockPanel Grid.Row="2" Margin="6,4,8,6" IsVisible="{Binding IsChunkPanelVisible}">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,4">
+          <TextBlock Text="Chunks" FontWeight="SemiBold" />
+          <TextBlock Classes="dim" Text="{Binding ChunkSummary}" />
+          <TextBlock Classes="dim" Text="the chunks of the selected node are highlighted; a click on a chunk selects its node" />
+        </StackPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="70,40,64,76,90,104,52,*" Margin="12,0,0,2" TextElement.FontWeight="SemiBold">
+          <TextBlock Grid.Column="0" Text="Offset" />
+          <TextBlock Grid.Column="1" Text="Ctl" />
+          <TextBlock Grid.Column="2" Text="Dir" />
+          <TextBlock Grid.Column="3" Text="Type" />
+          <TextBlock Grid.Column="4" Text="Length" />
+          <TextBlock Grid.Column="5" Text="Kind" />
+          <TextBlock Grid.Column="6" Text="Depth" />
+          <TextBlock Grid.Column="7" Text="Payload" />
+        </Grid>
+        <ListBox x:Name="ChunkList"
+                 ItemsSource="{Binding Chunks}"
+                 SelectedItem="{Binding SelectedChunk}"
+                 AutoScrollToSelectedItem="True"
+                 FontFamily="{StaticResource MonoFont}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ChunkRowViewModel">
+              <Grid ColumnDefinitions="70,40,64,76,90,104,52,*">
+                <TextBlock Grid.Column="0" Text="{Binding Row.Offset}" />
+                <TextBlock Grid.Column="1" Text="{Binding Row.Control}" />
+                <TextBlock Grid.Column="2" Text="{Binding Row.Direction}" />
+                <TextBlock Grid.Column="3" Text="{Binding Row.ContentType}" />
+                <TextBlock Grid.Column="4" Text="{Binding Row.Length}" />
+                <TextBlock Grid.Column="5" Text="{Binding Row.Kind}" />
+                <TextBlock Grid.Column="6" Text="{Binding Row.Depth}" />
+                <TextBlock Grid.Column="7" Text="{Binding Row.Payload}" TextTrimming="CharacterEllipsis" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem" x:DataType="vm:ChunkRowViewModel">
+              <Setter Property="Classes.ofSelectedNode" Value="{Binding IsOfSelectedNode}" />
+            </Style>
+          </ListBox.Styles>
+        </ListBox>
+      </DockPanel>
     </Grid>
   </DockPanel>
 
@@ -131,9 +175,38 @@
     <Style Selector="TextBlock.error">
       <Setter Property="Foreground" Value="OrangeRed" />
     </Style>
+    <Style Selector="TextBlock.dim">
+      <Setter Property="Opacity" Value="0.7" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+      <Setter Property="BorderThickness" Value="4,0,0,0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+    <Style Selector="TextBlock.path">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
     <Style Selector="ListBoxItem">
-      <Setter Property="Padding" Value="12,2" />
+      <Setter Property="Padding" Value="12,1" />
       <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="ListBoxItem.ofSelectedNode">
+      <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+    </Style>
+    <Style Selector="Border.nodeHeader.dropInside">
+      <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentMediumBrush}" />
+    </Style>
+    <Style Selector="Border.nodeHeader.dropBefore">
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+      <Setter Property="BorderThickness" Value="0,2,0,0" />
+    </Style>
+    <Style Selector="Border.nodeHeader.dropAfter">
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,2" />
     </Style>
   </Window.Styles>
 </Window>

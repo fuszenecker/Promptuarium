@@ -13,10 +13,12 @@ dotnet tools/PStudio/bin/Debug/net10.0/pstudio.dll [FILE]
 ## Features
 
 * **Tree view**: every node shows its index and a short preview of its data and, in brackets, its metadata.
-* **Editing the tree**: add a child or a sibling, delete, move up and down, indent (under the previous sibling) and outdent (after the parent); cut, copy and paste nodes with their descendants, also between windows.
-* **Contents**: the data and the metadata of the selected node are edited as hex, UTF-8, ASCII or base64. The form is chosen automatically, and it can be changed while editing. An edit is stored by Apply (Ctrl+Enter) or when another node is selected, and dropped by Revert (Escape). Bytes that the chosen form can not show (e.g. invalid UTF-8) are shown read-only, so they are never changed by accident. Contents longer than 1 MiB are not shown, but they can be imported and exported.
+* **Editing the tree**: add a child or a sibling, delete, move up and down, indent (under the previous sibling) and outdent (after the parent); cut, copy and paste nodes with their descendants, also between windows. Everything is in the context menu of the tree too.
+* **Drag and drop**: a node is dropped before (upper quarter of the row), after (lower quarter) or into (middle) another node.
+* **Contents**: the data and the metadata of the selected node are edited in any form the `Data` class knows: hex, base64, UTF-8, ASCII, UTF-16, UTF-32, bool, byte, char, short, ushort, int, uint, long, ulong, VarInt, VarUInt, float, double, decimal, Guid, DateTime, DateTimeOffset and TimeSpan. The form is chosen automatically (UTF-8 for text and for an empty content, hex otherwise), and it can be changed while editing: a valid edit is converted, otherwise the text is taken as meant in the new form. An edit is stored by Apply (Ctrl+Enter) or when another node is selected, and dropped by Revert (Escape). A content that the chosen form can not give back byte for byte (e.g. invalid UTF-8, or 2 bytes as an int) is shown as hex, read-only, so it is never changed by accident. Contents longer than 1 MiB are not shown, but they can be imported and exported.
 * **Import and export**: a content can be loaded from a file and saved to a file.
-* **Chunk view**: the chunks of the tree as it would be saved (offset, control byte, direction, type, length, kind, depth, payload), decoded with the decoder of `pedit`, directly from the [specification](../../BINARY_FORMAT.md).
+* **Node summary**: the path, the number of children, the sizes of the contents, and how the node is saved (its chunks, their size and offset).
+* **Chunk panel** (View / Chunks, F6): the chunks of the tree as it would be saved (offset, control byte, direction, type, length, kind, depth, payload), decoded with the decoder of `pedit`, directly from the [specification](../../BINARY_FORMAT.md). The chunks of the selected node are highlighted, and a click on a chunk selects its node.
 * **Nested trees**: if the data of a node is itself a tree, Node / Open Data as Nested Tree opens it in its own window; Save stores the tree in the data of the node.
 * **Signed roots**: the signature of a signed root ([BINARY_FORMAT.md](../../BINARY_FORMAT.md), 10) is shown in the node information.
 * Files are saved atomically (a temporary file is written, then renamed), and unsaved changes are asked about before closing or opening another file.
@@ -33,6 +35,7 @@ dotnet tools/PStudio/bin/Debug/net10.0/pstudio.dll [FILE]
 | Ctrl+X, Ctrl+C | Cut, copy the node |
 | Ctrl+V, Ctrl+Shift+V | Paste as the last child, paste after the node |
 | Ctrl+Enter, Escape (in a content) | Apply, revert the edit |
+| F6 | Show or hide the chunk panel |
 
 ## Architecture
 
