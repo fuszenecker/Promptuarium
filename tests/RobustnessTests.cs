@@ -77,6 +77,58 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task ZeroLengthContentIsAnEmptyNode()
+        {
+            var tree = Node("R", new Element(new MemoryStream(), new MemoryStream()), Node("A"));
+
+            byte[] bytes = await SaveAsync(tree).ConfigureAwait(false);
+            CollectionAssert.AreEqual(new byte[] { 0x41, 0x52, 0x60, 0xC1, 0x41, 0x00 }, bytes);
+
+            var loaded = await LoadAsync(bytes).ConfigureAwait(false);
+            Assert.IsTrue(tree.StructurallyEquals(loaded));
+            Assert.AreEqual(2, loaded.Children.Count);
+        }
+
+        [TestMethod]
+        public async Task EmptyNodeAfterUpMarkers()
+        {
+            var tree = Node("R", Node("A", Node("B", Node("C"))), new Element());
+
+            // 80: Up marker (one extra level), A0: the empty node reached by Up
+            byte[] bytes = await SaveAsync(tree).ConfigureAwait(false);
+            CollectionAssert.AreEqual(new byte[] { 0x41, 0x52, 0x41, 0x41, 0x41, 0x42, 0x41, 0x43, 0x80, 0xA0, 0x00 }, bytes);
+
+            var loaded = await LoadAsync(bytes).ConfigureAwait(false);
+            Assert.IsTrue(tree.StructurallyEquals(loaded));
+            Assert.AreEqual(2, loaded.Children.Count);
+        }
+
+        [TestMethod]
+        public async Task EmptyNodeCanReceiveContent()
+        {
+            // 60 creates an empty node, the Append chunk 01 61 gives it data: it is an ordinary node then
+            var loaded = await LoadAsync(new byte[] { 0x41, 0x52, 0x60, 0x01, 0x61, 0x00 }).ConfigureAwait(false);
+
+            Assert.IsTrue(Node("R", Node("a")).StructurallyEquals(loaded));
+        }
+
+        [TestMethod]
+        public async Task ManyEmptyNodesAreKept()
+        {
+            const int count = 10_000;
+            byte[] bytes = new byte[] { 0x41, 0x52, 0x60 }
+                .Concat(Enumerable.Repeat((byte)0xE0, count - 1))
+                .Append((byte)0x00)
+                .ToArray();
+
+            var loaded = await LoadAsync(bytes).ConfigureAwait(false);
+
+            Assert.AreEqual(count, loaded.Children.Count);
+            Assert.IsTrue(loaded.Children.All(child => child.Data == null && child.MetaData == null && child.Children.Count == 0));
+            CollectionAssert.AreEqual(bytes, await SaveAsync(loaded).ConfigureAwait(false));
+        }
+
+        [TestMethod]
         public async Task OldPlaceholdersAreStillRemoved()
         {
             // Streams of older encoders: the empty Data type chunks (40, C0, 80) only create placeholders
