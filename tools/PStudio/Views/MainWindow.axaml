@@ -46,7 +46,7 @@
         <MenuItem Header="Open Data as _Nested Tree…" Command="{Binding OpenNestedCommand}" />
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="_Chunks" ToggleType="CheckBox" IsChecked="{Binding IsChunkPanelVisible}" InputGesture="F6" />
+        <MenuItem Header="_Chunks" ToggleType="CheckBox" IsChecked="{Binding IsChunkPanelVisible, Mode=OneWay}" Command="{Binding ToggleChunkPanelCommand}" InputGesture="F6" />
       </MenuItem>
     </Menu>
 
@@ -132,41 +132,34 @@
           <TextBlock Classes="dim" Text="{Binding ChunkSummary}" />
           <TextBlock Classes="dim" Text="the chunks of the selected node are highlighted; a click on a chunk selects its node" />
         </StackPanel>
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="70,40,64,76,90,104,52,*" Margin="12,0,0,2" TextElement.FontWeight="SemiBold">
-          <TextBlock Grid.Column="0" Text="Offset" />
-          <TextBlock Grid.Column="1" Text="Ctl" />
-          <TextBlock Grid.Column="2" Text="Dir" />
-          <TextBlock Grid.Column="3" Text="Type" />
-          <TextBlock Grid.Column="4" Text="Length" />
-          <TextBlock Grid.Column="5" Text="Kind" />
-          <TextBlock Grid.Column="6" Text="Depth" />
-          <TextBlock Grid.Column="7" Text="Payload" />
-        </Grid>
-        <ListBox x:Name="ChunkList"
-                 ItemsSource="{Binding Chunks}"
-                 SelectedItem="{Binding SelectedChunk}"
-                 AutoScrollToSelectedItem="True"
-                 FontFamily="{StaticResource MonoFont}">
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="vm:ChunkRowViewModel">
-              <Grid ColumnDefinitions="70,40,64,76,90,104,52,*">
-                <TextBlock Grid.Column="0" Text="{Binding Row.Offset}" />
-                <TextBlock Grid.Column="1" Text="{Binding Row.Control}" />
-                <TextBlock Grid.Column="2" Text="{Binding Row.Direction}" />
-                <TextBlock Grid.Column="3" Text="{Binding Row.ContentType}" />
-                <TextBlock Grid.Column="4" Text="{Binding Row.Length}" />
-                <TextBlock Grid.Column="5" Text="{Binding Row.Kind}" />
-                <TextBlock Grid.Column="6" Text="{Binding Row.Depth}" />
-                <TextBlock Grid.Column="7" Text="{Binding Row.Payload}" TextTrimming="CharacterEllipsis" />
-              </Grid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-          <ListBox.Styles>
-            <Style Selector="ListBoxItem" x:DataType="vm:ChunkRowViewModel">
+        <DataGrid x:Name="ChunkGrid"
+                  ItemsSource="{Binding Chunks}"
+                  SelectedItem="{Binding SelectedChunk}"
+                  IsReadOnly="True"
+                  CanUserResizeColumns="True"
+                  CanUserReorderColumns="True"
+                  CanUserSortColumns="False"
+                  SelectionMode="Single"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Vertical"
+                  RowHeight="22"
+                  FontFamily="{StaticResource MonoFont}">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Offset" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Offset}" />
+            <DataGridTextColumn Header="Ctl" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Control}" />
+            <DataGridTextColumn Header="Dir" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Direction}" />
+            <DataGridTextColumn Header="Type" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.ContentType}" />
+            <DataGridTextColumn Header="Length" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Length}" />
+            <DataGridTextColumn Header="Kind" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Kind}" />
+            <DataGridTextColumn Header="Depth" Width="Auto" MinWidth="40" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Depth}" />
+            <DataGridTextColumn Header="Payload" Width="*" x:DataType="vm:ChunkRowViewModel" Binding="{Binding Row.Payload}" />
+          </DataGrid.Columns>
+          <DataGrid.Styles>
+            <Style Selector="DataGridRow" x:DataType="vm:ChunkRowViewModel">
               <Setter Property="Classes.ofSelectedNode" Value="{Binding IsOfSelectedNode}" />
             </Style>
-          </ListBox.Styles>
-        </ListBox>
+          </DataGrid.Styles>
+        </DataGrid>
       </DockPanel>
     </Grid>
   </DockPanel>
@@ -190,11 +183,7 @@
       <Setter Property="FontSize" Value="18" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
-    <Style Selector="ListBoxItem">
-      <Setter Property="Padding" Value="12,1" />
-      <Setter Property="MinHeight" Value="0" />
-    </Style>
-    <Style Selector="ListBoxItem.ofSelectedNode">
+    <Style Selector="DataGridRow.ofSelectedNode">
       <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
     </Style>
     <Style Selector="Border.nodeHeader.dropInside">
