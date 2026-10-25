@@ -1,9 +1,15 @@
 # Promptuarium Binary Format Specification
 
-This document specifies the binary container format written by `Element.SaveAsync` and read by `Element.LoadAsync`.
-It is self-contained: an independent implementation (in Rust, C, Python, …) that follows it reads every stream the reference implementation writes, and writes byte-identical streams.
+This document specifies the Promptuarium binary container format.
+It is self-contained and language independent: an implementation in any language that follows it reads every Promptuarium stream, and writes byte-identical streams.
 
-The reference implementation is [`src/ElementSerializer.cs`](src/ElementSerializer.cs) (container) and [`src/Data.cs`](src/Data.cs) (payload conventions).
+## Structure, not content
+
+Promptuarium is a **container for a tree**. What it defines is the **structure**: a tree of nodes, where every node has a data and a metadata byte sequence and an ordered list of children. That is all.
+
+The **content** of the data and the metadata is not part of the format. It is a plain byte sequence (only its length is known), without type or name information, and its meaning (a string, a number, an image, another Promptuarium tree, …) is entirely up to the writer and the reader. How an application or a programming language turns its values into bytes is outside of the scope of this specification.
+
+The format is complete and has **no version**: there is no version field, and none is needed. Every stream ever written follows these rules (see [section 11](#11-compatibility-and-history)).
 
 **Contents**
 
@@ -15,11 +21,10 @@ The reference implementation is [`src/ElementSerializer.cs`](src/ElementSerializ
 6. [Encoding](#6-encoding)
 7. [Streaming](#7-streaming)
 8. [Errors](#8-errors)
-9. [Payload conventions (the `Data` class)](#9-payload-conventions-the-data-class)
-10. [Test vectors](#10-test-vectors)
-11. [Implementation notes](#11-implementation-notes)
-12. [File identification (optional convention)](#12-file-identification-optional-convention)
-13. [Compatibility and history](#13-compatibility-and-history)
+9. [Test vectors](#9-test-vectors)
+10. [File identification (optional convention)](#10-file-identification-optional-convention)
+11. [Compatibility and history](#11-compatibility-and-history)
+12. [Implementation notes](#12-implementation-notes)
 
 ---
 
@@ -42,9 +47,9 @@ A Promptuarium tree consists of **nodes**. Every node has:
 | `metadata` | byte sequence (0 or more bytes) | opaque to the container |
 | `children` | ordered list of nodes           | may be empty |
 
-The container stores **no type information**, no names and no keys: data and metadata are plain bytes. Their meaning (string, integer, nested tree, …) is an agreement between the writer and the reader; [section 9](#9-payload-conventions-the-data-class) lists the conventions of the reference implementation.
+The container stores **no type information**, no names and no keys: data and metadata are plain bytes, and their meaning is an agreement between the writer and the reader (see [Structure, not content](#structure-not-content)).
 
-The format does not distinguish an *absent* content from an *empty* (zero-length) one. The reference implementation uses `null` for a content that did not receive any byte while loading; an implementation MAY use `Option<Vec<u8>>` or simply an empty `Vec<u8>`.
+The format does not distinguish an *absent* content from an *empty* (zero-length) one: an implementation MAY represent both as an empty byte sequence.
 
 A node is **empty** if its data and metadata are both zero-length and it has no children. Empty nodes are not stored (see [6.4](#64-empty-nodes)).
 
@@ -52,7 +57,7 @@ A stream holds exactly **one tree** (one root node). Several trees can follow ea
 
 ## 3. Stream structure
 
-A stream is a sequence of **chunks**, ended by a **terminator**. There is no header, no magic number, no version field, no length field and no checksum.
+A stream is a sequence of **chunks**, ended by a **terminator**. There is no header, no magic number, no version field, no length field and no checksum: the stream consists of the tree and nothing else.
 
 ```text
 stream     = *chunk terminator
@@ -199,7 +204,7 @@ Reverse pre-order visits every node after all of its descendants, so a node whos
 
 ## 6. Encoding
 
-A writer MAY produce any stream that decodes to the intended tree (section 5). To be **byte-identical** with the reference implementation, it MUST follow this section exactly.
+A writer MAY produce any stream that decodes to the intended tree (section 5). This section defines the **canonical** encoding: every tree has exactly one canonical byte sequence, and an encoder that follows this section exactly is byte-identical with every other conforming encoder.
 
 ### 6.1 Algorithm
 
@@ -309,21 +314,21 @@ The terminator makes the format streamable:
 * The reader needs neither the total length nor the end of the stream; it reads exactly up to and including the terminator.
 * The reader never seeks, so it works on sockets, pipes and other non-seekable streams. It MUST tolerate partial reads (a read may return fewer bytes than requested).
 * After a tree has been read, the stream is positioned right after its terminator, so **several trees can be concatenated** in one stream and read one after the other. Any other data may follow a tree as well.
-* A tree can be **nested** into the data or metadata of another tree (`Data.FromElementAsync`); the nested stream contains its own terminator.
+* A tree can be **nested** into the data or metadata of another tree: the nested stream (with its own terminator) is simply the content of a node.
 * The writer only writes forward, so it works on non-seekable streams too. It needs the length of each content in advance (to compute the split), but not the size of the whole tree.
 
-A reader SHOULD buffer its input, but it MUST NOT leave the stream positioned beyond the terminator. The reference implementation does this:
+A reader SHOULD buffer its input, but it MUST NOT leave the stream positioned beyond the terminator. For example:
 
-* on a **seekable** stream it reads ahead in blocks (64 KiB), and at the end it seeks back to the byte right after the terminator;
-* on a **non-seekable** stream it never requests more bytes than it needs: one byte for a control byte, at most the remaining payload for a payload.
+* on a **seekable** stream it can read ahead in blocks, and at the end seek back to the byte right after the terminator;
+* on a **non-seekable** stream it must not request more bytes than it needs: one byte for a control byte, at most the remaining payload for a payload.
 
-Likewise, the writer SHOULD collect small chunks and write them at once (the reference implementation uses a buffer of 524289 bytes and writes when the next chunk does not fit).
+Likewise, a writer SHOULD collect small chunks and write them at once, e.g. in a buffer of 524289 bytes (a control byte and the largest payload), written out when the next chunk does not fit.
 
-A reader MAY limit the input of an untrusted source; the reference implementation offers `LoadOptions.MaxBytes` (bytes read, control bytes included) and `LoadOptions.MaxNodes` (nodes created, placeholders and Up markers included), and reports an error when a limit is exceeded.
+A reader MAY limit the input of an untrusted source, e.g. the number of bytes read (control bytes included) and the number of nodes created (placeholders and Up markers included), and report an error when a limit is exceeded.
 
 ## 8. Errors
 
-A decoder MUST report an error (the reference implementation throws `PromptuariumException`) when:
+A decoder MUST report an error when:
 
 * an Up chunk is read while `parent` is the virtual root ("navigating above the root");
 * the stream ends inside a payload ("unexpected end of stream");
@@ -331,119 +336,11 @@ A decoder MUST report an error (the reference implementation throws `Promptuariu
 
 Everything else is valid input, including a stream that ends between two chunks without a terminator, and an empty stream (which decodes to an empty node).
 
-## 9. Payload conventions (the `Data` class)
-
-The container does not know these types. They are the encodings of the `Data.FromXxx(...)` / `stream.AsXxx()` helpers of the reference implementation; the reader has to know which one was used.
-
-General rules of the reference decoders:
-
-* Fixed-size values read the first `size` bytes: a shorter content is padded with zero bytes, bytes after `size` are ignored.
-* Strings have no length prefix, no terminator and no byte order mark.
-
-| Type | Size | Encoding |
-|------|------|----------|
-| `bool` | 1 | `01` for true, `00` for false. Decoding: true if the first byte is not zero. |
-| `byte` | 1 | The byte itself. Decoding an empty content gives 0, like for the other fixed-size values. |
-| `byte[]` | n | The bytes themselves. |
-| `char` | 2 | UTF-16 code unit. |
-| `short` / `ushort` | 2 | Two's complement / unsigned. |
-| `int` / `uint` | 4 | Two's complement / unsigned. |
-| `long` / `ulong` | 8 | Two's complement / unsigned. |
-| `float` | 4 | IEEE 754 binary32. |
-| `double` | 8 | IEEE 754 binary64. |
-| `decimal` | 16 | See [9.1](#91-decimal). |
-| `Guid` | 16 | See [9.2](#92-guid). Decoding requires exactly 16 bytes. |
-| `DateTime` | 8 | `Ticks` as `long`: 100 ns intervals since 0001-01-01 00:00:00 (proleptic Gregorian calendar). The `Kind` (UTC / local / unspecified) is **not** stored. |
-| `TimeSpan` | 8 | `Ticks` as `long` (100 ns units, may be negative). |
-| `DateTimeOffset` | 16 | The local clock time in `Ticks` as `long`, then the UTC offset in `Ticks` as `long`. UTC ticks = local ticks − offset ticks. |
-| ASCII string | n | One byte per character; characters above U+007F are written as `?` (`3F`). |
-| UTF-8 string | n | UTF-8. |
-| UTF-16 string | n | UTF-16 little-endian. |
-| UTF-32 string | n | UTF-32 little-endian. |
-| `VarUInt` | 1–8 | See [9.3](#93-varuint-and-varint). |
-| `VarInt` | 1–8 | See [9.3](#93-varuint-and-varint). |
-| `Element` | n | A complete nested Promptuarium stream, including its terminator. |
-
-All integers and floating-point numbers are little-endian. Invalid string encodings are decoded with the replacement character U+FFFD (.NET default behaviour).
-
-### 9.1 Decimal
-
-16 bytes: four 32-bit integers `lo`, `mid`, `hi`, `flags` (the layout of .NET `decimal.GetBits` and `BinaryWriter.Write(decimal)`).
-
-* `hi:mid:lo` is a 96-bit unsigned integer `m` (`lo` holds the lowest 32 bits).
-* `flags` bits 16–23: the scale `e` (0–28). Bit 31: the sign (1 = negative). All other bits are zero.
-* value = `(-1)^sign × m / 10^e`
-
-Example: `1.978 = 1978 × 10^-3`, so `m = 1978 = 0x7BA` and `e = 3`:
-
-```text
-BA 07 00 00  00 00 00 00  00 00 00 00  00 00 03 00     1.978
-BA 07 00 00  00 00 00 00  00 00 00 00  00 00 03 80    -1.978
-```
-
-### 9.2 Guid
-
-The .NET `Guid.ToByteArray()` layout: the first three groups are little-endian integers (32, 16 and 16 bits), the last 8 bytes are written as they are.
-
-```text
-00112233-4455-6677-8899-aabbccddeeff  →  33 22 11 00  55 44  77 66  88 99 AA BB CC DD EE FF
-```
-
-### 9.3 VarUInt and VarInt
-
-**VarUInt** (unsigned 64-bit): the value in little-endian byte order without its trailing (most significant) zero bytes; at least one byte is written.
-Decoding reads the content (at most 8 bytes) as a little-endian unsigned integer (missing bytes are zero). A content longer than 8 bytes is an error.
-This is **not** LEB128: there are no continuation bits, the length is the length of the content.
-
-**VarInt** (signed 64-bit): sign and magnitude, then encoded as VarUInt:
-
-```text
-encode(v):  if v == -2^63:      u = 1                     // "negative zero"
-            else if v >= 0:     u = v << 1
-            else:               u = ((-v) << 1) | 1
-decode(u):  if u == 1:          v = -2^63
-            else if u & 1 == 0: v = u >> 1
-            else:               v = -(u >> 1)
-```
-
-This is **not** ZigZag encoding: `-1` is `03`, not `01`.
-
-| Value    | VarInt                    | Value    | VarUInt |
-|----------|---------------------------|----------|---------|
-| 0        | `00`                      | 0        | `00` |
-| 1        | `02`                      | 1        | `01` |
-| -1       | `03`                      | 255      | `FF` |
-| 63       | `7E`                      | 256      | `00 01` |
-| 64       | `80`                      | 300      | `2C 01` |
-| -64      | `81`                      | 65536    | `00 00 01` |
-| 300      | `58 02`                   | 2^64 − 1 | `FF FF FF FF FF FF FF FF` |
-| -300     | `59 02`                   |          | |
-| 2^63 − 1 | `FE FF FF FF FF FF FF FF` |          | |
-| −2^63    | `01`                      |          | |
-
-### 9.4 Further test vectors
-
-| Value | Bytes |
-|-------|-------|
-| `true` / `false` | `01` / `00` |
-| `'é'` (char) | `E9 00` |
-| `(short)-2` | `FE FF` |
-| `0x12345678` (int) | `78 56 34 12` |
-| `1.5f` (float) | `00 00 C0 3F` |
-| `1.5` (double) | `00 00 00 00 00 00 F8 3F` |
-| `DateTime(2000-01-01 00:00:00)` | `00 40 E4 47 02 22 C1 08` (630822816000000000 ticks) |
-| `DateTimeOffset(2000-01-01 12:00:00 +02:00)` | `00 20 19 DD 66 22 C1 08 00 D0 88 C3 10 00 00 00` |
-| `TimeSpan(1 s)` | `80 96 98 00 00 00 00 00` |
-| `"aé"` ASCII | `61 3F` |
-| `"aé"` UTF-8 | `61 C3 A9` |
-| `"aé"` UTF-16 | `61 00 E9 00` |
-| `"aé"` UTF-32 | `61 00 00 00 E9 00 00 00` |
-
-## 10. Test vectors
+## 9. Test vectors
 
 All payloads are ASCII. `(empty)` is a node without data, metadata and children; `c` is a node without data and metadata.
 
-### 10.1 Encoding (tree → bytes)
+### 9.1 Encoding (tree → bytes)
 
 An encoder MUST produce exactly these bytes, and a decoder MUST reproduce the tree from them (except for the empty nodes, which are not stored).
 
@@ -473,7 +370,7 @@ The worked example `41 52 41 58 40 41 64 80 81 59 21 6D 00`, byte by byte:
 | `21 6D` | Append, metadata, linear, 1 | metadata of `Y`: `"m"` |
 | `00`    | Append, data, linear, 0     | terminator |
 
-### 10.2 Decoding only (bytes → tree)
+### 9.2 Decoding only (bytes → tree)
 
 The encoder never writes these streams, but a decoder MUST handle them like this:
 
@@ -493,21 +390,12 @@ The encoder never writes these streams, but a decoder MUST handle them like this
 | `41 52 41 41`, N × `C0`, `C1 42 00` | `R("R") [A("A"), B("B")]` (the N empty siblings are removed) |
 | N × `40`, `00` | `(empty)` (all placeholders are removed) |
 
-## 11. Implementation notes
-
-* **No recursion.** Trees can be arbitrarily deep (a malicious stream may contain millions of `40` bytes). Use explicit stacks for encoding, decoding, removing empty nodes, copying and freeing trees. In Rust, the default recursive `Drop` of a deeply nested `Box`/`Vec` tree overflows the stack as well: store the nodes in an arena (`Vec<Node>` with indices) or implement an iterative `Drop`.
-* **Linear removal of empty nodes.** Remove the empty children of a node in one pass (e.g. `retain`), not one by one; otherwise a stream with many empty siblings takes quadratic time.
-* **Buffers.** One buffer of 524289 bytes (control byte + largest payload) is enough for encoding, 524288 bytes for decoding.
-* **Lengths.** Content lengths are only limited by the implementation (the reference implementation uses 64-bit signed lengths). A content of more than 512 KiB is simply a sequence of chunks.
-* **Untrusted input.** The format has no length prefix to validate: a decoder simply grows the contents. Limit the total number of bytes or nodes if the input is untrusted.
-* **Equality.** Two trees are equal for the format if they have the same structure and contents after removing the empty nodes; absent and zero-length contents are the same.
-
-## 12. File identification (optional convention)
+## 10. File identification (optional convention)
 
 The format has no magic number, so tools like `file` (libmagic) can not recognize a Promptuarium file on their own.
 A **signature** can be added without changing the format, purely by the way the tree is built. This section describes such a convention; it is optional, and plain decoders do not need to know about it.
 
-### 12.1 Idea
+### 10.1 Idea
 
 The first bytes of a stream are fully determined by the root node:
 
@@ -535,7 +423,7 @@ Rules of the convention:
 * A reader that knows the convention checks the root metadata after loading (or the first bytes before loading), then uses the children of the root.
 * A reader that does not know the convention simply sees a root with some metadata and the content as its children.
 
-### 12.2 Example
+### 10.2 Example
 
 Signature: the 4 ASCII bytes `PRMT` (`50 52 4D 54`). Content: one child `a("a")`.
 
@@ -552,9 +440,9 @@ root (metadata "PRMT")
 
 Every file built this way starts with `64 50 52 4D 54`, whatever its content is.
 
-A version number can be part of the signature, e.g. `PRMT` followed by the byte `01` (5 bytes): the file then starts with `65 50 52 4D 54 01`. An application can use its own signature as well (e.g. `MYAPP-CONFIG`, 12 bytes, starting with `6C`); different applications are then distinguished by their signatures.
+An application can put the version of its own content into the signature, e.g. `PRMT` followed by the byte `01` (5 bytes): the file then starts with `65 50 52 4D 54 01`. (This versions the content of the application, not the format, which has no version.) An application can use its own signature as well (e.g. `MYAPP-CONFIG`, 12 bytes, starting with `6C`); different applications are then distinguished by their signatures.
 
-### 12.3 Rule for `file` (libmagic)
+### 10.3 Rule for `file` (libmagic)
 
 A magic rule matches the first bytes at offset 0:
 
@@ -563,7 +451,7 @@ A magic rule matches the first bytes at offset 0:
 0       string      \x64PRMT       Promptuarium container
 !:mime  application/x-promptuarium
 
-# The same with a version byte
+# The same with a version byte of the content (set by the application)
 0       string      \x65PRMT       Promptuarium container
 >5      byte        x               version %d
 !:mime  application/x-promptuarium
@@ -573,14 +461,23 @@ The rules can be put into `~/.magic` (per user) or into `/etc/magic` (system wid
 
 Without a signature, a Promptuarium stream can not be recognized reliably: it usually starts with a Down chunk (`40`–`7F`), but so do many other files.
 
-## 13. Compatibility and history
+## 11. Compatibility and history
 
-The format and the decoding rules have not changed: every stream written by any version can be loaded.
-The current encoder writes the same bytes as older versions for every tree that they encoded correctly. Older encoders had bugs with empty nodes:
+The format and the decoding rules have never changed: every stream ever written can be loaded.
+The version numbers below are versions of the reference implementation in this repository, not of the format. Its current encoder writes the same bytes as the older ones for every tree that they encoded correctly, but older encoders had bugs with empty nodes:
 
 * **Up to 5.0.0:** an empty first child (or an empty last child after a subtree) still counted as the previous node, so the next node was attached to the wrong parent.
   `P("P") [(empty), M("M")]` was written as `41 50 C1 4D 00`: `M` became a sibling of the root and was lost.
 * **Up to 6.0.0:** a node with only empty children produced a superfluous Up marker, so the next node was attached one level too high: it was lost, or the stream could not be loaded at all ("navigating above the root").
   `R("R") [X("X") [c [(empty)]], Y("Y")]` was written as `41 52 41 58 40 80 81 59 00`: `Y` was lost.
 
-Since 6.0.0 the reader works on non-seekable streams, handles partial reads and never reads beyond the terminator.
+Since 6.0.0 the reference reader works on non-seekable streams, handles partial reads and never reads beyond the terminator.
+
+## 12. Implementation notes
+
+* **No recursion.** Trees can be arbitrarily deep (a malicious stream may contain millions of `40` bytes). Use explicit stacks for encoding, decoding, removing empty nodes, copying and freeing trees. Where destructors are recursive (e.g. nested owned children in Rust or C++), freeing a deep tree overflows the stack as well: store the nodes in an arena (an array of nodes referring to each other by index) or free them iteratively.
+* **Linear removal of empty nodes.** Remove the empty children of a node in one pass (e.g. `retain`), not one by one; otherwise a stream with many empty siblings takes quadratic time.
+* **Buffers.** One buffer of 524289 bytes (control byte + largest payload) is enough for encoding, 524288 bytes for decoding.
+* **Lengths.** The format does not limit the length of a content; a content of more than 512 KiB is simply a sequence of chunks. Implementations SHOULD use 64-bit lengths.
+* **Untrusted input.** The format has no length prefix to validate: a decoder simply grows the contents. Limit the total number of bytes or nodes if the input is untrusted.
+* **Equality.** Two trees are equal for the format if they have the same structure and contents after removing the empty nodes; absent and zero-length contents are the same.
