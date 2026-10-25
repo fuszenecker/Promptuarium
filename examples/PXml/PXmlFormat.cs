@@ -40,9 +40,6 @@ internal static class PXmlFormat
     /// <summary>A comment (data: its text).</summary>
     public const string Comment = "#comment";
 
-    /// <summary>Whitespace between the markup (data: the whitespace).</summary>
-    public const string Whitespace = "#whitespace";
-
     /// <summary>A processing instruction (data: its target, info "#value": its content).</summary>
     public const string ProcessingInstruction = "#pi";
 

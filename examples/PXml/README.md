@@ -1,8 +1,9 @@
 # pxml
 
-`pxml` converts an XML document to a Promptuarium file, and back, without losing a node: elements, attributes
-(namespace declarations too), text, CDATA sections, comments, whitespace, processing instructions, entity
-references, the XML declaration and the document type.
+`pxml` converts an XML document to a Promptuarium file, and back, without losing content: elements, attributes
+(namespace declarations too), text, CDATA sections, comments, processing instructions, entity references, the
+XML declaration and the document type. The whitespace between the markup is formatting, so it is not stored;
+`unpack` indents the document.
 
 ```sh
 pxml pack XML-FILE FILE      # converts the XML document to a pxml file
@@ -31,7 +32,6 @@ root                          metadata "PRMT:PXML1" (the signature, BINARY_FORMA
 ├── node "#text"              text: metadata = the kind, data = the text
 ├── node "#cdata"             a CDATA section
 ├── node "#comment"           a comment
-├── node "#whitespace"        whitespace between the markup
 ├── node "#entity"            a reference to an entity: data = its name ("publisher" for &publisher;)
 ├── node "#pi"                a processing instruction: data = the target, info "#value" = its content
 ├── node "#xml-declaration"   infos "version", "encoding", "standalone"
@@ -45,10 +45,11 @@ from the `xmlns` attributes when the document is built again.
 
 ## What is kept, and what is not
 
-The document is kept as XML parsers see it, so `pack`, `unpack` and `pack` again give the same tree, byte for
-byte. Formatting that is not part of the document is not kept: a byte order mark, the whitespace inside a tag
-(between attributes, before `/>`), and the quotes around the attribute values (`unpack` writes `<a />` and
-`"`). [`sample.xml`](sample.xml) is written that way, so it comes back byte for byte.
+The content is kept, so `pack`, `unpack` and `pack` again give the same tree, byte for byte. Formatting is not
+kept: the whitespace between the markup (except where `xml:space="preserve"` makes it content: there it is a
+`#text` node), a byte order mark, the whitespace inside a tag, and the quotes around the attribute values.
+`unpack` writes the document indented by two spaces, with `<a />` and `"`; [`sample.xml`](sample.xml) is written
+that way, so it comes back byte for byte.
 
 The XML file is read without fetching anything from the network (no external DTD or entity), and the entities
 can expand to at most 1 MB.

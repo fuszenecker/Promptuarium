@@ -49,7 +49,7 @@ jobs:
           ppak list "$RUNNER_TEMP/src.ppak"
           ppak unpack "$RUNNER_TEMP/src.ppak" "$RUNNER_TEMP/unpacked"
           diff -r src "$RUNNER_TEMP/unpacked"
-          # pxml keeps every node: the sample comes back byte for byte, other files give the same tree again
+          # pxml keeps the content: the sample comes back byte for byte, other files give the same tree again
           pxml() { dotnet run --project examples/PXml --no-build -c Release -- "$@"; }
           for xml in examples/PXml/sample.xml src/Promptuarium.csproj tools/PStudio/Views/MainWindow.axaml; do
             pxml pack "$xml" "$RUNNER_TEMP/first.prmt"

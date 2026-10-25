@@ -14,5 +14,7 @@
     <note>Mixed <em>content</em> &amp; escaped &lt;characters&gt;, "quotes" and 'apostrophes'.</note>
     <empty />
     <unicode>árvíztűrő tükörfúrógép 🌳</unicode>
+    <code xml:space="preserve">  indented
+    lines  </code>
   </book>
 </library>

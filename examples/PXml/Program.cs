@@ -27,20 +27,23 @@ try
             // The XML declaration is a node of the document: it is written as it was, and only if the document had one
             // (an XmlWriter would always write its own)
             using (var text = new StreamWriter(xml, false, new UTF8Encoding(false)))
-            using (var writer = XmlWriter.Create(text, new XmlWriterSettings { OmitXmlDeclaration = true, NewLineHandling = NewLineHandling.None }))
+            using (var writer = XmlWriter.Create(text, new XmlWriterSettings { OmitXmlDeclaration = true, Indent = true }))
             {
                 foreach (XmlNode node in document.ChildNodes)
                 {
                     if (node is XmlDeclaration declaration)
                     {
                         writer.Flush();
-                        text.Write($"<?xml {declaration.InnerText}?>");
+                        text.WriteLine($"<?xml {declaration.InnerText}?>");
                     }
                     else
                     {
                         node.WriteTo(writer);
                     }
                 }
+
+                writer.Flush();
+                text.WriteLine();
             }
 
             return 0;

@@ -6,18 +6,19 @@ namespace PXml;
 
 /// <summary>
 /// Converts an XML document to a pxml tree, and back. Every node of the document is kept: elements, attributes
-/// (namespace declarations too), text, CDATA, comments, whitespace, processing instructions, the XML declaration
-/// and the document type.
+/// (namespace declarations too), text, CDATA, comments, processing instructions, entity references, the XML
+/// declaration and the document type. The whitespace between the markup is formatting, so it is not kept
+/// (except where xml:space="preserve" says it is content).
 /// </summary>
 internal static class XmlConverter
 {
     private const string XmlNamespace = "http://www.w3.org/XML/1998/namespace";
     private const string XmlnsNamespace = "http://www.w3.org/2000/xmlns/";
 
-    /// <summary>Reads an XML file: the whitespace and the entity references are kept, and nothing is fetched from the network.</summary>
+    /// <summary>Reads an XML file: the entity references are kept, the whitespace between the markup is not, and nothing is fetched from the network.</summary>
     public static XmlDocument Load(string path)
     {
-        var document = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
+        var document = new XmlDocument { XmlResolver = null };
 
         // XmlTextReader (unlike XmlReader.Create) can keep the references of the general entities
         using var reader = new XmlTextReader(path) { DtdProcessing = DtdProcessing.Parse, XmlResolver = null, EntityHandling = EntityHandling.ExpandCharEntities };
@@ -42,7 +43,7 @@ internal static class XmlConverter
             throw new InvalidDataException($"Not a pxml file: the signature is not \"{Signature}\".");
         }
 
-        var document = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
+        var document = new XmlDocument { XmlResolver = null };
         var namespaces = new Dictionary<string, string> { ["xml"] = XmlNamespace, ["xmlns"] = XmlnsNamespace };
 
         foreach (Element node in ChildrenOf(root))
@@ -78,8 +79,9 @@ internal static class XmlConverter
                 yield return Node(Text, text.Value ?? string.Empty);
                 break;
 
-            case XmlWhitespace or XmlSignificantWhitespace:
-                yield return Node(Whitespace, node.Value ?? string.Empty);
+            // Whitespace that xml:space="preserve" makes content
+            case XmlSignificantWhitespace:
+                yield return Node(Text, node.Value ?? string.Empty);
                 break;
 
             case XmlComment comment:
@@ -185,8 +187,6 @@ internal static class XmlConverter
                 return document.CreateEntityReference(data);
             case Comment:
                 return document.CreateComment(data);
-            case Whitespace:
-                return document.CreateWhitespace(data);
             case ProcessingInstruction:
                 return document.CreateProcessingInstruction(data, Find(node, Value) ?? string.Empty);
             case Declaration:
