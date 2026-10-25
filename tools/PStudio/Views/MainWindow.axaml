@@ -1,0 +1,139 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PStudio.ViewModels"
+        xmlns:m="using:PStudio.Models"
+        xmlns:v="using:PStudio.Views"
+        x:Class="PStudio.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
+        Width="1100" Height="720"
+        MinWidth="640" MinHeight="400">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewCommand}" />
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}" />
+  </Window.KeyBindings>
+
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N" />
+        <MenuItem Header="_Open…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
+        <Separator />
+        <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
+        <MenuItem Header="Save _As…" Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S" />
+        <Separator />
+        <MenuItem Header="_Close" Command="{Binding CloseCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Edit">
+        <MenuItem Header="Cu_t" Command="{Binding CutCommand}" InputGesture="Ctrl+X" />
+        <MenuItem Header="_Copy" Command="{Binding CopyCommand}" InputGesture="Ctrl+C" />
+        <MenuItem Header="_Paste as Child" Command="{Binding PasteAsChildCommand}" InputGesture="Ctrl+V" />
+        <MenuItem Header="Paste _After" Command="{Binding PasteAfterCommand}" InputGesture="Ctrl+Shift+V" />
+      </MenuItem>
+      <MenuItem Header="_Node">
+        <MenuItem Header="Add _Child" Command="{Binding AddChildCommand}" InputGesture="Insert" />
+        <MenuItem Header="Add _Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Ctrl+Insert" />
+        <MenuItem Header="_Delete" Command="{Binding DeleteCommand}" InputGesture="Delete" />
+        <Separator />
+        <MenuItem Header="Move _Up" Command="{Binding MoveUpCommand}" InputGesture="Alt+Up" />
+        <MenuItem Header="Move Do_wn" Command="{Binding MoveDownCommand}" InputGesture="Alt+Down" />
+        <MenuItem Header="_Indent" Command="{Binding IndentCommand}" InputGesture="Alt+Right" />
+        <MenuItem Header="_Outdent" Command="{Binding OutdentCommand}" InputGesture="Alt+Left" />
+        <Separator />
+        <MenuItem Header="Open Data as _Nested Tree…" Command="{Binding OpenNestedCommand}" />
+      </MenuItem>
+    </Menu>
+
+    <Border DockPanel.Dock="Bottom" Padding="8,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+      <TextBlock Text="{Binding StatusText}" Classes.error="{Binding IsStatusError}" TextTrimming="CharacterEllipsis" />
+    </Border>
+
+    <Grid ColumnDefinitions="2*,Auto,3*">
+      <TreeView Grid.Column="0"
+                Margin="6"
+                ItemsSource="{Binding Roots}"
+                SelectedItem="{Binding SelectedNode}">
+        <TreeView.KeyBindings>
+          <KeyBinding Gesture="Insert" Command="{Binding AddChildCommand}" />
+          <KeyBinding Gesture="Ctrl+Insert" Command="{Binding AddSiblingCommand}" />
+          <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+          <KeyBinding Gesture="Alt+Up" Command="{Binding MoveUpCommand}" />
+          <KeyBinding Gesture="Alt+Down" Command="{Binding MoveDownCommand}" />
+          <KeyBinding Gesture="Alt+Right" Command="{Binding IndentCommand}" />
+          <KeyBinding Gesture="Alt+Left" Command="{Binding OutdentCommand}" />
+          <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}" />
+          <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}" />
+          <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteAsChildCommand}" />
+          <KeyBinding Gesture="Ctrl+Shift+V" Command="{Binding PasteAfterCommand}" />
+        </TreeView.KeyBindings>
+        <TreeView.Styles>
+          <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+          </Style>
+        </TreeView.Styles>
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
+            <TextBlock Text="{Binding Header}" FontFamily="{StaticResource MonoFont}" />
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+
+      <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
+
+      <TabControl Grid.Column="2" Margin="6,0,6,6">
+        <TabItem Header="Node">
+          <Grid RowDefinitions="Auto,*,Auto,*" Margin="0,6,0,0">
+            <TextBlock Grid.Row="0" Text="{Binding NodeInfo}" FontFamily="{StaticResource MonoFont}" Margin="0,0,0,10" TextTrimming="CharacterEllipsis" />
+            <v:ContentEditorView Grid.Row="1" DataContext="{Binding Data}" />
+            <GridSplitter Grid.Row="2" Height="4" ResizeDirection="Rows" Margin="0,6" />
+            <v:ContentEditorView Grid.Row="3" DataContext="{Binding MetaData}" />
+          </Grid>
+        </TabItem>
+        <TabItem Header="Chunks" IsSelected="{Binding IsChunkViewActive}">
+          <DockPanel Margin="0,6,0,0">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding ChunkSummary}" Margin="0,0,0,6" />
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="70,40,64,76,90,104,52,*" Margin="12,0,0,4" TextElement.FontWeight="SemiBold">
+              <TextBlock Grid.Column="0" Text="Offset" />
+              <TextBlock Grid.Column="1" Text="Ctl" />
+              <TextBlock Grid.Column="2" Text="Dir" />
+              <TextBlock Grid.Column="3" Text="Type" />
+              <TextBlock Grid.Column="4" Text="Length" />
+              <TextBlock Grid.Column="5" Text="Kind" />
+              <TextBlock Grid.Column="6" Text="Depth" />
+              <TextBlock Grid.Column="7" Text="Payload" />
+            </Grid>
+            <ListBox ItemsSource="{Binding Chunks}" FontFamily="{StaticResource MonoFont}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="m:ChunkRow">
+                  <Grid ColumnDefinitions="70,40,64,76,90,104,52,*">
+                    <TextBlock Grid.Column="0" Text="{Binding Offset}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Control}" />
+                    <TextBlock Grid.Column="2" Text="{Binding Direction}" />
+                    <TextBlock Grid.Column="3" Text="{Binding ContentType}" />
+                    <TextBlock Grid.Column="4" Text="{Binding Length}" />
+                    <TextBlock Grid.Column="5" Text="{Binding Kind}" />
+                    <TextBlock Grid.Column="6" Text="{Binding Depth}" />
+                    <TextBlock Grid.Column="7" Text="{Binding Payload}" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </TabItem>
+      </TabControl>
+    </Grid>
+  </DockPanel>
+
+  <Window.Styles>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="OrangeRed" />
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="12,2" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+  </Window.Styles>
+</Window>

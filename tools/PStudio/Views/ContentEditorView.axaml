@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PStudio.ViewModels"
+             x:Class="PStudio.Views.ContentEditorView"
+             x:DataType="vm:ContentEditorViewModel">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,6">
+      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="72" />
+      <ComboBox ItemsSource="{x:Static vm:ContentEditorViewModel.FormNames}"
+                SelectedIndex="{Binding SelectedFormIndex}"
+                IsEnabled="{Binding CanChangeForm}"
+                MinWidth="110" />
+      <TextBlock Text="{Binding Info}"
+                 Classes.error="{Binding IsError}"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+      <Button Content="Apply" Command="{Binding ApplyCommand}" ToolTip.Tip="Store the edited text in the node (Ctrl+Enter)" />
+      <Button Content="Revert" Command="{Binding RevertCommand}" ToolTip.Tip="Drop the edit (Escape)" />
+      <Button Content="Clear" Command="{Binding ClearCommand}" ToolTip.Tip="Make the content empty" />
+      <Button Content="Import…" Command="{Binding ImportCommand}" ToolTip.Tip="Load the content from a file" />
+      <Button Content="Export…" Command="{Binding ExportCommand}" ToolTip.Tip="Save the content to a file" />
+    </StackPanel>
+    <TextBox Text="{Binding Text}"
+             IsReadOnly="{Binding IsReadOnly}"
+             IsEnabled="{Binding IsEnabled}"
+             AcceptsReturn="True"
+             TextWrapping="Wrap"
+             FontFamily="{StaticResource MonoFont}"
+             ScrollViewer.VerticalScrollBarVisibility="Auto">
+      <TextBox.KeyBindings>
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ApplyCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding RevertCommand}" />
+      </TextBox.KeyBindings>
+    </TextBox>
+  </DockPanel>
+  <UserControl.Styles>
+    <Style Selector="TextBlock">
+      <Setter Property="Opacity" Value="0.75" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="OrangeRed" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+  </UserControl.Styles>
+</UserControl>

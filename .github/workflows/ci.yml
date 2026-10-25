@@ -25,11 +25,12 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      # The library and pedit have no warnings, and they should stay so
+      # The library and the tools have no warnings, and they should stay so
       - name: Build (warnings are errors)
         run: |
           dotnet build src/Promptuarium.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PEdit/PEdit.csproj --no-restore -c Release -warnaserror
+          dotnet build tools/PStudio/PStudio.csproj --no-restore -c Release -warnaserror
 
       - name: Build
         run: dotnet build --no-restore -c Release

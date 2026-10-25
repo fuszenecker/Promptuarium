@@ -57,6 +57,12 @@ jobs:
           dotnet publish tools/PEdit/PEdit.csproj -c Release -o publish/pedit
           (cd publish && zip -qr "../artifacts/pedit-$TAG.zip" pedit)
 
+      - name: Publish PStudio
+        if: hashFiles('tools/PStudio/PStudio.csproj') != ''
+        run: |
+          dotnet publish tools/PStudio/PStudio.csproj -c Release -o publish/pstudio
+          (cd publish && zip -qr "../artifacts/pstudio-$TAG.zip" pstudio)
+
       - name: Release notes
         run: |
           {
@@ -65,10 +71,14 @@ jobs:
             echo "### Attachments"
             echo
 
+            echo "- The NuGet package and the symbol package (upload both to nuget.org)."
+
             if [ -f "artifacts/pedit-$TAG.zip" ]; then
-              echo "The NuGet package and the symbol package (upload both to nuget.org), and pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
-            else
-              echo "The NuGet package and the symbol package (upload both to nuget.org)."
+              echo "- pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
+            fi
+
+            if [ -f "artifacts/pstudio-$TAG.zip" ]; then
+              echo "- PStudio, the graphical editor for Windows, Linux and macOS (requires .NET 10: \`dotnet pstudio/pstudio.dll\`)."
             fi
           } > release-notes.md
 
