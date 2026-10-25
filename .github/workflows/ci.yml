@@ -38,7 +38,7 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c Release --filter "TestCategory!=Slow" --logger trx --results-directory TestResults
 
-      # ppak packs a directory, and unpacks the same directory
+      # ppak and ppakz pack a directory, and unpack the same directory
       - name: Run the examples
         run: |
           dotnet run --project examples/GettingStarted --no-build -c Release
@@ -49,6 +49,12 @@ jobs:
           ppak list "$RUNNER_TEMP/src.ppak"
           ppak unpack "$RUNNER_TEMP/src.ppak" "$RUNNER_TEMP/unpacked"
           diff -r src "$RUNNER_TEMP/unpacked"
+          ppakz() { dotnet run --project examples/PPakZ --no-build -c Release -- "$@"; }
+          ppakz pack src "$RUNNER_TEMP/src.ppakz"
+          ppakz verify "$RUNNER_TEMP/src.ppakz"
+          ppakz list "$RUNNER_TEMP/src.ppakz"
+          ppakz unpack "$RUNNER_TEMP/src.ppakz" "$RUNNER_TEMP/unpackedz"
+          diff -r src "$RUNNER_TEMP/unpackedz"
           # pxml keeps the content: the sample comes back byte for byte, other files give the same tree again
           pxml() { dotnet run --project examples/PXml --no-build -c Release -- "$@"; }
           for xml in examples/PXml/sample.xml src/Promptuarium.csproj tools/PStudio/Views/MainWindow.axaml; do

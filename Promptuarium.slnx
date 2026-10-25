@@ -3,6 +3,7 @@
     <Project Path="examples/Configuration/Configuration.csproj" />
     <Project Path="examples/GettingStarted/GettingStarted.csproj" />
     <Project Path="examples/PPak/PPak.csproj" />
+    <Project Path="examples/PPakZ/PPakZ.csproj" />
     <Project Path="examples/PXml/PXml.csproj" />
   </Folder>
   <Folder Name="/tools/">
