@@ -96,17 +96,51 @@ public sealed class ContentEditorViewModelTests
     }
 
     [TestMethod]
-    public void ChangingTheForm_OfAnInvalidEdit_IsRefused()
+    public void ChangingTheForm_KeepsAnEditMeantInTheNewForm()
     {
+        // Text typed into an empty hex content, then UTF-8 is chosen
         ContentEditorViewModel sut = Create();
         sut.Load(new byte[] { 1 });
-        sut.Text = "XYZ";
+        sut.Text = "hello";
 
-        sut.SelectedFormIndex = (int)ContentForm.Base64;
+        sut.SelectedFormIndex = (int)ContentForm.Utf8;
 
-        Assert.AreEqual(ContentForm.Hex, sut.Form);
-        Assert.AreEqual("XYZ", sut.Text);
-        Assert.IsTrue(sut.IsError);
+        Assert.AreEqual("hello", sut.Text);
+        Assert.IsFalse(sut.IsError);
+        Assert.IsTrue(sut.ApplyPending());
+        CollectionAssert.AreEqual("hello"u8.ToArray(), stored.Single());
+    }
+
+    [TestMethod]
+    public void ChangingTheForm_KeepsANumberTypedAsText()
+    {
+        ContentEditorViewModel sut = Create();
+        sut.Load(Array.Empty<byte>());
+        sut.Text = "12";
+
+        sut.SelectedFormIndex = (int)ContentForm.Int32;
+
+        Assert.AreEqual("12", sut.Text);
+        sut.ApplyPending();
+        CollectionAssert.AreEqual(new byte[] { 12, 0, 0, 0 }, stored.Single());
+    }
+
+    [TestMethod]
+    public void EmptyContent_IsTypedAsUtf8()
+    {
+        ContentEditorViewModel sut = Create();
+
+        sut.Load(Array.Empty<byte>());
+
+        Assert.AreEqual(ContentForm.Utf8, sut.Form);
+        Assert.IsFalse(sut.IsReadOnly);
+    }
+
+    [TestMethod]
+    public void EveryFormOfTheDataClass_CanBeChosen()
+    {
+        CollectionAssert.Contains(ContentEditorViewModel.FormNames.ToList(), "DateTimeOffset");
+        Assert.AreEqual(Enum.GetValues<ContentForm>().Length, ContentEditorViewModel.FormNames.Count);
     }
 
     [TestMethod]

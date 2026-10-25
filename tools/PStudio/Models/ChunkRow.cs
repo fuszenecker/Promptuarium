@@ -11,4 +11,18 @@ namespace PStudio.Models;
 /// <param name="Kind">node, append, auxiliary, empty node or terminator</param>
 /// <param name="Depth">Depth of the node the chunk belongs to</param>
 /// <param name="Payload">Preview of the payload</param>
-public sealed record ChunkRow(string Offset, string Control, string Direction, string ContentType, string Length, string Kind, int Depth, string Payload);
+/// <param name="NodeIndex">Pre-order index of the node the chunk belongs to (0 is the root), or -1 for the terminator and the removed auxiliary nodes</param>
+/// <param name="Position">Position of the control byte</param>
+/// <param name="Size">Size of the chunk (the control byte and the payload)</param>
+public sealed record ChunkRow(
+    string Offset,
+    string Control,
+    string Direction,
+    string ContentType,
+    string Length,
+    string Kind,
+    int Depth,
+    string Payload,
+    int NodeIndex,
+    long Position,
+    int Size);

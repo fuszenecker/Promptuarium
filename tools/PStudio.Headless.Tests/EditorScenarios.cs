@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -93,19 +94,96 @@ public sealed class EditorScenarios
     });
 
     [TestMethod]
-    public Task ChunkView_ListsTheChunks() => Scenario.Run(editor =>
+    public Task ChunkPanel_HighlightsTheChunksOfTheSelectedNode() => Scenario.Run(editor =>
     {
         editor.ViewModel.AddChildCommand.Execute(null);
-        editor.ViewModel.SelectedNode!.SetData(Data.FromAsciiString("abc"));
-
-        TabControl tabs = editor.Find<TabControl>().Single();
-        tabs.SelectedIndex = 1;
+        editor.ViewModel.Data.Text = "abc";
+        editor.ViewModel.Data.ApplyPending();
         Editor.Pump();
 
-        Assert.IsTrue(editor.ViewModel.IsChunkViewActive);
-        CollectionAssert.AreEqual(new[] { "40", "43", "00" }, editor.ViewModel.Chunks.Select(chunk => chunk.Control).ToArray());
-        Assert.AreEqual(3, editor.Find<ListBoxItem>().Count());
+        CollectionAssert.AreEqual(new[] { "40", "43", "00" }, editor.ViewModel.Chunks.Select(chunk => chunk.Row.Control).ToArray());
+        ListBoxItem[] rows = editor.Find<ListBoxItem>().ToArray();
+        Assert.AreEqual(3, rows.Length);
+        CollectionAssert.AreEqual(new[] { false, true, false }, rows.Select(row => row.Classes.Contains("ofSelectedNode")).ToArray());
         editor.Screenshot("chunks");
+
+        // A click on the first chunk selects the root
+        ClickAt(editor, rows[0], new Point(20, 8), MouseButton.Left);
+        Assert.AreSame(editor.ViewModel.Root, editor.ViewModel.SelectedNode);
+
+        // F6 hides the panel
+        editor.Window.KeyPress(Key.F6, RawInputModifiers.None, PhysicalKey.F6, null);
+        Editor.Pump();
+        Assert.IsFalse(editor.ViewModel.IsChunkPanelVisible);
+        Assert.IsFalse(editor.Find<ListBoxItem>().Any(row => row.IsEffectivelyVisible));
+        return Task.CompletedTask;
+    });
+
+    [TestMethod]
+    public Task Nodes_CanBeDraggedAndDropped() => Scenario.Run(editor =>
+    {
+        foreach (string text in new[] { "a", "b", "c" })
+        {
+            editor.ViewModel.SelectedNode = editor.ViewModel.Root;
+            editor.ViewModel.AddChildCommand.Execute(null);
+            editor.ViewModel.SelectedNode!.SetData(Data.FromAsciiString(text));
+        }
+
+        Editor.Pump();
+
+        // c into the middle of a: it becomes the child of a
+        Drag(editor, Header(editor, "c"), Header(editor, "a"), 0.5);
+        Assert.AreEqual("a(c) b", Shape(editor.ViewModel.Root));
+
+        // b onto the upper edge of a: before a
+        Drag(editor, Header(editor, "b"), Header(editor, "a"), 0.1);
+        Assert.AreEqual("b a(c)", Shape(editor.ViewModel.Root));
+        Assert.AreEqual("b", editor.ViewModel.SelectedNode!.Element.Data.AsAsciiString());
+        Assert.IsTrue(editor.ViewModel.IsModified);
+
+        // a onto its own child: nothing happens
+        Drag(editor, Header(editor, "a"), Header(editor, "c"), 0.5);
+        Assert.AreEqual("b a(c)", Shape(editor.ViewModel.Root));
+        return Task.CompletedTask;
+    });
+
+    [TestMethod]
+    public Task ContextMenuOfTheTree_SelectsTheNodeAndHasTheCommands() => Scenario.Run(editor =>
+    {
+        editor.ViewModel.AddChildCommand.Execute(null);
+        editor.ViewModel.SelectedNode = editor.ViewModel.Root;
+        Editor.Pump();
+
+        Border child = editor.Find<Border>().Where(border => border.Classes.Contains("nodeHeader")).ElementAt(1);
+        ClickAt(editor, child, new Point(10, 5), MouseButton.Right);
+
+        ContextMenu menu = editor.Find<TreeView>().Single().ContextMenu!;
+        Assert.IsTrue(menu.IsOpen);
+        Assert.AreSame(editor.ViewModel.Root.Children[0], editor.ViewModel.SelectedNode);
+        editor.Screenshot("context-menu");
+
+        MenuItem delete = menu.Items.OfType<MenuItem>().Single(item => (string?)item.Header == "Delete");
+        Assert.IsTrue(delete.Command!.CanExecute(null));
+        delete.Command.Execute(null);
+        menu.Close();
+        Editor.Pump();
+
+        Assert.AreEqual(0, editor.ViewModel.Root.Children.Count);
+        return Task.CompletedTask;
+    });
+
+    [TestMethod]
+    public Task TypedForms_CanBeChosenAndEdited() => Scenario.Run(editor =>
+    {
+        ComboBox forms = editor.Find<ContentEditorView>().First().GetVisualDescendantsOf<ComboBox>().Single();
+        forms.SelectedIndex = (int)PStudio.Models.ContentForm.Double;
+        TextBox data = Editors(editor)[0];
+        data.Text = "2.5";
+        editor.ViewModel.Data.ApplyPending();
+        Editor.Pump();
+
+        Assert.AreEqual(2.5, editor.ViewModel.Root.Element.Data.AsDouble());
+        editor.Screenshot("double");
         return Task.CompletedTask;
     });
 
@@ -159,6 +237,43 @@ public sealed class EditorScenarios
         Assert.IsFalse(editor.ViewModel.HasUnsavedChanges && !editor.ViewModel.IsModified);
         return Task.CompletedTask;
     });
+
+    private static Border Header(Editor editor, string data)
+    {
+        return editor.Find<Border>().Single(border => border.Classes.Contains("nodeHeader") && border.DataContext is NodeViewModel node && node.Element.Data.AsAsciiString() == data && !node.IsRoot);
+    }
+
+    // Presses the left button on the source, moves it in steps to the given height of the target, and releases it
+    private static void Drag(Editor editor, Border source, Border target, double height)
+    {
+        Point from = source.TranslatePoint(new Point(8, source.Bounds.Height / 2), editor.Window)!.Value;
+        Point to = target.TranslatePoint(new Point(8, target.Bounds.Height * height), editor.Window)!.Value;
+
+        editor.Window.MouseDown(from, MouseButton.Left);
+
+        for (int step = 1; step <= 5; step++)
+        {
+            editor.Window.MouseMove(from + ((to - from) * (step / 5.0)));
+            Editor.Pump();
+        }
+
+        editor.Window.MouseUp(to, MouseButton.Left);
+        Editor.Pump();
+    }
+
+    private static void ClickAt(Editor editor, Control control, Point point, MouseButton button)
+    {
+        Point position = control.TranslatePoint(point, editor.Window)!.Value;
+        editor.Window.MouseDown(position, button);
+        editor.Window.MouseUp(position, button);
+        Editor.Pump();
+    }
+
+    private static string Shape(NodeViewModel node)
+    {
+        return string.Join(" ", node.Children.Select(child =>
+            child.Element.Data.AsAsciiString() + (child.Children.Count > 0 ? $"({Shape(child)})" : string.Empty)));
+    }
 
     private static TextBox[] Editors(Editor editor)
     {

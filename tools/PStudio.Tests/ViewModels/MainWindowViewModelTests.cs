@@ -289,21 +289,43 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void ChunkView_FollowsTheChanges()
+    public void ChunkPanel_FollowsTheChanges_AndTheSelection()
     {
         MainWindowViewModel sut = Create();
-        Assert.AreEqual(0, sut.Chunks.Count);
-
-        sut.IsChunkViewActive = true;
-        CollectionAssert.AreEqual(new[] { "60", "00" }, sut.Chunks.Select(chunk => chunk.Control).ToArray());
+        CollectionAssert.AreEqual(new[] { "60", "00" }, Controls(sut));
+        Assert.IsTrue(sut.Chunks[0].IsOfSelectedNode);
 
         sut.AddChildCommand.Execute(null);
-        CollectionAssert.AreEqual(new[] { "40", "60", "00" }, sut.Chunks.Select(chunk => chunk.Control).ToArray());
+        CollectionAssert.AreEqual(new[] { "40", "60", "00" }, Controls(sut));
         Assert.AreEqual("3 chunks, 3 bytes", sut.ChunkSummary);
+
+        // The new child is selected: its chunk is highlighted and selected
+        CollectionAssert.AreEqual(new[] { false, true, false }, sut.Chunks.Select(chunk => chunk.IsOfSelectedNode).ToArray());
+        Assert.AreSame(sut.Chunks[1], sut.SelectedChunk);
+        Assert.AreEqual("saved as 1 chunk, 1 byte, from offset 000001", sut.NodeEncoding);
+
+        // Choosing a chunk selects its node
+        sut.SelectedChunk = sut.Chunks[0];
+        Assert.AreSame(sut.Root, sut.SelectedNode);
+
+        // The terminator belongs to no node
+        sut.SelectedChunk = sut.Chunks[2];
+        Assert.AreSame(sut.Root, sut.SelectedNode);
     }
 
     [TestMethod]
-    public void NodeInfo_ShowsTheSignature()
+    public void ChunkPanel_CanBeHidden()
+    {
+        MainWindowViewModel sut = Create();
+        Assert.IsTrue(sut.IsChunkPanelVisible);
+
+        sut.ToggleChunkPanelCommand.Execute(null);
+
+        Assert.IsFalse(sut.IsChunkPanelVisible);
+    }
+
+    [TestMethod]
+    public void NodeSummary_ShowsTheSignature()
     {
         MainWindowViewModel sut = Create();
 
@@ -311,7 +333,55 @@ public sealed class MainWindowViewModelTests
         sut.MetaData.Text = "PRMT";
         sut.MetaData.ApplyPending();
 
-        StringAssert.Contains(sut.NodeInfo, "signature \"PRMT\"");
+        Assert.AreEqual("/", sut.NodePath);
+        StringAssert.Contains(sut.NodeSummary, "signature \"PRMT\"");
+    }
+
+    [TestMethod]
+    public void MoveNode_DropsBeforeAfterOrInside()
+    {
+        MainWindowViewModel sut = CreateWithChildren("a", "b", "c");
+        NodeViewModel a = sut.Root.Children[0];
+        NodeViewModel b = sut.Root.Children[1];
+        NodeViewModel c = sut.Root.Children[2];
+
+        Assert.IsTrue(sut.MoveNode(c, a, DropPosition.Before));
+        Assert.AreEqual("c a b", Order(sut.Root));
+
+        Assert.IsTrue(sut.MoveNode(c, b, DropPosition.After));
+        Assert.AreEqual("a b c", Order(sut.Root));
+
+        Assert.IsTrue(sut.MoveNode(a, b, DropPosition.Inside));
+        Assert.AreEqual("b c", Order(sut.Root));
+        Assert.AreEqual("/0/0", a.Path);
+        Assert.AreSame(a, sut.SelectedNode);
+        Assert.AreEqual("a", sut.Root.Element[0][0].Data.AsAsciiString());
+        Assert.IsTrue(sut.IsModified);
+    }
+
+    [TestMethod]
+    public void MoveNode_RefusesTheImpossibleMoves()
+    {
+        MainWindowViewModel sut = CreateWithChildren("a", "b");
+        NodeViewModel a = sut.Root.Children[0];
+        sut.MoveNode(sut.Root.Children[1], a, DropPosition.Inside);
+        NodeViewModel b = a.Children[0];
+
+        Assert.IsFalse(sut.MoveNode(sut.Root, a, DropPosition.Inside));
+        Assert.IsFalse(sut.MoveNode(a, a, DropPosition.Inside));
+        Assert.IsFalse(sut.MoveNode(a, b, DropPosition.After));
+        Assert.IsFalse(sut.MoveNode(b, sut.Root, DropPosition.Before));
+        Assert.IsTrue(sut.MoveNode(b, sut.Root, DropPosition.Inside));
+        Assert.AreEqual("a b", Order(sut.Root));
+    }
+
+    private static string[] Controls(MainWindowViewModel sut) => sut.Chunks.Select(chunk => chunk.Row.Control).ToArray();
+
+    private static string Order(NodeViewModel parent)
+    {
+        string view = string.Join(" ", parent.Children.Select(child => child.Element.Data.AsAsciiString()));
+        Assert.AreEqual(view, string.Join(" ", parent.Element.Children.Select(child => child.Data.AsAsciiString())));
+        return view;
     }
 
     private MainWindowViewModel Create()

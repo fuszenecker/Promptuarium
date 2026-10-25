@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -68,7 +69,7 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
     public event EventHandler<ReadOnlyMemory<byte>>? ContentChanged;
 
     /// <summary>The names of the forms, in the order of <see cref="ContentForm"/>.</summary>
-    public static IReadOnlyList<string> FormNames { get; } = ["Hex", "UTF-8", "ASCII", "Base64"];
+    public static IReadOnlyList<string> FormNames { get; } = Enum.GetValues<ContentForm>().Select(ContentFormat.Name).ToArray();
 
     /// <summary>The title (Data or MetaData).</summary>
     public string Title { get; }
@@ -180,24 +181,31 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
             return;
         }
 
-        // The edited text is converted to the new form, without storing it
+        // An edit that is valid in the old form, and can be shown in the new one, is converted, without storing it.
+        // Otherwise the text was meant in the new form (e.g. text typed before choosing UTF-8), so it is kept as it is.
+        byte[]? bytes = null;
+
         try
         {
-            byte[] bytes = ContentFormat.Parse(Text, oldForm);
+            bytes = ContentFormat.Parse(Text, oldForm);
+        }
+        catch (FormatException)
+        {
+        }
 
+        if (bytes is not null && ContentFormat.CanShow(bytes, Form))
+        {
             loading = true;
             Text = ContentFormat.Format(bytes, Form);
-            IsReadOnly = !ContentFormat.CanShow(bytes, Form);
             loading = false;
             ShowInfo($"{Describe(bytes.Length)}, not applied yet", error: false);
         }
-        catch (FormatException ex)
+        else
         {
-            loading = true;
-            SelectedFormIndex = oldValue;
-            loading = false;
-            ShowInfo(ex.Message, error: true);
+            ShowInfo($"Edited as {FormNames[newValue]}, not applied yet", error: false);
         }
+
+        IsReadOnly = false;
     }
 
     partial void OnTextChanged(string value)
@@ -239,8 +247,9 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         }
         else
         {
-            Text = ContentFormat.Format(content.Span, form);
+            // A content that the form can not show is shown as hex, read-only
             IsReadOnly = !ContentFormat.CanShow(content.Span, form);
+            Text = ContentFormat.Format(content.Span, IsReadOnly ? ContentForm.Hex : form);
             CanChangeForm = true;
         }
 
@@ -254,7 +263,7 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         }
         else if (IsReadOnly && content.Length <= ContentFormat.MaxEditableLength)
         {
-            ShowInfo($"{Describe(content.Length)}, not valid {FormNames[(int)form]}, shown read-only", error: true);
+            ShowInfo($"{Describe(content.Length)}, not a valid {FormNames[(int)form]}: shown as hex, read-only", error: true);
         }
         else
         {
