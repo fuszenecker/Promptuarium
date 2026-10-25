@@ -188,7 +188,7 @@ internal static class Commands
 
             try
             {
-                root = new ElementBuilder().WithSignature(new MemoryStream(bytes)).Build();
+                root = new ElementBuilder().WithSignature(bytes).Build();
             }
             catch (ArgumentException ex)
             {
@@ -356,7 +356,7 @@ internal static class Commands
         NodePath parentPath = NodePath.Parse(command.Positional(1));
         Element parent = parentPath.Resolve(root);
 
-        var node = new Element(ToStream(command.Value("--data")), ToStream(command.Value("--metadata")));
+        var node = new Element(ToContent(command.Value("--data")), ToContent(command.Value("--metadata")));
         int index = command.IntValue("--index") ?? parent.Children.Count;
 
         if (index > parent.Children.Count)
@@ -388,12 +388,12 @@ internal static class Commands
 
         if (data != null)
         {
-            node.Data = ToStream(data);
+            node.Data = ToContent(data);
         }
 
         if (metaData != null)
         {
-            node.MetaData = ToStream(metaData);
+            node.MetaData = ToContent(metaData);
         }
 
         await SaveAsync(root, command.Value("--output") ?? file).ConfigureAwait(false);
@@ -425,14 +425,14 @@ internal static class Commands
         Element root = await LoadAsync(command.Positional(0)).ConfigureAwait(false);
         Element node = NodePath.Parse(command.Positional(1)).Resolve(root);
 
-        Stream? content = command.Positional(2) switch
+        ReadOnlyMemory<byte> content = command.Positional(2) switch
         {
             "data" => node.Data,
             "metadata" => node.MetaData,
             string other => throw new PEditException(ExitCodes.Usage, $"'{other}' is neither 'data' nor 'metadata'."),
         };
 
-        byte[] bytes = content?.AsByteArray() ?? Array.Empty<byte>();
+        byte[] bytes = content.ToArray();
         string? outFile = command.Value("--out");
 
         if (outFile != null)
@@ -503,10 +503,9 @@ internal static class Commands
         }
     }
 
-    private static MemoryStream? ToStream(string? value)
+    private static ReadOnlyMemory<byte> ToContent(string? value)
     {
-        byte[]? bytes = value != null ? ContentValue.Parse(value) : null;
-        return bytes != null ? new MemoryStream(bytes) : null;
+        return value != null ? ContentValue.Parse(value) : null;
     }
 
     private static void Report(Arguments command, TextWriter output, string action, NodePath path)
@@ -523,8 +522,8 @@ internal static class Commands
 
     private static string Describe(Element node, int maxBytes)
     {
-        bool hasData = node.Data?.Length > 0;
-        bool hasMetaData = node.MetaData?.Length > 0;
+        bool hasData = !node.Data.IsEmpty;
+        bool hasMetaData = !node.MetaData.IsEmpty;
 
         if (!hasData && !hasMetaData)
         {
@@ -535,12 +534,12 @@ internal static class Commands
 
         if (hasData)
         {
-            parts.Add(DescribeContent("data", node.Data!.AsByteArray(), maxBytes));
+            parts.Add(DescribeContent("data", node.Data.ToArray(), maxBytes));
         }
 
         if (hasMetaData)
         {
-            parts.Add(DescribeContent("metadata", node.MetaData!.AsByteArray(), maxBytes));
+            parts.Add(DescribeContent("metadata", node.MetaData.ToArray(), maxBytes));
         }
 
         return string.Join("  ", parts);
@@ -558,15 +557,15 @@ internal static class Commands
         return bytes.Length > maxBytes ? hex + "..." : hex;
     }
 
-    private static void WriteContent(Utf8JsonWriter writer, string name, Stream? content, int? maxBytes)
+    private static void WriteContent(Utf8JsonWriter writer, string name, ReadOnlyMemory<byte> content, int? maxBytes)
     {
-        if (content == null || content.Length == 0)
+        if (content.IsEmpty)
         {
             writer.WriteNull(name);
             return;
         }
 
-        byte[] bytes = content.AsByteArray();
+        byte[] bytes = content.ToArray();
         byte[] shown = maxBytes < bytes.Length ? bytes[..maxBytes.Value] : bytes;
 
         writer.WriteStartObject(name);

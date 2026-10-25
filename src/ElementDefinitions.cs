@@ -14,6 +14,9 @@ public partial class Element
 
     // Max. size of a chunk of data
     private const long ChunkMaxValue = 1 << ChunkSizeInBits;
+
+    // Size of the read buffer when loading from a stream
+    private const int ReadBufferSize = 64 * 1024;
     #endregion
 
     #region Enumerations

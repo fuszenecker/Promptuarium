@@ -160,15 +160,15 @@ public partial class Element
                     statistics.MinChildren = node.Children.Count;
                 }
 
-                if (Contains(node.Data) && Contains(node.MetaData))
+                if (!node.Data.IsEmpty && !node.MetaData.IsEmpty)
                 {
                     statistics.NodesWithDataAndMetaData++;
                 }
-                else if (Contains(node.Data) && !Contains(node.MetaData))
+                else if (!node.Data.IsEmpty && node.MetaData.IsEmpty)
                 {
                     statistics.NodesWithData++;
                 }
-                else if (!Contains(node.Data) && Contains(node.MetaData))
+                else if (node.Data.IsEmpty && !node.MetaData.IsEmpty)
                 {
                     statistics.NodesWithMetaData++;
                 }
@@ -177,24 +177,24 @@ public partial class Element
                     statistics.NodesWithoutDataAndMetaData++;
                 }
 
-                if (Contains(node.Data) && statistics.LongestData < node.Data!.Length)
+                if (!node.Data.IsEmpty && statistics.LongestData < node.Data.Length)
                 {
-                    statistics.LongestData = node.Data!.Length;
+                    statistics.LongestData = node.Data.Length;
                 }
 
-                if (Contains(node.MetaData) && statistics.LongestMetaData < node.MetaData!.Length)
+                if (!node.MetaData.IsEmpty && statistics.LongestMetaData < node.MetaData.Length)
                 {
-                    statistics.LongestMetaData = node.MetaData!.Length;
+                    statistics.LongestMetaData = node.MetaData.Length;
                 }
 
-                if (Contains(node.Data) && statistics.ShortestData > node.Data!.Length)
+                if (!node.Data.IsEmpty && statistics.ShortestData > node.Data.Length)
                 {
-                    statistics.ShortestData = node.Data!.Length;
+                    statistics.ShortestData = node.Data.Length;
                 }
 
-                if (Contains(node.MetaData) && statistics.ShortestMetaData > node.MetaData!.Length)
+                if (!node.MetaData.IsEmpty && statistics.ShortestMetaData > node.MetaData.Length)
                 {
-                    statistics.ShortestMetaData = node.MetaData!.Length;
+                    statistics.ShortestMetaData = node.MetaData.Length;
                 }
 
                 if (node.Children.Count == 0)

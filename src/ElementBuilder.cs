@@ -29,8 +29,8 @@ public class ElementBuilder
     public const int MaxSignatureLength = 15;
 
     private readonly List<Element> children = new();
-    private Stream? data;
-    private Stream? metaData;
+    private ReadOnlyMemory<byte>? data;
+    private ReadOnlyMemory<byte>? metaData;
     private byte[]? signature;
 
     /// <summary>
@@ -38,7 +38,7 @@ public class ElementBuilder
     /// </summary>
     /// <param name="data">The data</param>
     /// <returns>The builder</returns>
-    public ElementBuilder WithData(Stream? data)
+    public ElementBuilder WithData(ReadOnlyMemory<byte> data)
     {
         this.data = data;
         return this;
@@ -49,7 +49,7 @@ public class ElementBuilder
     /// </summary>
     /// <param name="metaData">The metadata</param>
     /// <returns>The builder</returns>
-    public ElementBuilder WithMetaData(Stream? metaData)
+    public ElementBuilder WithMetaData(ReadOnlyMemory<byte> metaData)
     {
         this.metaData = metaData;
         return this;
@@ -59,19 +59,17 @@ public class ElementBuilder
     /// Makes the node a signed root: no data, and the signature as metadata, so every stream of the tree starts with the same bytes.
     /// The content of the file goes into the children.
     /// </summary>
-    /// <param name="signature">The signature, 1 to 15 bytes. It is copied, later changes of the stream do not affect the node.</param>
+    /// <param name="signature">The signature, 1 to 15 bytes. It is copied, later changes of the source do not affect the node.</param>
     /// <returns>The builder</returns>
     /// <exception cref="ArgumentException">Thrown if the signature is empty or longer than 15 bytes</exception>
-    public ElementBuilder WithSignature(Stream signature)
+    public ElementBuilder WithSignature(ReadOnlyMemory<byte> signature)
     {
-        ArgumentNullException.ThrowIfNull(signature);
-
         if (signature.Length < 1 || signature.Length > MaxSignatureLength)
         {
             throw new ArgumentException($"A signature is 1 to {MaxSignatureLength.ToString(CultureInfo.InvariantCulture)} bytes long, not {signature.Length.ToString(CultureInfo.InvariantCulture)} bytes.", nameof(signature));
         }
 
-        this.signature = signature.AsByteArray();
+        this.signature = signature.ToArray();
         return this;
     }
 
@@ -117,6 +115,7 @@ public class ElementBuilder
         }
 
         // Every built node gets its own copy of the signature
-        return new Element(data, signature != null ? new MemoryStream(signature) : metaData, children);
+        ReadOnlyMemory<byte> builtMetaData = signature != null ? (byte[])signature.Clone() : metaData ?? default;
+        return new Element(data ?? default, builtMetaData, children);
     }
 }

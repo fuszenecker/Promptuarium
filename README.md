@@ -32,11 +32,24 @@ There are many-many **conversion operations** that simplifies storing and exchan
 * string (ASCII, UTF-8, UTF-16LE and UTF-32LE),
 * **VarInt** and **VarUInt** saves as many bytes as possible.
 
-Storing other types are also easy, just serialize them into a stream or byte array.
-The **events** (saving events on the nodes, loading events in `LoadOptions`) help you to load or save the node content dynamically, i.e. keep big data in file streams.
+The contents (`Data` and `MetaData`) are `ReadOnlyMemory<byte>`: a byte array can be assigned directly, and the conversions turn values into contents and back (all numbers are little-endian, on every platform). Storing other types is also easy, just serialize them into bytes.
+
+```csharp
+var node = new Element(Data.FromInt(42), Data.FromAsciiString("answer"));
+int answer = node.Data.AsInt();
+
+node.MetaData = new byte[] { 1, 2, 3 };
+```
 
 The format is **streamable**: trees can be loaded from and saved to non-seekable streams (e.g. network streams), several trees can follow each other in one stream, and the reader never reads beyond the end of a tree.
 For untrusted sources, `LoadOptions` can limit the number of bytes and nodes. Arbitrarily deep trees are handled without recursion.
+
+Without streams, a tree can be converted to bytes and back directly:
+
+```csharp
+byte[] bytes = tree.ToBytes();
+var copy = Element.FromBytes(bytes);
+```
 
 ```csharp
 var tree = new Element(Data.FromUtf8String("Root"), null,
@@ -50,7 +63,6 @@ var received = await Element.LoadAsync(networkStream, options, cancellationToken
 ```
 
 The **structure is always preserved**: every node is saved and loaded in the same position, empty nodes included. `StructurallyEquals` compares two trees (structure and contents).
-Reading the contents (`ToString`, the conversions, copying, comparing) never changes the position of the content streams.
 
 A file can carry a **signature** (see [File identification](BINARY_FORMAT.md#10-file-identification-optional-convention)), so that it can be recognized e.g. by the `file` command. The `ElementBuilder` creates such a root:
 

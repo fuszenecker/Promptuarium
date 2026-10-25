@@ -44,9 +44,9 @@ namespace PromptuariumTests
         {
             var node = new Element();
 
-            Assert.IsNull(node.Data);
-            Assert.IsNull(node.Data);
-            Assert.IsNull(node.MetaData);
+            Assert.IsTrue(node.Data.IsEmpty);
+            Assert.IsTrue(node.Data.IsEmpty);
+            Assert.IsTrue(node.MetaData.IsEmpty);
             Assert.IsNotNull(node.Children);
             Assert.IsNull(node.Parent);
         }
@@ -58,15 +58,15 @@ namespace PromptuariumTests
             var child = new Element();
             var parent = new Element();
 
-            tree.Data = new MemoryStream(new byte[] { 2, 3, 5, 7, 11 });
+            tree.Data = new byte[] { 2, 3, 5, 7, 11 };
             tree.Add(child);
             parent.Add(tree);
 
-            Assert.AreEqual(2, tree.Data.ReadByte());
-            Assert.AreEqual(3, tree.Data.ReadByte());
-            Assert.AreEqual(5, tree.Data.ReadByte());
-            Assert.AreEqual(7, tree.Data.ReadByte());
-            Assert.AreEqual(11, tree.Data.ReadByte());
+            Assert.AreEqual(2, tree.Data.Span[0]);
+            Assert.AreEqual(3, tree.Data.Span[1]);
+            Assert.AreEqual(5, tree.Data.Span[2]);
+            Assert.AreEqual(7, tree.Data.Span[3]);
+            Assert.AreEqual(11, tree.Data.Span[4]);
 
             Assert.IsNotNull(tree.Children.FirstOrDefault(c => c == child));
             Assert.AreEqual(parent, tree.Parent);
@@ -80,14 +80,14 @@ namespace PromptuariumTests
             var parent = new Element();
             byte[] data = new byte[] { 2, 3, 5, 7, 11 };
 
-            var tree = new Element(null, new MemoryStream(data), child1, child2);
+            var tree = new Element(null, data, child1, child2);
             parent.Add(tree);
 
-            Assert.AreEqual(2, tree.MetaData?.ReadByte());
-            Assert.AreEqual(3, tree.MetaData?.ReadByte());
-            Assert.AreEqual(5, tree.MetaData?.ReadByte());
-            Assert.AreEqual(7, tree.MetaData?.ReadByte());
-            Assert.AreEqual(11, tree.MetaData?.ReadByte());
+            Assert.AreEqual(2, tree.MetaData.Span[0]);
+            Assert.AreEqual(3, tree.MetaData.Span[1]);
+            Assert.AreEqual(5, tree.MetaData.Span[2]);
+            Assert.AreEqual(7, tree.MetaData.Span[3]);
+            Assert.AreEqual(11, tree.MetaData.Span[4]);
 
             Assert.IsNotNull(tree.Children.FirstOrDefault(c => c == child1));
             Assert.IsNotNull(tree.Children.FirstOrDefault(c => c == child2));
@@ -102,19 +102,19 @@ namespace PromptuariumTests
             var parent = new Element();
             byte[] data = new byte[] { 2, 3, 5, 7, 11 };
 
-            var tree = new Element(new MemoryStream(data), new MemoryStream(data),
-                from child in new byte[] { 1, 1, 2, 3, 5, 8 } select new Element(new MemoryStream(new byte[] { child, child, child }), new MemoryStream(new byte[] { 5 }))
+            var tree = new Element(data, data,
+                from child in new byte[] { 1, 1, 2, 3, 5, 8 } select new Element(new byte[] { child, child, child }, new byte[] { 5 })
                 );
             parent.Add(tree);
 
-            Assert.AreEqual(2, tree.Data?.ReadByte());
-            Assert.AreEqual(3, tree.Data?.ReadByte());
-            Assert.AreEqual(5, tree.Data?.ReadByte());
-            Assert.AreEqual(7, tree.Data?.ReadByte());
-            Assert.AreEqual(11, tree.Data?.ReadByte());
+            Assert.AreEqual(2, tree.Data.Span[0]);
+            Assert.AreEqual(3, tree.Data.Span[1]);
+            Assert.AreEqual(5, tree.Data.Span[2]);
+            Assert.AreEqual(7, tree.Data.Span[3]);
+            Assert.AreEqual(11, tree.Data.Span[4]);
 
-            Assert.AreEqual(5, tree.Children.ToArray()[4].Data?.ReadByte());
-            Assert.AreEqual(8, tree.Children.ToArray()[5].Data?.ReadByte());
+            Assert.AreEqual(5, tree.Children.ToArray()[4].Data.Span[0]);
+            Assert.AreEqual(8, tree.Children.ToArray()[5].Data.Span[0]);
             Assert.AreEqual(parent, tree.Parent);
         }
 
@@ -127,14 +127,14 @@ namespace PromptuariumTests
             var parent = new Element();
             byte[] data = new byte[] { 2, 3, 5, 7, 11 };
 
-            var tree = new Element(new MemoryStream(data), null, child1, child2);
+            var tree = new Element(data, null, child1, child2);
             parent.Add(tree);
 
-            Assert.AreEqual(2, tree.Data?.ReadByte());
-            Assert.AreEqual(3, tree.Data?.ReadByte());
-            Assert.AreEqual(5, tree.Data?.ReadByte());
-            Assert.AreEqual(7, tree.Data?.ReadByte());
-            Assert.AreEqual(11, tree.Data?.ReadByte());
+            Assert.AreEqual(2, tree.Data.Span[0]);
+            Assert.AreEqual(3, tree.Data.Span[1]);
+            Assert.AreEqual(5, tree.Data.Span[2]);
+            Assert.AreEqual(7, tree.Data.Span[3]);
+            Assert.AreEqual(11, tree.Data.Span[4]);
 
             Assert.AreEqual(parent, tree.Parent);
             Assert.AreEqual(child1, tree[0]);
@@ -153,9 +153,9 @@ namespace PromptuariumTests
         [ExpectedException(typeof(PromptuariumException))]
         public void Add()
         {
-            var child1 = new Element(new MemoryStream(new byte[] { 1 }), null);
-            var child2 = new Element(new MemoryStream(new byte[] { 2 }), null);
-            var child3 = new Element(new MemoryStream(new byte[] { 3 }), null);
+            var child1 = new Element(new byte[] { 1 }, null);
+            var child2 = new Element(new byte[] { 2 }, null);
+            var child3 = new Element(new byte[] { 3 }, null);
 
             var tree = new Element(null, null);
 
@@ -184,16 +184,16 @@ namespace PromptuariumTests
             tree.Add(
                 new byte[] { 5, 9, 3, 6, 7 }.Select(n => new Element
                                                          (
-                                                             new MemoryStream(new[] { n }), new MemoryStream(new[] { n }),
-                                                             new Element(new MemoryStream(new byte[] { 66 }), null)
+                                                             new[] { n }, new[] { n },
+                                                             new Element(new byte[] { 66 }, null)
                                                          ))
                 );
 
             Assert.AreEqual(null, tree.Parent);
 
-            Assert.AreEqual(5, tree[0].Data?.ReadByte());
-            Assert.AreEqual(9, tree[1].Data?.ReadByte());
-            Assert.AreEqual(7, tree[4].Data?.ReadByte());
+            Assert.AreEqual(5, tree[0].Data.Span[0]);
+            Assert.AreEqual(9, tree[1].Data.Span[0]);
+            Assert.AreEqual(7, tree[4].Data.Span[0]);
         }
 
         [TestMethod]
@@ -201,9 +201,9 @@ namespace PromptuariumTests
         {
             var tree = new Element()
             {
-                new Element(new MemoryStream(new byte[] { 1 }), null),
-                new Element(new MemoryStream(new byte[] { 2 }), null),
-                new Element(new MemoryStream(new byte[] { 3 }), null)
+                new Element(new byte[] { 1 }, null),
+                new Element(new byte[] { 2 }, null),
+                new Element(new byte[] { 3 }, null)
             };
 
             Assert.AreEqual(null, tree.Parent);
@@ -218,16 +218,16 @@ namespace PromptuariumTests
             tree.Add(
                 new byte[] { 5, 9, 3, 6, 7 }.Select(n => new Element
                                                          (
-                                                             new MemoryStream(new[] { n }), new MemoryStream(new[] { n }),
-                                                             new Element(new MemoryStream(new byte[] { 66 }), null)
+                                                             new[] { n }, new[] { n },
+                                                             new Element(new byte[] { 66 }, null)
                                                          ))
                 );
 
             Assert.AreEqual(null, tree.Parent);
 
-            Assert.AreEqual(5, tree[0].Data?.ReadByte());
-            Assert.AreEqual(9, tree[1].Data?.ReadByte());
-            Assert.AreEqual(7, tree[4].Data?.ReadByte());
+            Assert.AreEqual(5, tree[0].Data.Span[0]);
+            Assert.AreEqual(9, tree[1].Data.Span[0]);
+            Assert.AreEqual(7, tree[4].Data.Span[0]);
 
             int i = 0;
             foreach (var child in tree)
@@ -258,7 +258,7 @@ namespace PromptuariumTests
             var child2 = tree[1].Detach();
 
             Assert.AreEqual(reference, child2);
-            Assert.AreEqual(240, child2.MetaData?.ReadByte());
+            Assert.AreEqual(240, child2.MetaData.Span[0]);
             Assert.AreEqual(3, tree.Children.Count);
         }
 
@@ -291,12 +291,12 @@ namespace PromptuariumTests
 
             var tree = await Element.LoadAsync(stream).ConfigureAwait(false);
 
-            Assert.AreEqual((byte)0x80, tree.Data?.AsByte());
-            Assert.AreEqual((short)0x7819, tree[0].Data?.AsShort());
-            Assert.AreEqual((uint)0x86197819, tree[0].Data?.AsUInt());
-            Assert.AreEqual((uint)0x44434241, tree[0][0].MetaData?.AsUInt());
-            Assert.AreEqual(true, tree[2].Data?.AsBool());
-            Assert.IsNull(tree[2].MetaData);
+            Assert.AreEqual((byte)0x80, tree.Data.AsByte());
+            Assert.AreEqual((short)0x7819, tree[0].Data.AsShort());
+            Assert.AreEqual((uint)0x86197819, tree[0].Data.AsUInt());
+            Assert.AreEqual((uint)0x44434241, tree[0][0].MetaData.AsUInt());
+            Assert.AreEqual(true, tree[2].Data.AsBool());
+            Assert.IsTrue(tree[2].MetaData.IsEmpty);
         }
 
         [TestMethod]
@@ -315,8 +315,8 @@ namespace PromptuariumTests
             // The empty node is kept, so the positions of the siblings do not change
             Assert.IsTrue(tree.StructurallyEquals(tree2));
             Assert.AreEqual(2, tree2.Children.Count);
-            Assert.IsNull(tree2[0].Data);
-            Assert.AreEqual("M", tree2[1].Data?.AsAsciiString());
+            Assert.IsTrue(tree2[0].Data.IsEmpty);
+            Assert.AreEqual("M", tree2[1].Data.AsAsciiString());
         }
 
         [TestMethod]
@@ -337,9 +337,9 @@ namespace PromptuariumTests
 
             Assert.IsTrue(tree.StructurallyEquals(tree2));
             Assert.AreEqual(2, tree2[0].Children.Count);
-            Assert.AreEqual("D", tree2[0][0][0].Data?.AsAsciiString());
+            Assert.AreEqual("D", tree2[0][0][0].Data.AsAsciiString());
             Assert.AreEqual(0, tree2[0][1].Children.Count);
-            Assert.AreEqual("Y", tree2[1].Data?.AsAsciiString());
+            Assert.AreEqual("Y", tree2[1].Data.AsAsciiString());
         }
 
         [TestMethod]
@@ -371,8 +371,8 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(0x55aa00ff, tree[tree.Children.Count - 1].Data?.AsInt());
-            Assert.AreEqual(0x55aa00ff, tree2[tree2.Children.Count - 1].Data?.AsInt());
+            Assert.AreEqual(0x55aa00ff, tree[tree.Children.Count - 1].Data.AsInt());
+            Assert.AreEqual(0x55aa00ff, tree2[tree2.Children.Count - 1].Data.AsInt());
         }
 
         [TestMethod]
@@ -401,7 +401,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(0x55aa00ff19781986, tree2[0][1].Data?.AsLong());
+            Assert.AreEqual(0x55aa00ff19781986, tree2[0][1].Data.AsLong());
         }
 
         [TestMethod]
@@ -419,7 +419,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            double? value = tree2[0][1].MetaData?.AsDouble();
+            double? value = tree2[0][1].MetaData.AsDouble();
             Assert.IsTrue(value > 3.1415926 && value < 3.1415927);
         }
 
@@ -440,7 +440,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(0, testGuid.CompareTo(tree2[0].Data?.AsGuid()));
+            Assert.AreEqual(0, testGuid.CompareTo(tree2[0].Data.AsGuid()));
         }
 
         [TestMethod]
@@ -458,7 +458,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(1.978M, tree2[0].MetaData?.AsDecimal());
+            Assert.AreEqual(1.978M, tree2[0].MetaData.AsDecimal());
         }
 
         [TestMethod]
@@ -478,7 +478,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            byte[]? testBytes2 = tree2[0].Data?.AsByteArray();
+            byte[]? testBytes2 = tree2[0].Data.AsByteArray();
 
             for (int i = 0; i < testBytes.Length; i++)
             {
@@ -502,8 +502,8 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual("Hello, UTF-32LE world!", tree2[0].Data?.AsUtf32String());
-            Assert.AreEqual("Hello, UTF-16LE world!", tree2[0].MetaData?.AsUtf16String());
+            Assert.AreEqual("Hello, UTF-32LE world!", tree2[0].Data.AsUtf32String());
+            Assert.AreEqual("Hello, UTF-16LE world!", tree2[0].MetaData.AsUtf16String());
         }
 
         [TestMethod]
@@ -523,8 +523,8 @@ namespace PromptuariumTests
             var outerTree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
             var innerTree2 = await outerTree2.Data!.AsElementAsync().ConfigureAwait(false);
 
-            Assert.AreEqual((short)1000, outerTree2.MetaData?.AsShort());
-            Assert.AreEqual(0x55aa00ff, innerTree2[1].MetaData?.AsInt());
+            Assert.AreEqual((short)1000, outerTree2.MetaData.AsShort());
+            Assert.AreEqual(0x55aa00ff, innerTree2[1].MetaData.AsInt());
         }
 
         [TestMethod]
@@ -544,8 +544,8 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTime()));
-            Assert.AreEqual(0, testTimeSpan.CompareTo(tree2[0].MetaData?.AsTimeSpan()));
+            Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data.AsDateTime()));
+            Assert.AreEqual(0, testTimeSpan.CompareTo(tree2[0].MetaData.AsTimeSpan()));
 
             Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
@@ -566,7 +566,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTimeOffset() ?? throw new ArgumentNullException("Test failed.")));
+            Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data.AsDateTimeOffset()));
 
             Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
@@ -587,8 +587,8 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual('Ä', tree2[0].Data?.AsChar());
-            Assert.AreEqual('Ő', tree2[0].MetaData?.AsChar());
+            Assert.AreEqual('Ä', tree2[0].Data.AsChar());
+            Assert.AreEqual('Ő', tree2[0].MetaData.AsChar());
 
             Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
@@ -668,191 +668,118 @@ namespace PromptuariumTests
         [TestMethod]
         public void VarInt100()
         {
-            Stream stream = Data.FromVarInt(100);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(100);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            byte[] buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(1, stream.Length);
+            Assert.AreEqual(1, content.Length);
             Assert.AreEqual(200, buffer[0]);
-            Assert.AreEqual(100, stream.AsVarInt());
+            Assert.AreEqual(100, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarIntMinus100()
         {
-            var stream = Data.FromVarInt(-100);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(-100);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            var buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(1, stream.Length);
+            Assert.AreEqual(1, content.Length);
             Assert.AreEqual(201, buffer[0]);
-            Assert.AreEqual(-100, stream.AsVarInt());
+            Assert.AreEqual(-100, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarInt65537()
         {
-            var stream = Data.FromVarInt(65537);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(65537);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            var buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(3, stream.Length);
+            Assert.AreEqual(3, content.Length);
             Assert.AreEqual(2, buffer[2]);
             Assert.AreEqual(0, buffer[1]);
             Assert.AreEqual(2, buffer[0]);
-            Assert.AreEqual(65537, stream.AsVarInt());
+            Assert.AreEqual(65537, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarIntMinus65537()
         {
-            var stream = Data.FromVarInt(-65537);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(-65537);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            var buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(3, stream.Length);
+            Assert.AreEqual(3, content.Length);
             Assert.AreEqual(2, buffer[2]);
             Assert.AreEqual(0, buffer[1]);
             Assert.AreEqual(3, buffer[0]);
-            Assert.AreEqual(-65537, stream.AsVarInt());
+            Assert.AreEqual(-65537, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarInt0()
         {
-            var stream = Data.FromVarInt(0);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(0);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            var buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(1, stream.Length);
+            Assert.AreEqual(1, content.Length);
             Assert.AreEqual(0, buffer[0]);
-            Assert.AreEqual(0, stream.AsVarInt());
+            Assert.AreEqual(0, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarUInt100()
         {
-            Stream stream = Data.FromVarInt(100);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(100);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            byte[] buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(1, stream.Length);
+            Assert.AreEqual(1, content.Length);
             Assert.AreEqual(200, buffer[0]);
-            Assert.AreEqual(100, stream.AsVarInt());
+            Assert.AreEqual(100, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarUInt65537()
         {
-            var stream = Data.FromVarInt(65537);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(65537);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            var buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(3, stream.Length);
+            Assert.AreEqual(3, content.Length);
             Assert.AreEqual(2, buffer[2]);
             Assert.AreEqual(0, buffer[1]);
             Assert.AreEqual(2, buffer[0]);
-            Assert.AreEqual(65537, stream.AsVarInt());
+            Assert.AreEqual(65537, content.AsVarInt());
         }
 
         [TestMethod]
         public void VarUInt0()
         {
-            var stream = Data.FromVarInt(0);
+            ReadOnlyMemory<byte> content = Data.FromVarInt(0);
 
-            stream.Position = 0;
+            ReadOnlySpan<byte> buffer = content.Span;
 
-            var buffer = new byte[sizeof(long)];
-            stream.Read(buffer, 0, sizeof(long));
-
-            Assert.AreEqual(1, stream.Length);
+            Assert.AreEqual(1, content.Length);
             Assert.AreEqual(0, buffer[0]);
-            Assert.AreEqual(0, stream.AsVarInt());
+            Assert.AreEqual(0, content.AsVarInt());
         }
 
         [TestMethod]
-        public async Task Base64EventExample()
+        public void Base64RoundTrip()
         {
             var tree = new Element(Data.FromUtf8String("ROOT NODE"), Data.FromUtf8String("UTF-8 STRING"),
                             from i in new int[3] { 2, 3, 5 }
                             select new Element(
-                                Data.FromDateTime(DateTime.Now),
-                                Data.FromUtf8String("DATETIME.NOW()"))
-                            );
+                                Data.FromInt(i),
+                                Data.FromUtf8String("CHILD")));
 
-            tree.OnDataSaving += (s, _) => ((Element)s!).Data = Data.FromUtf8String("ROOT NODE MODIFIED");
-            tree.OnDataSaved += (s, _) => ((Element)s!).Data = Data.FromUtf8String("ROOT NODE SAVED");
+            string base64 = tree.ToBase64String();
 
-            using var fs = new StreamWriter(TestFileName);
-            using var ms = new MemoryStream();
-            await tree.SaveAsync(ms).ConfigureAwait(false);
-            fs.Write(Convert.ToBase64String(ms.AsByteArray()));
-
-            Assert.AreEqual("ROOT NODE SAVED", tree.Data?.AsUtf8String());
-        }
-
-        [TestMethod]
-        public async Task Events()
-        {
-            // Extra null nodes are not added to the child list
-            var tree = new Element(Data.FromUtf8String("ROOT"), null,
-                            new Element(Data.FromUtf8String("NODE1"), null),
-                            new Element(Data.FromUtf8String("NODE2"), null),
-                            new Element(Data.FromUtf8String("NODE3"), null)
-                            );
-
-            int savingEventFired = 0;
-            int savedEventFired = 0;
-
-            tree.OnDataSaving += (_, __) => savingEventFired++;
-            tree.OnDataSaved += (_, __) => savedEventFired++;
-
-            await tree.SaveAsync(TestFileName).ConfigureAwait(false);
-
-            var loadingNodes = new List<string>();
-            var loadedNodes = new List<string>();
-
-            var options = new LoadOptions();
-            options.OnDataLoading += (s, _) => loadingNodes.Add(((Element)s!).Data!.AsUtf8String());
-            options.OnDataLoaded += (s, _) => loadedNodes.Add(((Element)s!).Data!.AsUtf8String());
-
-            var tree2 = await Element.LoadAsync(TestFileName, options, CancellationToken.None).ConfigureAwait(false);
-
-            Assert.AreEqual(1, savingEventFired);
-            Assert.AreEqual(1, savedEventFired);
-            Assert.AreEqual(4, loadingNodes.Count);
-            Assert.AreEqual(4, loadedNodes.Count);
-
-            Assert.AreEqual("ROOT", loadedNodes[0]);
-            Assert.AreEqual("NODE1", loadedNodes[1]);
-            Assert.AreEqual("NODE2", loadedNodes[2]);
-            Assert.AreEqual("NODE3", loadedNodes[3]);
-
-            Assert.AreEqual(string.Empty, loadingNodes[0]);
-            Assert.AreEqual(string.Empty, loadingNodes[1]);
-            Assert.AreEqual(string.Empty, loadingNodes[2]);
-            Assert.AreEqual(string.Empty, loadingNodes[3]);
+            Assert.AreEqual(Convert.ToBase64String(tree.ToBytes()), base64);
+            Assert.IsTrue(tree.StructurallyEquals(Element.FromBase64String(base64)));
         }
 
         [TestMethod]
@@ -973,14 +900,14 @@ namespace PromptuariumTests
 
             var node = new Element
                             (
-                                new MemoryStream(new byte[] { 128, 96 }), null,
+                                new byte[] { 128, 96 }, null,
 
-                                new Element(null, new MemoryStream(new byte[] { 5, 6 })),
-                                new Element(null, new MemoryStream(longData)),
-                                new Element(null, new MemoryStream(new byte[] { 8, 8 }),
-                                    new Element(new MemoryStream(longData), null,
-                                        new Element(new MemoryStream(new byte[] { 18, 28 }), null,
-                                            new Element(new MemoryStream(new byte[] { 1, 7 }), null)
+                                new Element(null, new byte[] { 5, 6 }),
+                                new Element(null, longData),
+                                new Element(null, new byte[] { 8, 8 },
+                                    new Element(longData, null,
+                                        new Element(new byte[] { 18, 28 }, null,
+                                            new Element(new byte[] { 1, 7 }, null)
                                         )
                                     )
                                 ),
@@ -993,8 +920,8 @@ namespace PromptuariumTests
                             );
 
             node[0].Add(new Element(
-                new MemoryStream(veryLongData),
-                new MemoryStream(longData))
+                veryLongData,
+                longData)
             );
 
             return node;
