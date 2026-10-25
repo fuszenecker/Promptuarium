@@ -64,10 +64,13 @@ jobs:
           (cd publish && zip -qr "../artifacts/pstudio-$TAG.zip" pstudio)
 
       # A pre-release (8.0.0-rc1) is 8.0.0~rc1 for Debian, so that it comes before 8.0.0
-      - name: Debian package of PStudio
-        if: hashFiles('tools/PStudio/packaging/build-deb.sh') != ''
+      - name: Debian packages
         run: |
-          tools/PStudio/packaging/build-deb.sh --version "${TAG/-/\~}" --output deb-build
+          for script in tools/PEdit/packaging/build-deb.sh tools/PStudio/packaging/build-deb.sh; do
+            if [ -f "$script" ]; then
+              "$script" --version "${TAG/-/\~}" --output deb-build
+            fi
+          done
           mv deb-build/*.deb artifacts/
 
       - name: Release notes
@@ -86,6 +89,10 @@ jobs:
 
             if [ -f "artifacts/pstudio-$TAG.zip" ]; then
               echo "- PStudio, the graphical editor for Windows, Linux and macOS (requires .NET 10: \`dotnet pstudio/pstudio.dll\`)."
+            fi
+
+            if ls artifacts/pedit_*.deb > /dev/null 2>&1; then
+              echo "- pedit for Debian and Ubuntu (amd64, no .NET needed, with a man page): \`sudo apt install ./pedit_*.deb\`."
             fi
 
             if ls artifacts/pstudio_*.deb > /dev/null 2>&1; then

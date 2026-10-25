@@ -1,0 +1,160 @@
+.TH PEDIT 1 "" "pedit" "User Commands"
+.SH NAME
+pedit \- create, dump and edit Promptuarium trees
+.SH SYNOPSIS
+.B pedit new
+.I FILE
+.RB [ \-\-signature
+.IR VALUE ]
+.RB [ \-\-force ]
+.br
+.B pedit dump
+.I FILE
+.RB [ \-\-path
+.IR PATH ]
+.RB [ \-\-max\-bytes
+.IR N ]
+.RB [ \-\-json ]
+.br
+.B pedit chunks
+.I FILE
+.RB [ \-\-json ]
+.br
+.B pedit add
+.I FILE PARENT\-PATH
+.RB [ \-\-index
+.IR N ]
+.RB [ \-\-data
+.IR VALUE ]
+.RB [ \-\-metadata
+.IR VALUE ]
+.RB [ \-\-output
+.IR FILE ]
+.RB [ \-\-json ]
+.br
+.B pedit set
+.I FILE PATH
+.RB [ \-\-data
+.IR VALUE ]
+.RB [ \-\-metadata
+.IR VALUE ]
+.RB [ \-\-output
+.IR FILE ]
+.RB [ \-\-json ]
+.br
+.B pedit delete
+.I FILE PATH
+.RB [ \-\-output
+.IR FILE ]
+.RB [ \-\-json ]
+.br
+.B pedit get
+.I FILE PATH
+.BR data | metadata
+.RB [ \-\-format
+.BR hex | base64 | utf8 ]
+.RB [ \-\-out
+.IR FILE ]
+.br
+.B pedit help
+.SH DESCRIPTION
+.B pedit
+creates, dumps and edits Promptuarium trees. Every command is a single, non\-interactive call;
+with
+.B \-\-json
+the output is machine\-readable, and the exit code tells the result.
+.B chunks
+decodes a file directly from the specification of the format, independently of the library.
+.SH COMMANDS
+.TP
+.B new
+Creates a file with an empty root. With
+.BR \-\-signature ,
+the root is a signed root (a root without data, whose metadata is the signature, e.g.
+.BR ascii:PRMT ),
+so that
+.BR file (1)
+recognizes the file. An existing file is overwritten only with
+.BR \-\-force .
+.TP
+.B dump
+Lists the nodes in pre\-order, with their paths and contents.
+.B \-\-path
+dumps a subtree only,
+.B \-\-max\-bytes
+shortens the contents.
+.TP
+.B chunks
+Lists the chunks of the file as they are in the stream: offset, control byte, direction, content type,
+size type, length, depth, kind and payload.
+.TP
+.B add
+Adds a new node to
+.IR PARENT\-PATH ,
+at the end or at
+.BR \-\-index ,
+and prints its path.
+.TP
+.B set
+Sets the data and/or the metadata of a node.
+.TP
+.B delete
+Deletes a node with its subtree (not the root).
+.TP
+.B get
+Prints the data or the metadata of a node, or writes the raw bytes into
+.BR \-\-out .
+.PP
+The editing commands save the file in place, or into
+.BR \-\-output ;
+the file is written into a temporary file first, and replaced only when the save succeeded.
+.SH PATHS
+.B /
+is the root,
+.B /0
+is its first child,
+.B /0/2
+is the third child of the first child. The indexes are 0\-based.
+.SH VALUES
+.TP
+.BI hex: 4152
+The bytes in hexadecimal; spaces and \- are ignored.
+.TP
+.BI utf8: TEXT
+The UTF\-8 encoding of the text.
+.TP
+.BI ascii: TEXT
+The ASCII encoding of the text.
+.TP
+.BI base64: QVI=
+The bytes in base64.
+.TP
+.BI file: PATH
+The content of a file.
+.TP
+.B empty
+No content.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Invalid command line: unknown command or option, missing argument, invalid path or value.
+.TP
+.B 2
+The file or the node does not exist.
+.TP
+.B 3
+The operation failed: invalid stream, existing file, deleting the root, I/O error.
+.SH EXAMPLES
+.nf
+pedit new tree.prmt \-\-signature ascii:PRMT:DEMO
+pedit add tree.prmt / \-\-data utf8:hello
+pedit dump tree.prmt
+pedit get tree.prmt /0 data \-\-format utf8
+.fi
+.SH SEE ALSO
+.BR file (1)
+.PP
+https://github.com/fuszenecker/Promptuarium

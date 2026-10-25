@@ -106,7 +106,7 @@ dotnet test --filter "TestCategory!=Slow"
 ## Packages and releases
 
 * NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/)
-* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet package, the symbol package, `pedit` and PStudio of every version.
+* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet package, the symbol package, and `pedit` and PStudio of every version (zip, and Debian packages for amd64).
 
 A release is created automatically for every version tag:
 
