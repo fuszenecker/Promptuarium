@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE library [
+  <!ENTITY publisher "Pan Books">
+]>
+<?xml-stylesheet type="text/xsl" href="library.xsl"?>
+<!-- A sample document with every kind of node that pxml keeps -->
+<library xmlns="urn:example:library" xmlns:dc="http://purl.org/dc/elements/1.1/" xml:lang="en">
+  <book id="hhgttg" dc:format="paperback">
+    <dc:title>The Hitchhiker's Guide to the Galaxy</dc:title>
+    <dc:creator>Douglas Adams</dc:creator>
+    <published year="1979">&publisher;</published>
+    <answer type="int">42</answer>
+    <quote><![CDATA[Don't <panic>!]]></quote>
+    <note>Mixed <em>content</em> &amp; escaped &lt;characters&gt;, "quotes" and 'apostrophes'.</note>
+    <empty />
+    <unicode>árvíztűrő tükörfúrógép 🌳</unicode>
+  </book>
+</library>

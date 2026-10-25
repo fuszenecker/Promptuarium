@@ -49,6 +49,17 @@ jobs:
           ppak list "$RUNNER_TEMP/src.ppak"
           ppak unpack "$RUNNER_TEMP/src.ppak" "$RUNNER_TEMP/unpacked"
           diff -r src "$RUNNER_TEMP/unpacked"
+          # pxml keeps every node: the sample comes back byte for byte, other files give the same tree again
+          pxml() { dotnet run --project examples/PXml --no-build -c Release -- "$@"; }
+          for xml in examples/PXml/sample.xml src/Promptuarium.csproj tools/PStudio/Views/MainWindow.axaml; do
+            pxml pack "$xml" "$RUNNER_TEMP/first.prmt"
+            pxml unpack "$RUNNER_TEMP/first.prmt" "$RUNNER_TEMP/back.xml"
+            pxml pack "$RUNNER_TEMP/back.xml" "$RUNNER_TEMP/second.prmt"
+            cmp "$RUNNER_TEMP/first.prmt" "$RUNNER_TEMP/second.prmt"
+            if [ "$xml" = examples/PXml/sample.xml ]; then
+              cmp "$xml" "$RUNNER_TEMP/back.xml"
+            fi
+          done
 
       - name: Upload the test results
         if: always()
