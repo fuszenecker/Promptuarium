@@ -62,7 +62,14 @@ jobs:
           {
             dotnet msbuild src/Promptuarium.csproj -getProperty:PackageReleaseNotes
             echo
-            echo "Attached: the NuGet package and the symbol package (upload both to nuget.org), and pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
+            echo "### Attachments"
+            echo
+
+            if [ -f "artifacts/pedit-$TAG.zip" ]; then
+              echo "The NuGet package and the symbol package (upload both to nuget.org), and pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
+            else
+              echo "The NuGet package and the symbol package (upload both to nuget.org)."
+            fi
           } > release-notes.md
 
       - name: Create the release
