@@ -27,8 +27,27 @@ public partial class Element
     /// </example>
     public static Task<Element> LoadAsync(Stream stream, CancellationToken cancellationToken)
     {
+        return LoadAsync(stream, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads a tree from a stream, with limits and events.
+    /// </summary>
+    /// <param name="stream">The source stream</param>
+    /// <param name="options">The limits and events, or null</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>The tree, if no error occurred</returns>
+    /// <exception cref="PromptuariumException">Thrown if the stream is not a valid Promptuarium stream, or if it exceeds a limit</exception>
+    /// <example>
+    /// <code>
+    /// var options = new LoadOptions { MaxBytes = 10 * 1024 * 1024, MaxNodes = 100_000 };
+    /// var tree = await Element.LoadAsync(networkStream, options, cancellationToken);
+    /// </code>
+    /// </example>
+    public static Task<Element> LoadAsync(Stream stream, LoadOptions? options, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(stream);
-        return DeserializeAsync(stream, cancellationToken);
+        return DeserializeAsync(stream, options, cancellationToken);
     }
 
     /// <summary>
@@ -60,10 +79,32 @@ public partial class Element
     /// var tree = await Element.LoadAsync("test.prm", cancellationToken);
     /// </code>
     /// </example>
-    public static async Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
+    public static Task<Element> LoadAsync(string fileName, CancellationToken cancellationToken)
     {
-        using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
-        return await LoadAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        return LoadAsync(fileName, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads a tree from a file, with limits and events.
+    /// </summary>
+    /// <param name="fileName">The source file name</param>
+    /// <param name="options">The limits and events, or null</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>The tree, if no error occurred</returns>
+    /// <exception cref="PromptuariumException">Thrown if the file is not a valid Promptuarium file, or if it exceeds a limit</exception>
+    /// <example>
+    /// <code>
+    /// var tree = await Element.LoadAsync("test.prm", new LoadOptions { MaxNodes = 1000 }, cancellationToken);
+    /// </code>
+    /// </example>
+    public static async Task<Element> LoadAsync(string fileName, LoadOptions? options, CancellationToken cancellationToken)
+    {
+        var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+
+        await using (fileStream.ConfigureAwait(false))
+        {
+            return await LoadAsync(fileStream, options, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -107,7 +148,6 @@ public partial class Element
     /// Saves the tree into a stream.
     /// </summary>
     /// <param name="stream">The target stream</param>
-    /// <returns>True, if no error occurred</returns>
     /// <example>
     /// <code>
     /// using var stream = new FileStream("test.prm", FileMode.Create);
@@ -131,8 +171,13 @@ public partial class Element
     /// </example>
     public async Task SaveAsync(string fileName, CancellationToken cancellationToken)
     {
-        using Stream stream = new FileStream(fileName, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
-        await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
+        var stream = new FileStream(fileName, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
+
+        await using (stream.ConfigureAwait(false))
+        {
+            await SaveAsync(stream, cancellationToken).ConfigureAwait(false);
+            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

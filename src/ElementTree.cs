@@ -26,14 +26,18 @@ public partial class Element : IEnumerable<Element>
     public Stream? MetaData { get; set; }
 
     /// <summary>
-    /// Reference to the parent node; root node has null as parent
+    /// Reference to the parent node; root node has null as parent.
+    /// It is maintained by the tree operations (Add, Remove, Detach).
     /// </summary>
-    public Element? Parent { get; set; }
+    public Element? Parent { get; private set; }
 
     /// <summary>
-    /// List of children. it is never null, but can be empty
+    /// List of children. it is never null, but can be empty.
+    /// The list is read-only, use the tree operations (Add, Remove, Detach) to change it.
     /// </summary>
-    public IReadOnlyList<Element> Children { get; } = new List<Element>();
+    public IReadOnlyList<Element> Children { get; }
+
+    private readonly List<Element> children = new();
     
     #endregion
 
@@ -52,6 +56,7 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element()
     {
+        Children = children.AsReadOnly();
     }
 
     /// <summary>
@@ -67,6 +72,7 @@ public partial class Element : IEnumerable<Element>
     /// </code>
     /// </example>
     public Element(Element other)
+        : this()
     {
         ArgumentNullException.ThrowIfNull(other);
 
@@ -112,6 +118,7 @@ public partial class Element : IEnumerable<Element>
     /// </code>
     /// </example>
     public Element(Stream? data, Stream? metaData, params Element[] children)
+        : this()
     {
         ArgumentNullException.ThrowIfNull(children);
 
@@ -137,6 +144,7 @@ public partial class Element : IEnumerable<Element>
     /// </code>
     /// </example>
     public Element(Stream? data, Stream? metaData, IEnumerable<Element> children)
+        : this()
     {
         ArgumentNullException.ThrowIfNull(children);
 
@@ -155,7 +163,7 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <param name="index">The index.</param>
     /// <returns>The element</returns>
-    /// <exception cref="PromptuariumException">If the index is out of range</exception>
+    /// <exception cref="ArgumentOutOfRangeException">If the index is out of range</exception>
     /// <example>
     /// <code>
     /// var node = tree[0];
@@ -170,7 +178,7 @@ public partial class Element : IEnumerable<Element>
                 return Children[index];
             }
 
-            throw new PromptuariumException($"Index {index} is out of range [0...{Children.Count - 1}]");
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"Index is out of range [0...{Children.Count - 1}]");
         }
     }
 
@@ -182,7 +190,7 @@ public partial class Element : IEnumerable<Element>
     /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
     /// </summary>
     /// <param name="nodes">The nodes to be added</param>
-    /// <exception cref="PromptuariumException">Thrown if the node already exists in the tree</exception>
+    /// <exception cref="PromptuariumException">Thrown if the node is already a child of this node, or if it is this node or one of its ancestors</exception>
     /// <example>
     /// <code>
     /// var tree = new Element();
@@ -223,7 +231,7 @@ public partial class Element : IEnumerable<Element>
             }
 
             // A node can have only one parent
-            Detach(node);
+            DetachFromParent(node);
             UnsafeAdd(node);
         }
 
@@ -288,7 +296,7 @@ public partial class Element : IEnumerable<Element>
     /// Removes a subtree or node recursively.
     /// </summary>
     /// <param name="node">The node to be removed</param>
-    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <exception cref="PromptuariumException">Thrown if the node is not a child of this node</exception>
     /// <example>
     /// <code>
     /// var tree = new Element();
@@ -311,12 +319,12 @@ public partial class Element : IEnumerable<Element>
         // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack
         foreach (Element descendant in PreOrder(node))
         {
-            foreach (Element child in descendant.Children)
+            foreach (Element child in descendant.children)
             {
                 child.Parent = null;
             }
 
-            ((List<Element>)descendant.Children).Clear();
+            descendant.children.Clear();
         }
 
         return this;
@@ -327,7 +335,7 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <param name="tree">The tree to be shrunk</param>
     /// <param name="node">The node to be removed</param>
-    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <exception cref="PromptuariumException">Thrown if the node is not a child of the tree</exception>
     /// <example>
     /// <code>
     /// var tree = new Element();
@@ -353,7 +361,7 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <param name="node">The node to be detached</param>
     /// <returns>The node itself</returns>
-    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
+    /// <exception cref="PromptuariumException">Thrown if the node is not a child of this node</exception>
     /// <example>
     /// <code>
     /// var tree = new Element();
@@ -371,24 +379,19 @@ public partial class Element : IEnumerable<Element>
     {
         ArgumentNullException.ThrowIfNull(node);
 
-        if (node.Parent != null)
+        if (node.Parent != this)
         {
-            if (!((List<Element>)node.Parent.Children).Remove(node))
-            {
-                throw new PromptuariumException("Node can not be detached from its parent");
-            }
-
-            node.Parent = null;
+            throw new PromptuariumException("Node is not a child of this node");
         }
 
-        return this;
+        DetachFromParent(node);
+        return node;
     }
 
     /// <summary>
     /// Detaches a subtree or node.
     /// </summary>
     /// <returns>The node itself</returns>
-    /// <exception cref="PromptuariumException">Thrown if the node does not exist in the tree</exception>
     /// <example>
     /// <code>
     /// var tree = new Element();
@@ -404,7 +407,8 @@ public partial class Element : IEnumerable<Element>
     /// </example>
     public Element Detach()
     {
-        return Detach(this);
+        DetachFromParent(this);
+        return this;
     }
 
     /// <summary>
@@ -666,8 +670,17 @@ public partial class Element : IEnumerable<Element>
     /// <param name="node">The node to be added</param>
     private void UnsafeAdd(Element node)
     {
-        ((List<Element>)Children).Add(node);
+        children.Add(node);
         node.Parent = this;
+    }
+
+    private static void DetachFromParent(Element node)
+    {
+        if (node.Parent != null)
+        {
+            node.Parent.children.Remove(node);
+            node.Parent = null;
+        }
     }
 
     private static void NodeToString(Element node, StringBuilder stringBuilder)

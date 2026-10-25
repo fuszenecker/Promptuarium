@@ -1,8 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <!--ProjectReference Include="..\..\src\Promptuarium.csproj" /-->
-    <PackageReference Include="Promptuarium" Version="3.0.0" />
+    <ProjectReference Include="..\..\src\Promptuarium.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -17,7 +16,6 @@
     <SelfContained>true</SelfContained>
     <PublishReadyToRun>false</PublishReadyToRun-->
     <IsPackable>false</IsPackable>
-    <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
     <AnalysisLevel>preview</AnalysisLevel>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>

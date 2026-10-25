@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -59,7 +60,7 @@ namespace PromptuariumTests
 
             tree.Data = new MemoryStream(new byte[] { 2, 3, 5, 7, 11 });
             tree.Add(child);
-            tree.Parent = parent;
+            parent.Add(tree);
 
             Assert.AreEqual(2, tree.Data.ReadByte());
             Assert.AreEqual(3, tree.Data.ReadByte());
@@ -79,10 +80,8 @@ namespace PromptuariumTests
             var parent = new Element();
             byte[] data = new byte[] { 2, 3, 5, 7, 11 };
 
-            var tree = new Element(null, new MemoryStream(data), child1, child2)
-            {
-                Parent = parent
-            };
+            var tree = new Element(null, new MemoryStream(data), child1, child2);
+            parent.Add(tree);
 
             Assert.AreEqual(2, tree.MetaData?.ReadByte());
             Assert.AreEqual(3, tree.MetaData?.ReadByte());
@@ -105,10 +104,8 @@ namespace PromptuariumTests
 
             var tree = new Element(new MemoryStream(data), new MemoryStream(data),
                 from child in new byte[] { 1, 1, 2, 3, 5, 8 } select new Element(new MemoryStream(new byte[] { child, child, child }), new MemoryStream(new byte[] { 5 }))
-                )
-            {
-                Parent = parent
-            };
+                );
+            parent.Add(tree);
 
             Assert.AreEqual(2, tree.Data?.ReadByte());
             Assert.AreEqual(3, tree.Data?.ReadByte());
@@ -122,7 +119,7 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(PromptuariumException))]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Indexer()
         {
             var child1 = new Element();
@@ -130,10 +127,8 @@ namespace PromptuariumTests
             var parent = new Element();
             byte[] data = new byte[] { 2, 3, 5, 7, 11 };
 
-            var tree = new Element(new MemoryStream(data), null, child1, child2)
-            {
-                Parent = parent
-            };
+            var tree = new Element(new MemoryStream(data), null, child1, child2);
+            parent.Add(tree);
 
             Assert.AreEqual(2, tree.Data?.ReadByte());
             Assert.AreEqual(3, tree.Data?.ReadByte());
@@ -852,10 +847,11 @@ namespace PromptuariumTests
             var loadingNodes = new List<string>();
             var loadedNodes = new List<string>();
 
-            Element.OnDataLoading += (s, _) => loadingNodes.Add(((Element)s!).Data!.AsUtf8String());
-            Element.OnDataLoaded += (s, _) => loadedNodes.Add(((Element)s!).Data!.AsUtf8String());
+            var options = new LoadOptions();
+            options.OnDataLoading += (s, _) => loadingNodes.Add(((Element)s!).Data!.AsUtf8String());
+            options.OnDataLoaded += (s, _) => loadedNodes.Add(((Element)s!).Data!.AsUtf8String());
 
-            var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
+            var tree2 = await Element.LoadAsync(TestFileName, options, CancellationToken.None).ConfigureAwait(false);
 
             Assert.AreEqual(1, savingEventFired);
             Assert.AreEqual(1, savedEventFired);

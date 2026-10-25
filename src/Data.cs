@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -85,11 +86,8 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        byte result;
-        stream.Position = 0;
-        result = (byte)stream.ReadByte();
-        stream.Position = 0;
-        return result;
+        // An empty content is 0, like the other fixed-size values
+        return GetBuffer(stream, sizeof(byte))[0];
     }
 
     #endregion
@@ -109,7 +107,10 @@ public static class Data
     /// </example>
     public static Stream FromByteArray(byte[] value)
     {
-        return new MemoryStream(value);
+        ArgumentNullException.ThrowIfNull(value);
+
+        // The array is copied, so later changes of the array do not change the content
+        return new MemoryStream((byte[])value.Clone());
     }
 
     /// <summary>
@@ -126,7 +127,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return GetBuffer(stream, (int)stream.Length);
+        return GetContent(stream);
     }
 
     #endregion
@@ -572,7 +573,8 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        ulong buffer = BitConverter.ToUInt64(GetBuffer(stream, sizeof(ulong)), 0);
+        ulong buffer = ReadVarUInt(stream);
+
         if (buffer == NegativeZero)
         {
             return long.MinValue;
@@ -617,7 +619,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return AsULong(stream);
+        return ReadVarUInt(stream);
     }
 
     #endregion
@@ -653,7 +655,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return new Guid(GetBuffer(stream, (int)stream.Length));
+        return new Guid(GetContent(stream));
     }
 
     #endregion
@@ -804,7 +806,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return Encoding.ASCII.GetString(GetBuffer(stream, (int)stream.Length));
+        return Encoding.ASCII.GetString(GetContent(stream));
     }
 
     #endregion
@@ -841,7 +843,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return Encoding.UTF8.GetString(GetBuffer(stream, (int)stream.Length));
+        return Encoding.UTF8.GetString(GetContent(stream));
     }
 
     #endregion
@@ -878,7 +880,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return Encoding.Unicode.GetString(GetBuffer(stream, (int)stream.Length));
+        return Encoding.Unicode.GetString(GetContent(stream));
     }
 
     #endregion
@@ -915,7 +917,7 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        return Encoding.UTF32.GetString(GetBuffer(stream, (int)stream.Length));
+        return Encoding.UTF32.GetString(GetContent(stream));
     }
 
     #endregion
@@ -971,6 +973,26 @@ public static class Data
     #endregion
 
     #region Private Methods
+    private static byte[] GetContent(Stream stream)
+    {
+        if (stream.Length > Array.MaxLength)
+        {
+            throw new PromptuariumException($"The content is too long to be converted ({stream.Length.ToString(CultureInfo.InvariantCulture)} bytes).");
+        }
+
+        return GetBuffer(stream, (int)stream.Length);
+    }
+
+    private static ulong ReadVarUInt(Stream stream)
+    {
+        if (stream.Length > sizeof(ulong))
+        {
+            throw new PromptuariumException($"A VarInt or VarUInt is at most {sizeof(ulong).ToString(CultureInfo.InvariantCulture)} bytes long, the content is {stream.Length.ToString(CultureInfo.InvariantCulture)} bytes.");
+        }
+
+        return BitConverter.ToUInt64(GetBuffer(stream, sizeof(ulong)), 0);
+    }
+
     private static byte[] GetBuffer(Stream stream, int size)
     {
         byte[] buffer = new byte[size];

@@ -312,14 +312,22 @@ The terminator makes the format streamable:
 * A tree can be **nested** into the data or metadata of another tree (`Data.FromElementAsync`); the nested stream contains its own terminator.
 * The writer only writes forward, so it works on non-seekable streams too. It needs the length of each content in advance (to compute the split), but not the size of the whole tree.
 
-Control bytes are read one at a time, so a reader on an unbuffered OS stream SHOULD add buffering. A buffered reader may consume bytes beyond the terminator into its buffer; the next tree must then be read through the same buffered reader.
+A reader SHOULD buffer its input, but it MUST NOT leave the stream positioned beyond the terminator. The reference implementation does this:
+
+* on a **seekable** stream it reads ahead in blocks (64 KiB), and at the end it seeks back to the byte right after the terminator;
+* on a **non-seekable** stream it never requests more bytes than it needs: one byte for a control byte, at most the remaining payload for a payload.
+
+Likewise, the writer SHOULD collect small chunks and write them at once (the reference implementation uses a buffer of 524289 bytes and writes when the next chunk does not fit).
+
+A reader MAY limit the input of an untrusted source; the reference implementation offers `LoadOptions.MaxBytes` (bytes read, control bytes included) and `LoadOptions.MaxNodes` (nodes created, placeholders and Up markers included), and reports an error when a limit is exceeded.
 
 ## 8. Errors
 
 A decoder MUST report an error (the reference implementation throws `PromptuariumException`) when:
 
 * an Up chunk is read while `parent` is the virtual root ("navigating above the root");
-* the stream ends inside a payload ("unexpected end of stream").
+* the stream ends inside a payload ("unexpected end of stream");
+* the input exceeds a limit set by the reader (optional, see [section 7](#7-streaming)).
 
 Everything else is valid input, including a stream that ends between two chunks without a terminator, and an empty stream (which decodes to an empty node).
 
@@ -335,7 +343,7 @@ General rules of the reference decoders:
 | Type | Size | Encoding |
 |------|------|----------|
 | `bool` | 1 | `01` for true, `00` for false. Decoding: true if the first byte is not zero. |
-| `byte` | 1 | The byte itself. (Decoding an empty content returns `0xFF` in the reference implementation; treat it as undefined.) |
+| `byte` | 1 | The byte itself. Decoding an empty content gives 0, like for the other fixed-size values. |
 | `byte[]` | n | The bytes themselves. |
 | `char` | 2 | UTF-16 code unit. |
 | `short` / `ushort` | 2 | Two's complement / unsigned. |
@@ -384,7 +392,7 @@ The .NET `Guid.ToByteArray()` layout: the first three groups are little-endian i
 ### 9.3 VarUInt and VarInt
 
 **VarUInt** (unsigned 64-bit): the value in little-endian byte order without its trailing (most significant) zero bytes; at least one byte is written.
-Decoding reads up to the first 8 bytes as a little-endian unsigned integer (missing bytes are zero).
+Decoding reads the content (at most 8 bytes) as a little-endian unsigned integer (missing bytes are zero). A content longer than 8 bytes is an error.
 This is **not** LEB128: there are no continuation bits, the length is the length of the content.
 
 **VarInt** (signed 64-bit): sign and magnitude, then encoded as VarUInt:

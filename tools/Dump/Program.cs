@@ -19,7 +19,7 @@ namespace Dump
                 var container = await Element.LoadAsync(args[0]).ConfigureAwait(false);
 
                 Console.WriteLine(container.TreeToString("-> "));
-                Console.WriteLine(container.Statistics);
+                Console.WriteLine(container.GetStatistics());
             }
             catch (Exception ex)
             {

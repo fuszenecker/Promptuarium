@@ -67,16 +67,6 @@ public partial class Element
     #region Events
 
     /// <summary>
-    /// Event handler for all Promptuarium data loading events
-    /// </summary>
-    public static event EventHandler<PromptuariumLoadingEventArgs>? OnDataLoading;
-
-    /// <summary>
-    /// Event handler for all Promptuarium data loaded events
-    /// </summary>
-    public static event EventHandler<PromptuariumLoadedEventArgs>? OnDataLoaded;
-
-    /// <summary>
     /// Event handler for all Promptuarium data saving events
     /// </summary>
     public event EventHandler<PromptuariumSavingEventArgs>? OnDataSaving;
@@ -85,16 +75,6 @@ public partial class Element
     /// Event handler for all Promptuarium data saved events
     /// </summary>
     public event EventHandler<PromptuariumSavedEventArgs>? OnDataSaved;
-
-    /// <summary>
-    /// Event handler for all Promptuarium metadata loading events
-    /// </summary>
-    public static event EventHandler<PromptuariumLoadingEventArgs>? OnMetaDataLoading;
-
-    /// <summary>
-    /// Event handler for all Promptuarium metadata loaded events
-    /// </summary>
-    public static event EventHandler<PromptuariumLoadedEventArgs>? OnMetaDataLoaded;
 
     /// <summary>
     /// Event handler for all Promptuarium metadata saving events

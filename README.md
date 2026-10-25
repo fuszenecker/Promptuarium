@@ -1,4 +1,4 @@
-# Promptuarium
+﻿# Promptuarium
 
 [![.NET](https://github.com/fuszenecker/Promptuarium/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fuszenecker/Promptuarium/actions/workflows/dotnet.yml)
 
@@ -6,7 +6,7 @@
 
 Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, but can be used in F#, as well.
 
-Last reviewed: 13. Aug. 2023.
+Last reviewed: 25. Oct. 2026. Targets .NET 10.
 
 ## Promptuarium details
 
@@ -30,9 +30,23 @@ There are many-many **conversion operations** that simplifies storing and exchan
 * **VarInt** and **VarUInt** saves as many bytes as possible.
 
 Storing other types are also easy, just serialize them into a stream or byte array.
-The **events** help you to load the node content dynamically, i.e. keep big data in file streams.
+The **events** (saving events on the nodes, loading events in `LoadOptions`) help you to load or save the node content dynamically, i.e. keep big data in file streams.
 
-The ```Statistics``` property gives information about i.e.
+The format is **streamable**: trees can be loaded from and saved to non-seekable streams (e.g. network streams), several trees can follow each other in one stream, and the reader never reads beyond the end of a tree.
+For untrusted sources, `LoadOptions` can limit the number of bytes and nodes. Arbitrarily deep trees are handled without recursion.
+
+```csharp
+var tree = new Element(Data.FromUtf8String("Root"), null,
+    new Element(Data.FromInt(42), Data.FromAsciiString("answer")),
+    new Element(Data.FromVarInt(-3), null));
+
+await tree.SaveAsync(networkStream);
+
+var options = new LoadOptions { MaxBytes = 10 * 1024 * 1024, MaxNodes = 100_000 };
+var received = await Element.LoadAsync(networkStream, options, cancellationToken);
+```
+
+The `GetStatistics()` method gives information about i.e.
 
 * the number of nodes,
 * the depth of the tree,
@@ -46,7 +60,11 @@ See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Exampl
 
 ## Unit tests
 
-**Unit tests** help to keep the project code robust.
+**Unit tests** help to keep the project code robust. The stability tests (random trees) are slow, they can be left out:
+
+```sh
+dotnet test --filter "TestCategory!=Slow"
+```
 
 ## NuGet packages
 

@@ -22,67 +22,67 @@ public class Statistics
     /// <summary>
     /// The number of nodes in the tree
     /// </summary>
-    public int Nodes;
+    public int Nodes { get; internal set; }
 
     /// <summary>
-    /// The number of nodes with data
+    /// The number of nodes with data, but without metadata
     /// </summary>
-    public int NodesWithData;
+    public int NodesWithData { get; internal set; }
 
-    /// <summary>
+    /// The number of nodes with metadata, but without data
     /// The number of nodes with metadata
     /// </summary>
-    public int NodesWithMetaData;
+    public int NodesWithMetaData { get; internal set; }
 
     /// <summary>
     /// The number of nodes with data and metadata
     /// </summary>
-    public int NodesWithDataAndMetaData;
+    public int NodesWithDataAndMetaData { get; internal set; }
 
     /// <summary>
     /// The number of nodes without data and metadata
     /// </summary>
-    public int NodesWithoutDataAndMetaData;
+    public int NodesWithoutDataAndMetaData { get; internal set; }
 
     /// <summary>
     /// The number of nodes without children
     /// </summary>
-    public int NodesWithoutChildren;
+    public int NodesWithoutChildren { get; internal set; }
 
     /// <summary>
     /// The depth of the tree
     /// </summary>
-    public int Depth;
+    public int Depth { get; internal set; }
 
     /// <summary>
     /// The maximum number of children of a node
     /// </summary>
-    public int MaxChildren;
+    public int MaxChildren { get; internal set; }
 
     /// <summary>
     /// The minimum number of children of a node
     /// </summary>
-    public int MinChildren;
+    public int MinChildren { get; internal set; }
 
     /// <summary>
     /// The longest data in the tree
     /// </summary>
-    public long LongestData;
+    public long LongestData { get; internal set; }
 
     /// <summary>
     /// The longest metadata in the tree
     /// </summary>
-    public long LongestMetaData;
+    public long LongestMetaData { get; internal set; }
 
     /// <summary>
     /// The shortest data in the tree
     /// </summary>
-    public long ShortestData;
+    public long ShortestData { get; internal set; }
 
     /// <summary>
     /// The shortest metadata in the tree
     /// </summary>
-    public long ShortestMetaData;
+    public long ShortestMetaData { get; internal set; }
 
     /// <summary>
     /// Returns a string that represents the current object.
@@ -160,15 +160,15 @@ public partial class Element
                     statistics.MinChildren = node.Children.Count;
                 }
 
-                if (node.Data != null && node.MetaData != null)
+                if (Contains(node.Data) && Contains(node.MetaData))
                 {
                     statistics.NodesWithDataAndMetaData++;
                 }
-                else if (node.Data != null && node.MetaData == null)
+                else if (Contains(node.Data) && !Contains(node.MetaData))
                 {
                     statistics.NodesWithData++;
                 }
-                else if (node.Data == null && node.MetaData != null)
+                else if (!Contains(node.Data) && Contains(node.MetaData))
                 {
                     statistics.NodesWithMetaData++;
                 }
@@ -177,24 +177,24 @@ public partial class Element
                     statistics.NodesWithoutDataAndMetaData++;
                 }
 
-                if (node.Data != null && statistics.LongestData < node.Data.Length)
+                if (Contains(node.Data) && statistics.LongestData < node.Data!.Length)
                 {
-                    statistics.LongestData = node.Data.Length;
+                    statistics.LongestData = node.Data!.Length;
                 }
 
-                if (node.MetaData != null && statistics.LongestMetaData < node.MetaData.Length)
+                if (Contains(node.MetaData) && statistics.LongestMetaData < node.MetaData!.Length)
                 {
-                    statistics.LongestMetaData = node.MetaData.Length;
+                    statistics.LongestMetaData = node.MetaData!.Length;
                 }
 
-                if (node.Data != null && statistics.ShortestData > node.Data.Length)
+                if (Contains(node.Data) && statistics.ShortestData > node.Data!.Length)
                 {
-                    statistics.ShortestData = node.Data.Length;
+                    statistics.ShortestData = node.Data!.Length;
                 }
 
-                if (node.MetaData != null && statistics.ShortestMetaData > node.MetaData.Length)
+                if (Contains(node.MetaData) && statistics.ShortestMetaData > node.MetaData!.Length)
                 {
-                    statistics.ShortestMetaData = node.MetaData.Length;
+                    statistics.ShortestMetaData = node.MetaData!.Length;
                 }
 
                 if (node.Children.Count == 0)

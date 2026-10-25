@@ -9,9 +9,11 @@ namespace PromptuariumTests
     [TestClass]
     public class StabilityTests
     {
-        private readonly Random random = new ((int)DateTime.Now.Ticks);
+        // Fixed seed, so that a failure can be reproduced
+        private readonly Random random = new (20231010);
 
         [TestMethod]
+        [TestCategory("Slow")]
         public async Task Stability()
         {
             const int maxTests = 10000;
@@ -19,10 +21,11 @@ namespace PromptuariumTests
             const int maxChildren = 10;
             const double probability = 0.75;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\stability.prm").ConfigureAwait(false);
+            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, Path.Combine(Path.GetTempPath(), "promptuarium-stability.prm")).ConfigureAwait(false);
         }
 
         [TestMethod]
+        [TestCategory("Slow")]
         public async Task BigTrees()
         {
             const int maxTests = 10;
@@ -30,7 +33,7 @@ namespace PromptuariumTests
             const int maxChildren = 20;
             const double probability = 0.95;
 
-            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, @".\big_trees.prm").ConfigureAwait(false);
+            await CreateAndVerifyTrees(maxTests, minChildren, maxChildren, probability, Path.Combine(Path.GetTempPath(), "promptuarium-big-trees.prm")).ConfigureAwait(false);
         }
 
         private Element GenerateTree(int minimumChildren, int maximumChildren, double probability)
@@ -58,7 +61,7 @@ namespace PromptuariumTests
                         Data = Data.FromUtf8String(string.Format("LEVEL: {0}, NODE: {1}", level, nodeGuid))
                     };
 
-                    GenerateTree(child, minimumChildren, maximumChildren, probability * probability, level++);
+                    GenerateTree(child, minimumChildren, maximumChildren, probability * probability, level + 1);
 
                     node.Add(child);
                 }

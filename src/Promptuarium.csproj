@@ -3,7 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
-    <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
     <AnalysisLevel>preview</AnalysisLevel>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
@@ -13,7 +12,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>6.1.0</Version>
+    <Version>7.0.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -25,8 +24,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>Fixed an encoder bug with nodes having only empty children (the next node was lost). Iterative algorithms for arbitrarily deep trees. Add moves nodes and refuses cycles, the copy constructor creates a deep copy, fixed statistics minimums and VarInt(long.MinValue), files are loaded read-only. Complete binary format specification (BINARY_FORMAT.md).</ReleaseNotes>
-    <PackageReleaseNotes>Fixed an encoder bug with nodes having only empty children (the next node was lost). Iterative algorithms for arbitrarily deep trees. Add moves nodes and refuses cycles, the copy constructor creates a deep copy, fixed statistics minimums and VarInt(long.MinValue), files are loaded read-only. Complete binary format specification (BINARY_FORMAT.md).</PackageReleaseNotes>
+    <ReleaseNotes>Breaking changes: Parent has a private setter and Children is a real read-only list (use Add, Remove, Detach); the static load events moved to LoadOptions and are fired once per node; Statistics has properties instead of fields and ignores empty streams; Detach(node) returns the detached node and, like Remove, throws if the node is not a child; the indexer throws ArgumentOutOfRangeException; AsByte of an empty content is 0, AsVarInt/AsVarUInt throw for more than 8 bytes, FromByteArray copies the array. New: LoadOptions with MaxBytes and MaxNodes; buffered writing and read-ahead on seekable streams; saving keeps the position of the content streams.</ReleaseNotes>
+    <PackageReleaseNotes>Breaking changes: Parent has a private setter and Children is a real read-only list (use Add, Remove, Detach); the static load events moved to LoadOptions and are fired once per node; Statistics has properties instead of fields and ignores empty streams; Detach(node) returns the detached node and, like Remove, throws if the node is not a child; the indexer throws ArgumentOutOfRangeException; AsByte of an empty content is 0, AsVarInt/AsVarUInt throw for more than 8 bytes, FromByteArray copies the array. New: LoadOptions with MaxBytes and MaxNodes; buffered writing and read-ahead on seekable streams; saving keeps the position of the content streams.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>
