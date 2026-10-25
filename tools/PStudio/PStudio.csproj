@@ -12,6 +12,8 @@
     <IsPackable>false</IsPackable>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- The texts are formatted with the invariant culture, so the self-contained build needs no ICU -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>

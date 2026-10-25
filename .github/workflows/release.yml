@@ -63,6 +63,13 @@ jobs:
           dotnet publish tools/PStudio/PStudio.csproj -c Release -o publish/pstudio
           (cd publish && zip -qr "../artifacts/pstudio-$TAG.zip" pstudio)
 
+      # A pre-release (8.0.0-rc1) is 8.0.0~rc1 for Debian, so that it comes before 8.0.0
+      - name: Debian package of PStudio
+        if: hashFiles('tools/PStudio/packaging/build-deb.sh') != ''
+        run: |
+          tools/PStudio/packaging/build-deb.sh --version "${TAG/-/\~}" --output deb-build
+          mv deb-build/*.deb artifacts/
+
       - name: Release notes
         run: |
           {
@@ -79,6 +86,10 @@ jobs:
 
             if [ -f "artifacts/pstudio-$TAG.zip" ]; then
               echo "- PStudio, the graphical editor for Windows, Linux and macOS (requires .NET 10: \`dotnet pstudio/pstudio.dll\`)."
+            fi
+
+            if ls artifacts/pstudio_*.deb > /dev/null 2>&1; then
+              echo "- PStudio for Debian and Ubuntu (amd64, no .NET needed): \`sudo apt install ./pstudio_*.deb\`. It opens the Promptuarium containers, and adds their rules to \`/etc/magic\`, so that \`file\` recognizes them."
             fi
           } > release-notes.md
 

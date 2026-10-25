@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A Promptuarium container with a signed root: the first control byte is Down | MetaData | Linear (0x6_),
+     followed by the signature "PRMT" (BINARY_FORMAT.md, 10) -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-promptuarium">
+    <comment>Promptuarium container</comment>
+    <icon name="application-x-promptuarium"/>
+    <glob pattern="*.prmt"/>
+    <magic priority="60">
+      <match type="string" offset="1" value="PRMT">
+        <match type="byte" offset="0" value="0x60" mask="0xF0"/>
+      </match>
+    </magic>
+  </mime-type>
+</mime-info>
