@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,6 +39,9 @@ public partial class Element : IEnumerable<Element>
     public IReadOnlyList<Element> Children { get; }
 
     private readonly List<Element> children = new();
+
+    // Block size of the content comparison
+    private const int CompareBlockSize = 64 * 1024;
     
     #endregion
 
@@ -187,7 +191,7 @@ public partial class Element : IEnumerable<Element>
     #region Tree operations
     
     /// <summary>
-    /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
+    /// Adds node(s) to the tree. A node that has another parent is moved here.
     /// </summary>
     /// <param name="nodes">The nodes to be added</param>
     /// <exception cref="PromptuariumException">Thrown if the node is already a child of this node, or if it is this node or one of its ancestors</exception>
@@ -239,7 +243,7 @@ public partial class Element : IEnumerable<Element>
     }
 
     /// <summary>
-    /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
+    /// Adds node(s) to the tree. A node that has another parent is moved here.
     /// </summary>
     /// <param name="nodes">The nodes to be added</param>
     /// <exception cref="PromptuariumException">Thrown if the node already exists in the tree</exception>
@@ -264,32 +268,6 @@ public partial class Element : IEnumerable<Element>
         }
 
         return this;
-    }
-
-    /// <summary>
-    /// Add node(s) to the tree. Node can be null, in this case nothing will happen.
-    /// </summary>
-    /// <param name="tree">The tree to be extended</param>
-    /// <param name="node">The node to be added</param>
-    /// <exception cref="PromptuariumException">Thrown if the node already exists in the tree</exception>
-    /// <example>
-    /// <code>
-    /// var tree = new Element();
-    /// 
-    /// var node1 = new Element();
-    /// var node2 = new Element();
-    /// var node3 = new Element();
-    /// 
-    /// tree += node1;
-    /// tree += node2;
-    /// tree += node3;
-    /// </code>
-    /// </example>
-    public static Element operator +(Element tree, Element node)
-    {
-        ArgumentNullException.ThrowIfNull(tree);
-        tree.Add(node);
-        return tree;
     }
 
     /// <summary>
@@ -328,32 +306,6 @@ public partial class Element : IEnumerable<Element>
         }
 
         return this;
-    }
-
-    /// <summary>
-    /// Removes a subtree or node recursively.
-    /// </summary>
-    /// <param name="tree">The tree to be shrunk</param>
-    /// <param name="node">The node to be removed</param>
-    /// <exception cref="PromptuariumException">Thrown if the node is not a child of the tree</exception>
-    /// <example>
-    /// <code>
-    /// var tree = new Element();
-    /// 
-    /// var node1 = new Element();
-    /// var node2 = new Element();
-    /// var node3 = new Element();
-    /// 
-    /// tree.Add(node1, node2, node3);
-    /// 
-    /// tree -= node2;
-    /// </code>
-    /// </example>
-    public static Element operator -(Element tree, Element node)
-    {
-        ArgumentNullException.ThrowIfNull(tree);
-        tree.Remove(node);
-        return tree;
     }
 
     /// <summary>
@@ -466,6 +418,62 @@ public partial class Element : IEnumerable<Element>
         return this;
     }
     
+    #endregion
+
+    #region Comparison
+
+    /// <summary>
+    /// Compares the structure and the contents of two trees: the data, the metadata and the children (in order) of every node.
+    /// </summary>
+    /// <remarks>
+    /// An absent (null) and an empty content are equal, as in the binary format. The parents are not compared,
+    /// so a subtree can be compared to a standalone tree. The positions of the content streams do not change.
+    /// (Equals is not overridden: a tree is mutable, and the tree operations identify the nodes by reference.)
+    /// </remarks>
+    /// <param name="other">The other tree</param>
+    /// <returns>True, if the two trees have the same structure and contents</returns>
+    /// <example>
+    /// <code>
+    /// var loaded = await Element.LoadAsync(stream);
+    /// bool same = tree.StructurallyEquals(loaded);
+    /// </code>
+    /// </example>
+    public bool StructurallyEquals(Element? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack
+        var nodes = new Stack<(Element Left, Element Right)>();
+        nodes.Push((this, other));
+
+        while (nodes.Count > 0)
+        {
+            (Element left, Element right) = nodes.Pop();
+
+            if (ReferenceEquals(left, right))
+            {
+                continue;
+            }
+
+            if (left.Children.Count != right.Children.Count ||
+                !ContentEquals(left.Data, right.Data) ||
+                !ContentEquals(left.MetaData, right.MetaData))
+            {
+                return false;
+            }
+
+            for (int childIndex = 0; childIndex < left.Children.Count; childIndex++)
+            {
+                nodes.Push((left.Children[childIndex], right.Children[childIndex]));
+            }
+        }
+
+        return true;
+    }
+
     #endregion
 
     #region Conversion functions
@@ -665,7 +673,7 @@ public partial class Element : IEnumerable<Element>
 
     #region Private Methods
     /// <summary>
-    /// Add node(s) to the tree, unsafely, but quickly. Node can be null, in this case nothing will happen.
+    /// Adds a node to the tree, without checks.
     /// </summary>
     /// <param name="node">The node to be added</param>
     private void UnsafeAdd(Element node)
@@ -730,6 +738,57 @@ public partial class Element : IEnumerable<Element>
         }
 
         return false;
+    }
+
+    private static bool ContentEquals(Stream? left, Stream? right)
+    {
+        long leftLength = left?.Length ?? 0;
+        long rightLength = right?.Length ?? 0;
+
+        if (leftLength != rightLength)
+        {
+            return false;
+        }
+
+        if (leftLength == 0 || ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        // Compared in blocks, the positions of the streams are restored
+        long leftPosition = left!.Position;
+        long rightPosition = right!.Position;
+        byte[] leftBuffer = ArrayPool<byte>.Shared.Rent(CompareBlockSize);
+        byte[] rightBuffer = ArrayPool<byte>.Shared.Rent(CompareBlockSize);
+
+        try
+        {
+            left.Position = 0;
+            right.Position = 0;
+
+            for (long remaining = leftLength; remaining > 0;)
+            {
+                int length = (int)Math.Min(remaining, CompareBlockSize);
+                left.ReadExactly(leftBuffer, 0, length);
+                right.ReadExactly(rightBuffer, 0, length);
+
+                if (!leftBuffer.AsSpan(0, length).SequenceEqual(rightBuffer.AsSpan(0, length)))
+                {
+                    return false;
+                }
+
+                remaining -= length;
+            }
+
+            return true;
+        }
+        finally
+        {
+            left.Position = leftPosition;
+            right.Position = rightPosition;
+            ArrayPool<byte>.Shared.Return(leftBuffer);
+            ArrayPool<byte>.Shared.Return(rightBuffer);
+        }
     }
 
     private static MemoryStream? CopyStream(Stream? source)

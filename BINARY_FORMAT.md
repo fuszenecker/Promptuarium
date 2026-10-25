@@ -51,7 +51,7 @@ The container stores **no type information**, no names and no keys: data and met
 
 The format does not distinguish an *absent* content from an *empty* (zero-length) one: an implementation MAY represent both as an empty byte sequence.
 
-A node is **empty** if its data and metadata are both zero-length and it has no children. Empty nodes are not stored (see [6.4](#64-empty-nodes)).
+A node is **empty** if its data and metadata are both zero-length and it has no children. Empty nodes are part of the structure like any other node, and they are preserved (see [6.4](#64-empty-nodes)): a tree is always loaded with exactly the same structure as it was saved.
 
 A stream holds exactly **one tree** (one root node). Several trees can follow each other in the same stream (see [section 7](#7-streaming)).
 
@@ -112,7 +112,12 @@ The decoder keeps two cursors, `parent` and `node` (see [section 5](#5-decoding)
 
 ### 4.2 Content type
 
-The payload is appended to `node.data` (`T = 0`) or to `node.metadata` (`T = 1`). For a zero-length payload the content type has no effect.
+The payload is appended to `node.data` (`T = 0`) or to `node.metadata` (`T = 1`).
+
+A zero-length payload has no content to append, so on a chunk that creates a node (Down, Up or New with length 0) the `T` bit has a structural meaning instead:
+
+* `T = 0`: an **auxiliary node**. It is a placeholder (a node without content that has children) or an Up marker (see [6.3](#63-climbing-more-than-one-level)). It is removed after loading if it ends up empty.
+* `T = 1`: an **empty node**. It is part of the tree and is kept, even though it has no content and no children.
 
 ### 4.3 Payload length
 
@@ -134,9 +139,8 @@ The payload is appended to `node.data` (`T = 0`) or to `node.metadata` (`T = 1`)
 |------------|---------|
 | `00`, `20` | Terminator (Append, linear, length 0). The encoder writes `00`; the decoder MUST accept both. |
 | `10`, `30` | **Not** a terminator: Append with a logarithmic length of 16 bytes. |
-| `40`, `60` | Down with an empty payload: a **placeholder** (a node that has only children). The encoder writes `40`. |
-| `80`, `A0` | Up with an empty payload: an **Up marker**, used to climb more than one level. The encoder writes `80`. |
-| `C0`, `E0` | New with an empty payload: an empty sibling. Never written by the encoder, but valid. |
+| `40`, `80`, `C0` | Down, Up or New with an empty payload and `T = 0`: an **auxiliary node**, removed if it ends up empty. Written as a placeholder for a node without content that has children (`40`, `80`, `C0`), and as an **Up marker** to climb more than one level (`80`). |
+| `60`, `A0`, `E0` | Down, Up or New with an empty payload and `T = 1`: an **empty node** (no content, no children), which is kept. |
 
 ## 5. Decoding
 
@@ -174,6 +178,8 @@ function decode(stream) -> Node:
             bytes = read exactly len bytes        // end of stream here is an error
             if (c & 0x20) == 0: append bytes to node.data
             else:               append bytes to node.metadata
+        else if (c & 0x20) != 0:
+            node.kept = true                      // empty node (60, A0, E0): part of the tree
 
     remove_empty_nodes(virtual)
     if virtual.children is empty: return new Node      // no data, no metadata, no children
@@ -182,13 +188,14 @@ function decode(stream) -> Node:
     return root                         // further children of the virtual root are ignored
 
 function remove_empty_nodes(virtual):
+    // Removes the auxiliary nodes (placeholders and Up markers) that ended up empty.
     // Bottom-up: every node is processed after all of its descendants.
     for each node in reverse pre-order of the tree under virtual (including virtual):
         remove every child c of node where
-            c.data is empty and c.metadata is empty and c.children is empty
+            c.data is empty and c.metadata is empty and c.children is empty and not c.kept
 ```
 
-Reverse pre-order visits every node after all of its descendants, so a node whose children were all removed is removed in turn when its parent is processed.
+Reverse pre-order visits every node after all of its descendants, so a node whose children were all removed is removed in turn when its parent is processed. The `kept` flag is only needed while loading.
 
 ### 5.2 Rules and edge cases
 
@@ -197,8 +204,9 @@ Reverse pre-order visits every node after all of its descendants, so a node whos
 * **Siblings of the root.** Up or New chunks that create further nodes at the root level (more children of the virtual root) are valid, but these nodes are ignored.
 * **Interleaving.** Data and metadata chunks of the same node MAY be interleaved; each payload is appended to its own content in stream order. (The encoder writes all data chunks first.)
 * **Chunk sizes.** Any split of a content into chunks is valid, e.g. a decoder MUST accept 100 linear chunks of 15 bytes. The split of the encoder is described in [6.2](#62-splitting-a-content-into-chunks).
-* **Zero-length chunks.** A Down, Up or New chunk with length 0 only creates a node. An Append chunk with length 0 is always the terminator.
-* **Empty nodes.** Placeholders and Up markers create nodes that may end up empty; `remove_empty_nodes` removes them. The removal is bottom-up, so a placeholder whose whole subtree has no content disappears as well.
+* **Zero-length chunks.** A Down, Up or New chunk with length 0 only creates a node: an auxiliary node with `T = 0`, an empty node with `T = 1` (see [4.2](#42-content-type)). An Append chunk with length 0 is always the terminator.
+* **Auxiliary nodes.** Placeholders and Up markers create nodes that may end up empty; `remove_empty_nodes` removes them. The removal is bottom-up, so an auxiliary node whose whole subtree was removed disappears as well.
+* **Content after a marker.** A node created by a zero-length chunk can still receive content by Append chunks; it is then an ordinary node. (Encoders never write this.)
 * **Terminator.** After the terminator the decoder MUST NOT read any further byte.
 * **Parent of the root.** The returned root has no parent.
 
@@ -216,8 +224,6 @@ function encode(root, out):
     while stack is not empty:
         (n, d) = stack.pop()
 
-        if is_empty(n): continue        // see 6.4
-
         if d > prev:                    // always d == prev + 1
             dir = Down
         else if d == prev:
@@ -227,7 +233,10 @@ function encode(root, out):
             dir = Up
 
         if len(n.data) == 0 and len(n.metadata) == 0:
-            write byte (dir | Data | Linear | 0)              // placeholder: 0x40, 0xC0 or 0x80
+            if n.children is not empty:
+                write byte (dir | Data | Linear | 0)          // placeholder: 40, C0 or 80
+            else:
+                write byte (dir | MetaData | Linear | 0)      // empty node:  60, E0 or A0
 
         for each (S, nibble, length) in split(len(n.data)):
             write byte (dir | Data | S | nibble)
@@ -244,14 +253,11 @@ function encode(root, out):
             stack.push((c, d + 1))
 
     write byte 0x00                     // terminator
-
-function is_empty(n):
-    return len(n.data) == 0 and len(n.metadata) == 0 and n.children is empty
 ```
 
 Notes:
 
-* `is_empty` only looks at the node itself: a node whose children are all empty is **not** empty. It is written (as a placeholder if it has no content of its own), its children are skipped, and for the next node it counts as a node without children.
+* Every node is written, including the empty ones.
 * The first chunk of a node carries `dir`; every further chunk of the same node (data and metadata) is an Append chunk.
 * `d > prev + 1` never happens: a node is pushed only after its parent was written, and the subtree of the parent is processed right after it.
 * Up markers are only written before a node. After the last node no markers are written; the terminator follows directly.
@@ -289,7 +295,7 @@ Examples (the control bytes of the data chunks of a root node; its first chunk i
 | 1048576 | 524288 + 524288                                      | `5F 1F` |
 | 1048577 | 524288 + 524288 + 1                                  | `5F 1F 01` |
 
-### 6.3 Directions illustrated
+### 6.3 Climbing more than one level
 
 ```text
 R("R")                      41 52         Down, d=0 (prev=-1)
@@ -301,11 +307,17 @@ R("R")                      41 52         Down, d=0 (prev=-1)
                             00            terminator
 ```
 
-Decoding the markers: after `D` the parent is `C`. `80` makes `B` the parent (and creates an empty node), the next `80` makes `A` the parent (and creates an empty node), `81 45` makes `R` the parent and creates `E`. The two empty nodes are removed at the end.
+Decoding the markers: after `D` the parent is `C`. `80` makes `B` the parent (and creates an auxiliary node), the next `80` makes `A` the parent (and creates an auxiliary node), `81 45` makes `R` the parent and creates `E`. The two auxiliary nodes are removed at the end.
+
+If `E` were an empty node, the last chunk would be `A0` instead of `81 45`.
 
 ### 6.4 Empty nodes
 
-Empty nodes (no data, no metadata, no children) are never written and do not change `prev`, so they do not influence the direction of the next node. Consequently they are not preserved by a save/load round trip, and neither are subtrees that consist only of empty nodes and nodes without content.
+An empty node (no data, no metadata, no children) is written as a single zero-length chunk with `T = 1` (`60`, `E0` or `A0`), so it is kept by the decoder. Like any other node, it changes `prev`.
+
+A node without content but with children is written as a placeholder with `T = 0` (`40`, `C0` or `80`); the decoder keeps it, because its children are kept.
+
+So the structure is always preserved: the same nodes in the same order, wherever they are and whatever they contain. Positions in a list of children never shift.
 
 ## 7. Streaming
 
@@ -338,23 +350,25 @@ Everything else is valid input, including a stream that ends between two chunks 
 
 ## 9. Test vectors
 
-All payloads are ASCII. `(empty)` is a node without data, metadata and children; `c` is a node without data and metadata.
+All payloads are ASCII. `(empty)` is a node without data, metadata and children; `c` is a node without data and metadata (but with children).
 
 ### 9.1 Encoding (tree → bytes)
 
-An encoder MUST produce exactly these bytes, and a decoder MUST reproduce the tree from them (except for the empty nodes, which are not stored).
+An encoder MUST produce exactly these bytes, and a decoder MUST reproduce exactly the same tree from them.
 
 | Tree | Bytes |
 |------|-------|
-| `(empty)` | `00` |
+| `(empty)` | `60 00` |
 | `R("R")` | `41 52 00` |
 | node with data `"ab"` and metadata `"c"` | `42 61 62 21 63 00` |
 | node with metadata `"m"` only, child `a("a")` | `61 6D 41 61 00` |
 | `R("R") [A("A"), B("B"), C("C")]` | `41 52 41 41 C1 42 C1 43 00` |
 | `R("R") [X("X") [c [d("d")]], Y(data "Y", metadata "m")]` | `41 52 41 58 40 41 64 80 81 59 21 6D 00` |
 | `R("R") [A("A") [B("B") [C("C") [D("D")]]], E("E")]` | `41 52 41 41 41 42 41 43 41 44 80 80 81 45 00` |
-| `R("R") [X("X") [c [(empty)]], Y("Y")]` | `41 52 41 58 40 81 59 00` |
-| `P("P") [(empty), M("M")]` | `41 50 41 4D 00` |
+| `R("R") [X("X") [c [(empty)]], Y("Y")]` | `41 52 41 58 40 60 80 81 59 00` |
+| `P("P") [(empty), M("M")]` | `41 50 60 C1 4D 00` |
+| `P("P") [(empty), M("M"), c [(empty), (empty)]]` | `41 50 60 C1 4D C0 60 E0 00` |
+| `R("R") [A("A") [B("B")], (empty)]` | `41 52 41 41 41 42 A0 00` |
 | data of 37 zero bytes | `51`, 32 × `00`, `05`, 5 × `00`, `00` |
 
 The worked example `41 52 41 58 40 41 64 80 81 59 21 6D 00`, byte by byte:
@@ -365,7 +379,7 @@ The worked example `41 52 41 58 40 41 64 80 81 59 21 6D 00`, byte by byte:
 | `41 58` | Down, data, linear, 1       | parent = `R`, node = `X`; data `"X"` |
 | `40`    | Down, data, linear, 0       | parent = `X`, node = `c` (placeholder) |
 | `41 64` | Down, data, linear, 1       | parent = `c`, node = `d`; data `"d"` |
-| `80`    | Up, data, linear, 0         | parent = `X`, node = new empty node (removed later) |
+| `80`    | Up, data, linear, 0         | parent = `X`, node = new auxiliary node (removed later) |
 | `81 59` | Up, data, linear, 1         | parent = `R`, node = `Y`; data `"Y"` |
 | `21 6D` | Append, metadata, linear, 1 | metadata of `Y`: `"m"` |
 | `00`    | Append, data, linear, 0     | terminator |
@@ -377,6 +391,7 @@ The encoder never writes these streams, but a decoder MUST handle them like this
 | Bytes | Result |
 |-------|--------|
 | (empty stream) | `(empty)` |
+| `00` | `(empty)` (an empty root written by older encoders) |
 | `41 61` (no terminator) | `a("a")` |
 | `42 61` (truncated payload) | error: unexpected end of stream |
 | `81 52 00` | error: navigating above the root |
@@ -387,7 +402,8 @@ The encoder never writes these streams, but a decoder MUST handle them like this
 | `41 61 10`, 16 × `62`, `00` | data `"a"` followed by 16 × `"b"` (`10` is not a terminator) |
 | `41 61 20 41 62 00` | `a("a")`: `20` is a terminator, `41 62 00` is not read |
 | `60 41 61 00` | a root without content, with child `a("a")` |
-| `41 52 41 41`, N × `C0`, `C1 42 00` | `R("R") [A("A"), B("B")]` (the N empty siblings are removed) |
+| `41 52 40 C0 C1 41 00` | `R("R") [A("A")]` (the auxiliary nodes `40` and `C0` are removed) |
+| `41 52 41 41`, N × `C0`, `C1 42 00` | `R("R") [A("A"), B("B")]` (the N auxiliary siblings are removed) |
 | N × `40`, `00` | `(empty)` (all placeholders are removed) |
 
 ## 10. File identification (optional convention)
@@ -463,8 +479,15 @@ Without a signature, a Promptuarium stream can not be recognized reliably: it us
 
 ## 11. Compatibility and history
 
-The format and the decoding rules have never changed: every stream ever written can be loaded.
-The version numbers below are versions of the reference implementation in this repository, not of the format. Its current encoder writes the same bytes as the older ones for every tree that they encoded correctly, but older encoders had bugs with empty nodes:
+Every stream ever written can be loaded. The version numbers below are versions of the reference implementation in this repository, not of the format.
+
+**Empty nodes.** Older encoders did not write empty nodes at all, and never wrote a zero-length chunk with `T = 1` (`60`, `A0`, `E0`): in every older stream, all zero-length node-creating chunks are auxiliary nodes. Therefore:
+
+* streams of older encoders are loaded exactly as before;
+* a decoder that does not know about empty nodes (any older version) loads a current stream correctly, except that it drops the empty nodes, as it always did;
+* for trees without empty nodes, the current encoder writes exactly the same bytes as the older encoders (where they were correct).
+
+**Encoder bugs of older versions** (all of them with empty nodes):
 
 * **Up to 5.0.0:** an empty first child (or an empty last child after a subtree) still counted as the previous node, so the next node was attached to the wrong parent.
   `P("P") [(empty), M("M")]` was written as `41 50 C1 4D 00`: `M` became a sibling of the root and was lost.
@@ -475,9 +498,9 @@ Since 6.0.0 the reference reader works on non-seekable streams, handles partial 
 
 ## 12. Implementation notes
 
-* **No recursion.** Trees can be arbitrarily deep (a malicious stream may contain millions of `40` bytes). Use explicit stacks for encoding, decoding, removing empty nodes, copying and freeing trees. Where destructors are recursive (e.g. nested owned children in Rust or C++), freeing a deep tree overflows the stack as well: store the nodes in an arena (an array of nodes referring to each other by index) or free them iteratively.
-* **Linear removal of empty nodes.** Remove the empty children of a node in one pass (e.g. `retain`), not one by one; otherwise a stream with many empty siblings takes quadratic time.
+* **No recursion.** Trees can be arbitrarily deep (a malicious stream may contain millions of `40` bytes). Use explicit stacks for encoding, decoding, removing auxiliary nodes, copying and freeing trees. Where destructors are recursive (e.g. nested owned children in Rust or C++), freeing a deep tree overflows the stack as well: store the nodes in an arena (an array of nodes referring to each other by index) or free them iteratively.
+* **Linear removal of auxiliary nodes.** Remove the auxiliary children of a node in one pass (e.g. `retain`), not one by one; otherwise a stream with many auxiliary siblings takes quadratic time.
 * **Buffers.** One buffer of 524289 bytes (control byte + largest payload) is enough for encoding, 524288 bytes for decoding.
 * **Lengths.** The format does not limit the length of a content; a content of more than 512 KiB is simply a sequence of chunks. Implementations SHOULD use 64-bit lengths.
 * **Untrusted input.** The format has no length prefix to validate: a decoder simply grows the contents. Limit the total number of bytes or nodes if the input is untrusted.
-* **Equality.** Two trees are equal for the format if they have the same structure and contents after removing the empty nodes; absent and zero-length contents are the same.
+* **Equality.** Two trees are equal for the format if they have the same structure (the same nodes, in the same order, empty nodes included) and the same contents; absent and zero-length contents are the same.

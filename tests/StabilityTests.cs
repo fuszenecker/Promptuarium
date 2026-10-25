@@ -73,7 +73,6 @@ namespace PromptuariumTests
             for (int x = 0; x < maxTests; x++)
             {
                 Element originalTree = GenerateTree(minChildren, maxChildren, probability);
-                string originalTreeString = originalTree.TreeToString();
                 await originalTree.SaveAsync(fileName).ConfigureAwait(false);
 
                 Statistics stats = originalTree.GetStatistics();
@@ -81,9 +80,7 @@ namespace PromptuariumTests
                 Assert.IsTrue(new FileInfo(fileName).Length > 0);
 
                 Element currentTree = await Element.LoadAsync(fileName).ConfigureAwait(false);
-                string currentTreeString = currentTree.TreeToString();
-
-                Assert.AreEqual(originalTreeString, currentTreeString);
+                Assert.IsTrue(originalTree.StructurallyEquals(currentTree));
             }
         }
     }

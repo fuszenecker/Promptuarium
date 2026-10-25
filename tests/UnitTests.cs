@@ -159,7 +159,7 @@ namespace PromptuariumTests
 
             var tree = new Element(null, null);
 
-            tree += child1;
+            tree.Add(child1);
             tree.Add(child2, child3);
 
             Assert.AreEqual(null, tree.Parent);
@@ -244,7 +244,7 @@ namespace PromptuariumTests
 
             tree.Remove(tree[2]);
             // tree.Remove(null);
-            tree -= tree[0];
+            tree.Remove(tree[0]);
 
             Assert.AreEqual(6, nodes - tree.GetStatistics().Nodes);
         }
@@ -312,9 +312,11 @@ namespace PromptuariumTests
 
             var tree2 = await Element.LoadAsync(stream).ConfigureAwait(false);
 
-            Assert.AreEqual("P", tree2.Data?.AsAsciiString());
-            Assert.AreEqual(1, tree2.Children.Count);
-            Assert.AreEqual("M", tree2[0].Data?.AsAsciiString());
+            // The empty node is kept, so the positions of the siblings do not change
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
+            Assert.AreEqual(2, tree2.Children.Count);
+            Assert.IsNull(tree2[0].Data);
+            Assert.AreEqual("M", tree2[1].Data?.AsAsciiString());
         }
 
         [TestMethod]
@@ -333,11 +335,10 @@ namespace PromptuariumTests
 
             var tree2 = await Element.LoadAsync(stream).ConfigureAwait(false);
 
-            Assert.AreEqual(2, tree2.Children.Count);
-            Assert.AreEqual("X", tree2[0].Data?.AsAsciiString());
-            Assert.AreEqual(1, tree2[0].Children.Count);
-            Assert.AreEqual("C", tree2[0][0].Data?.AsAsciiString());
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
+            Assert.AreEqual(2, tree2[0].Children.Count);
             Assert.AreEqual("D", tree2[0][0][0].Data?.AsAsciiString());
+            Assert.AreEqual(0, tree2[0][1].Children.Count);
             Assert.AreEqual("Y", tree2[1].Data?.AsAsciiString());
         }
 
@@ -375,17 +376,14 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
-        public async Task TreeToString()
+        public async Task RoundTrip()
         {
             var tree = CreateTestTree();
 
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            string treeString = tree.TreeToString();
-            string treeString2 = tree2.TreeToString();
-
-            Assert.AreEqual(treeString2, treeString);
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -514,8 +512,8 @@ namespace PromptuariumTests
             var outerTree = new Element();
             var innerTree = new Element();
 
-            innerTree += new Element() { Data = Data.FromInt(0x55aa0044) };
-            innerTree += new Element() { MetaData = Data.FromInt(0x55aa00ff) };
+            innerTree.Add(new Element() { Data = Data.FromInt(0x55aa0044) });
+            innerTree.Add(new Element() { MetaData = Data.FromInt(0x55aa00ff) });
 
             outerTree.MetaData = Data.FromShort(1000);
             outerTree.Data = await Data.FromElementAsync(innerTree).ConfigureAwait(false);
@@ -537,11 +535,11 @@ namespace PromptuariumTests
             var birthDay = new DateTime(1978, 10, 27, 8, 0, 0, 230);
             var testTimeSpan = new TimeSpan(1978, 12, 27, 8, 239);
 
-            tree += new Element
+            tree.Add(new Element
             {
                 Data = Data.FromDateTime(birthDay),
                 MetaData = Data.FromTimeSpan(testTimeSpan)
-            };
+            });
 
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
@@ -549,9 +547,7 @@ namespace PromptuariumTests
             Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTime()));
             Assert.AreEqual(0, testTimeSpan.CompareTo(tree2[0].MetaData?.AsTimeSpan()));
 
-            string treeString = tree.TreeToString();
-            string tree2String = tree2.TreeToString();
-            Assert.AreEqual(treeString, tree2String);
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -562,19 +558,17 @@ namespace PromptuariumTests
             var testTimeSpan = new TimeSpan(3, 0, 0);
             var birthDay = new DateTimeOffset(1978, 10, 27, 8, 0, 0, 230, testTimeSpan);
 
-            tree += new Element
+            tree.Add(new Element
             {
                 Data = Data.FromDateTimeOffset(birthDay),
-            };
+            });
 
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
             Assert.AreEqual(0, birthDay.CompareTo(tree2[0].Data?.AsDateTimeOffset() ?? throw new ArgumentNullException("Test failed.")));
 
-            string treeString = tree.TreeToString();
-            string tree2String = tree2.TreeToString();
-            Assert.AreEqual(treeString, tree2String);
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -596,9 +590,7 @@ namespace PromptuariumTests
             Assert.AreEqual('Ä', tree2[0].Data?.AsChar());
             Assert.AreEqual('Ő', tree2[0].MetaData?.AsChar());
 
-            string treeString = tree.TreeToString();
-            string tree2String = tree2.TreeToString();
-            Assert.AreEqual(treeString, tree2String);
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -619,7 +611,7 @@ namespace PromptuariumTests
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(tree.TreeToString(), tree2.TreeToString());
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -639,7 +631,7 @@ namespace PromptuariumTests
 
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
             var tree2 = await Element.LoadAsync(TestFileName).ConfigureAwait(false);
-            Assert.AreEqual(tree.TreeToString(), tree2.TreeToString());
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -669,14 +661,8 @@ namespace PromptuariumTests
             var tree2A = await Element.LoadAsync(stream).ConfigureAwait(false);
             var tree2B = await Element.LoadAsync(stream).ConfigureAwait(false);
 
-            string sTreeA = treeA.TreeToString();
-            string sTreeB = treeB.TreeToString();
-
-            string sTree2A = tree2A.TreeToString();
-            string sTree2B = tree2B.TreeToString();
-
-            Assert.AreEqual(sTreeA, sTree2A);
-            Assert.AreEqual(sTreeB, sTree2B);
+            Assert.IsTrue(treeA.StructurallyEquals(tree2A));
+            Assert.IsTrue(treeB.StructurallyEquals(tree2B));
         }
 
         [TestMethod]
@@ -877,9 +863,9 @@ namespace PromptuariumTests
             var child2 = new Element() { MetaData = Data.FromAsciiString("child2") };
             var child3 = new Element() { MetaData = Data.FromAsciiString("child3") };
 
-            child2 += child3;
-            child1 += child2;
-            tree += child1;
+            child2.Add(child3);
+            child1.Add(child2);
+            tree.Add(child1);
 
             using var ms = new MemoryStream();
             await tree.SaveAsync(ms).ConfigureAwait(false);
@@ -894,7 +880,9 @@ namespace PromptuariumTests
 
             await tree.SaveAsync(TestFileName).ConfigureAwait(false);
 
-            Assert.AreEqual(1, new FileInfo(TestFileName).Length);
+            // The empty root (60) and the terminator (00)
+            Assert.AreEqual(2, new FileInfo(TestFileName).Length);
+            Assert.IsTrue(tree.StructurallyEquals(await Element.LoadAsync(TestFileName).ConfigureAwait(false)));
         }
 
         [TestMethod]
@@ -970,7 +958,7 @@ namespace PromptuariumTests
 
             var tree2 = await Element.FromBase64StringAsync(base64String).ConfigureAwait(false);
 
-            Assert.AreEqual(tree1.TreeToString(), tree2.TreeToString());
+            Assert.IsTrue(tree1.StructurallyEquals(tree2));
         }
 
         #region Private methods

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,14 +41,48 @@ namespace PromptuariumTests
                     new Element(null, null, new Element())),
                 Node("Y"));
 
+            // 40: placeholder of the node without content, 60: the empty node, 80 81: two levels up
             byte[] bytes = await SaveAsync(tree).ConfigureAwait(false);
-            CollectionAssert.AreEqual(new byte[] { 0x41, 0x52, 0x41, 0x58, 0x40, 0x81, 0x59, 0x00 }, bytes);
+            CollectionAssert.AreEqual(new byte[] { 0x41, 0x52, 0x41, 0x58, 0x40, 0x60, 0x80, 0x81, 0x59, 0x00 }, bytes);
 
             var loaded = await LoadAsync(bytes).ConfigureAwait(false);
-            Assert.AreEqual(2, loaded.Children.Count);
-            Assert.AreEqual("X", loaded[0].Data?.AsAsciiString());
-            Assert.AreEqual(0, loaded[0].Children.Count);
-            Assert.AreEqual("Y", loaded[1].Data?.AsAsciiString());
+            Assert.IsTrue(tree.StructurallyEquals(loaded));
+        }
+
+        [TestMethod]
+        public async Task EmptyNodesAreKept()
+        {
+            var tree = Node("P", new Element(), Node("M"), new Element(null, null, new Element(), new Element()));
+
+            // 60 (Down, empty), C1 4D (New, "M"), C0 (New, placeholder), 60 E0 (Down and New, empty)
+            byte[] bytes = await SaveAsync(tree).ConfigureAwait(false);
+            CollectionAssert.AreEqual(new byte[] { 0x41, 0x50, 0x60, 0xC1, 0x4D, 0xC0, 0x60, 0xE0, 0x00 }, bytes);
+
+            var loaded = await LoadAsync(bytes).ConfigureAwait(false);
+            Assert.IsTrue(tree.StructurallyEquals(loaded));
+            Assert.AreEqual(3, loaded.Children.Count);
+            Assert.AreEqual(2, loaded[2].Children.Count);
+        }
+
+        [TestMethod]
+        public async Task EmptyNodeAfterClimbingUp()
+        {
+            var tree = Node("R", Node("A", Node("B")), new Element());
+
+            // A0: an empty node reached by Up (kept)
+            byte[] bytes = await SaveAsync(tree).ConfigureAwait(false);
+            CollectionAssert.AreEqual(new byte[] { 0x41, 0x52, 0x41, 0x41, 0x41, 0x42, 0xA0, 0x00 }, bytes);
+
+            Assert.IsTrue(tree.StructurallyEquals(await LoadAsync(bytes).ConfigureAwait(false)));
+        }
+
+        [TestMethod]
+        public async Task OldPlaceholdersAreStillRemoved()
+        {
+            // Streams of older encoders: the empty Data type chunks (40, C0, 80) only create placeholders
+            var loaded = await LoadAsync(new byte[] { 0x41, 0x52, 0x40, 0xC0, 0xC1, 0x41, 0x00 }).ConfigureAwait(false);
+
+            Assert.IsTrue(Node("R", Node("A")).StructurallyEquals(loaded));
         }
 
         [TestMethod]
@@ -235,7 +269,7 @@ namespace PromptuariumTests
 
             var copy = new Element(original);
 
-            Assert.AreEqual(original.TreeToString(), copy.TreeToString());
+            Assert.IsTrue(original.StructurallyEquals(copy));
             Assert.IsNull(copy.Parent);
             Assert.AreNotSame(child, copy[0]);
             Assert.AreEqual(copy, copy[0].Parent);
@@ -339,7 +373,7 @@ namespace PromptuariumTests
             var loaded = await LoadAsync(await SaveAsync(outer).ConfigureAwait(false)).ConfigureAwait(false);
             var innerLoaded = await loaded.Data!.AsElementAsync().ConfigureAwait(false);
 
-            Assert.AreEqual(inner.TreeToString(), innerLoaded.TreeToString());
+            Assert.IsTrue(inner.StructurallyEquals(innerLoaded));
         }
 
         #endregion

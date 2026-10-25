@@ -35,13 +35,6 @@ public partial class Element
         while (nodes.Count > 0)
         {
             (Element node, int depth) = nodes.Pop();
-
-            // Empty nodes are not written, so they must not affect the navigation of the following nodes
-            if (IsEmpty(node))
-            {
-                continue;
-            }
-
             Directions direction;
 
             if (depth > previousDepth)
@@ -78,10 +71,13 @@ public partial class Element
 
     private async Task SerializeNodeAsync(ChunkWriter writer, Directions direction, CancellationToken cancellationToken)
     {
-        // If the node has only children, an empty chunk creates the node in the decoder
+        // A node without content is created by an empty chunk:
+        // - a node with children is a placeholder (Data type), the decoder keeps it because of its children,
+        // - an empty node is marked to be kept (MetaData type), otherwise the decoder would remove it.
         if (!Contains(Data) && !Contains(MetaData))
         {
-            await writer.WriteControlByteAsync(ControlByte(direction, DataType.Data, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
+            DataType marker = Children.Count > 0 ? DataType.Data : DataType.MetaData;
+            await writer.WriteControlByteAsync(ControlByte(direction, marker, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
         }
 
         #region Saving Data
@@ -199,11 +195,6 @@ public partial class Element
         return stream?.Length > 0;
     }
 
-    private static bool IsEmpty(Element node)
-    {
-        return !Contains(node.Data) && !Contains(node.MetaData) && node.Children.Count == 0;
-    }
-
     #endregion
 
     #region Deserialization routines
@@ -214,6 +205,9 @@ public partial class Element
         Element parent = root;
         Element node = root;
         long nodes = 0;
+
+        // Nodes created by an empty MetaData chunk: empty nodes that are part of the tree
+        var keptNodes = new HashSet<Element>(ReferenceEqualityComparer.Instance);
 
         // The content of the current node that has been started (for the loaded events)
         bool dataStarted = false;
@@ -298,6 +292,11 @@ public partial class Element
 
                 if (chunkSize == 0)
                 {
+                    if (!IsDataChunk(controlByte))
+                    {
+                        keptNodes.Add(node);
+                    }
+
                     continue;
                 }
 
@@ -332,7 +331,7 @@ public partial class Element
             reader.Finish();
         }
 
-        FinishLoadedTree(root);
+        FinishLoadedTree(root, keptNodes);
 
         if (root.Children.Count > 0)
         {
@@ -355,9 +354,9 @@ public partial class Element
     private static bool IsDataChunk(byte controlByte) => (controlByte & (byte)DataType.Mask) == (byte)DataType.Data;
 
     /// <summary>
-    /// Removes the empty nodes (placeholders) and rewinds the loaded streams.
+    /// Removes the empty nodes (placeholders and Up markers, but not the kept empty nodes) and rewinds the loaded streams.
     /// </summary>
-    private static void FinishLoadedTree(Element root)
+    private static void FinishLoadedTree(Element root, HashSet<Element> keptNodes)
     {
         // In reverse pre-order every node comes after its descendants,
         // so a node's children are already purged when the node itself is processed.
@@ -369,7 +368,7 @@ public partial class Element
             Element node = nodes[index];
             node.Data?.Seek(0, SeekOrigin.Begin);
             node.MetaData?.Seek(0, SeekOrigin.Begin);
-            node.children.RemoveAll(child => child.Data == null && child.MetaData == null && child.Children.Count == 0);
+            node.children.RemoveAll(child => child.Data == null && child.MetaData == null && child.Children.Count == 0 && !keptNodes.Contains(child));
         }
     }
 

@@ -46,6 +46,9 @@ var options = new LoadOptions { MaxBytes = 10 * 1024 * 1024, MaxNodes = 100_000 
 var received = await Element.LoadAsync(networkStream, options, cancellationToken);
 ```
 
+The **structure is always preserved**: every node is saved and loaded in the same position, empty nodes included. `StructurallyEquals` compares two trees (structure and contents).
+Reading the contents (`ToString`, the conversions, copying, comparing) never changes the position of the content streams.
+
 The `GetStatistics()` method gives information about i.e.
 
 * the number of nodes,

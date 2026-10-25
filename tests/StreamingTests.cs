@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +23,7 @@ namespace PromptuariumTests
             using var stream = new TrickleStream(memoryStream.ToArray());
             var tree2 = await Element.LoadAsync(stream).ConfigureAwait(false);
 
-            Assert.AreEqual(tree.TreeToString(), tree2.TreeToString());
+            Assert.IsTrue(tree.StructurallyEquals(tree2));
         }
 
         [TestMethod]
@@ -55,8 +55,8 @@ namespace PromptuariumTests
             var loaded1 = await Element.LoadAsync(stream).ConfigureAwait(false);
             var loaded2 = await Element.LoadAsync(stream).ConfigureAwait(false);
 
-            Assert.AreEqual(tree1.TreeToString(), loaded1.TreeToString());
-            Assert.AreEqual(tree2.TreeToString(), loaded2.TreeToString());
+            Assert.IsTrue(tree1.StructurallyEquals(loaded1));
+            Assert.IsTrue(tree2.StructurallyEquals(loaded2));
 
             // The reader must not consume anything beyond the terminator of the second tree
             Assert.AreEqual(0x42, stream.ReadByte());

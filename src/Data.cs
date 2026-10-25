@@ -964,11 +964,18 @@ public static class Data
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        Element result;
+        // Reading does not change the position of the stream
+        long originalPosition = stream.Position;
         stream.Position = 0;
-        result = await Element.LoadAsync(stream).ConfigureAwait(false);
-        stream.Position = 0;
-        return result;
+
+        try
+        {
+            return await Element.LoadAsync(stream).ConfigureAwait(false);
+        }
+        finally
+        {
+            stream.Position = originalPosition;
+        }
     }
     #endregion
 
@@ -996,11 +1003,21 @@ public static class Data
     private static byte[] GetBuffer(Stream stream, int size)
     {
         byte[] buffer = new byte[size];
+
+        // Reading does not change the position of the stream
+        long originalPosition = stream.Position;
         stream.Position = 0;
 
-        // A shorter stream leaves the rest of the buffer zero (e.g. VarInt)
-        stream.ReadAtLeast(buffer, size, throwOnEndOfStream: false);
-        stream.Position = 0;
+        try
+        {
+            // A shorter stream leaves the rest of the buffer zero (e.g. VarInt)
+            stream.ReadAtLeast(buffer, size, throwOnEndOfStream: false);
+        }
+        finally
+        {
+            stream.Position = originalPosition;
+        }
+
         return buffer;
     }
 

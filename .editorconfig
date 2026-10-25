@@ -2,9 +2,8 @@ is_global = true
 roslynator_analyzers.enabled_by_default = true
 roslynator_refactorings.enabled = true
 roslynator_compiler_diagnostic_fixes.enabled = true
-# The public API is kept for compatibility: the Data class name and the operators without named alternatives
+# The public API is kept for compatibility: the Data class name
 dotnet_diagnostic.CA1724.severity = none
-dotnet_diagnostic.CA2225.severity = none
 
 # The Mask members of the control byte enumerations share their values with the flags by design
 dotnet_diagnostic.CA1069.severity = none

@@ -78,6 +78,73 @@ namespace PromptuariumTests
             Assert.AreEqual(1, stats.ShortestData);
         }
 
+        [TestMethod]
+        public void StructurallyEqualsComparesStructureAndContent()
+        {
+            Element Tree() => Node("R", Node("A", Node("A1")), new Element(null, Data.FromInt(7)), new Element());
+
+            Assert.IsTrue(Tree().StructurallyEquals(Tree()));
+            Assert.IsFalse(Tree().StructurallyEquals(null));
+
+            // Different content, metadata, number and order of children
+            Assert.IsFalse(Tree().StructurallyEquals(Node("X", Node("A", Node("A1")), new Element(null, Data.FromInt(7)), new Element())));
+            Assert.IsFalse(Tree().StructurallyEquals(Node("R", Node("A", Node("A1")), new Element(null, Data.FromInt(8)), new Element())));
+            Assert.IsFalse(Tree().StructurallyEquals(Node("R", Node("A", Node("A1")), new Element(null, Data.FromInt(7)))));
+            Assert.IsFalse(Tree().StructurallyEquals(Node("R", new Element(null, Data.FromInt(7)), Node("A", Node("A1")), new Element())));
+            Assert.IsFalse(Tree().StructurallyEquals(Node("R", Node("A", Node("A2")), new Element(null, Data.FromInt(7)), new Element())));
+
+            // Absent and empty contents are equal, the parent is not compared
+            Assert.IsTrue(new Element(null, null).StructurallyEquals(new Element(new MemoryStream(), new MemoryStream())));
+            Assert.IsTrue(Tree()[0].StructurallyEquals(Node("A", Node("A1"))));
+        }
+
+        [TestMethod]
+        public void StructurallyEqualsComparesLongContents()
+        {
+            byte[] bytes = new byte[200_000];
+            new Random(3).NextBytes(bytes);
+            byte[] other = (byte[])bytes.Clone();
+            other[199_999] ^= 1;
+
+            Assert.IsTrue(new Element(Data.FromByteArray(bytes), null).StructurallyEquals(new Element(Data.FromByteArray(bytes), null)));
+            Assert.IsFalse(new Element(Data.FromByteArray(bytes), null).StructurallyEquals(new Element(Data.FromByteArray(other), null)));
+        }
+
+        #endregion
+
+        #region No side effects
+
+        [TestMethod]
+        public void ReadingDoesNotChangeThePositions()
+        {
+            var tree = new Element(Data.FromAsciiString("Hello"), Data.FromInt(42), Node("A"));
+            tree.Data!.Position = 3;
+            tree.MetaData!.Position = 1;
+
+            _ = tree.ToString();
+            _ = tree.TreeToString();
+            _ = new Element(tree);
+            _ = tree.StructurallyEquals(new Element(tree));
+            _ = tree.Data.AsAsciiString();
+            _ = tree.MetaData.AsInt();
+            _ = tree.Data.AsByteArray();
+
+            Assert.AreEqual(3, tree.Data.Position);
+            Assert.AreEqual(1, tree.MetaData.Position);
+        }
+
+        [TestMethod]
+        public async Task AsElementDoesNotChangeThePosition()
+        {
+            using Stream content = await Data.FromElementAsync(Node("R")).ConfigureAwait(false);
+            content.Position = 1;
+
+            var tree = await content.AsElementAsync().ConfigureAwait(false);
+
+            Assert.AreEqual("R", tree.Data?.AsAsciiString());
+            Assert.AreEqual(1, content.Position);
+        }
+
         #endregion
 
         #region Saving and loading
