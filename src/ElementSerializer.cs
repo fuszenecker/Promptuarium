@@ -1,32 +1,25 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Buffers;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using System;
 
 namespace Promptuarium;
 
 public partial class Element
 {
-    #region Private types
+    #region Encoding
 
-    private struct SizeDescriptor
+    /// <summary>
+    /// The canonical chunks of the tree (BINARY_FORMAT.md, section 6), the terminator included.
+    /// A payload is a slice of the content, nothing is copied.
+    /// </summary>
+    private IEnumerable<(byte Control, ReadOnlyMemory<byte> Payload)> EncodeChunks()
     {
-        public SizeType SizeType;
-        public byte SizeBits;
-    }
-
-    #endregion
-
-    #region Serialization routines
-
-    private async Task SerializeAsync(Stream stream, CancellationToken cancellationToken)
-    {
-        using var writer = new ChunkWriter(stream);
-
-        // The tree is written in pre-order. The decoder starts on a virtual root (depth -1),
+        // Pre-order, without recursion. The decoder starts on a virtual root (depth -1),
         // so the direction of each node follows from its depth and the depth of the previously written node.
         var nodes = new Stack<(Element Node, int Depth)>();
         nodes.Push((this, 0));
@@ -47,93 +40,90 @@ public partial class Element
             }
             else
             {
-                // Up climbs one level only, the extra levels are climbed by empty Up markers
-                for (int x = 0; x < previousDepth - depth - 1; x++)
+                // Up climbs one level only, the extra levels are climbed by Up markers
+                for (int level = 0; level < previousDepth - depth - 1; level++)
                 {
-                    await writer.WriteControlByteAsync(ControlByte(Directions.Up, DataType.Data, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
+                    yield return (ControlByte(Directions.Up, DataType.Data, SizeType.Linear, 0), ReadOnlyMemory<byte>.Empty);
                 }
 
                 direction = Directions.Up;
             }
 
-            await node.SerializeNodeAsync(writer, direction, cancellationToken).ConfigureAwait(false);
-            previousDepth = depth;
-
-            for (int childIndex = node.Children.Count - 1; childIndex >= 0; childIndex--)
+            if (node.Data.IsEmpty && node.MetaData.IsEmpty)
             {
-                nodes.Push((node.Children[childIndex], depth + 1));
+                // A placeholder (Data type) for a node with children, an empty node (MetaData type) otherwise
+                DataType marker = node.Children.Count > 0 ? DataType.Data : DataType.MetaData;
+                yield return (ControlByte(direction, marker, SizeType.Linear, 0), ReadOnlyMemory<byte>.Empty);
             }
-        }
 
-        await writer.WriteControlByteAsync(ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
-        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task SerializeNodeAsync(ChunkWriter writer, Directions direction, CancellationToken cancellationToken)
-    {
-        // A node without content is created by an empty chunk:
-        // - a node with children is a placeholder (Data type), the decoder keeps it because of its children,
-        // - an empty node is marked to be kept (MetaData type), otherwise the decoder would remove it.
-        if (!Contains(Data) && !Contains(MetaData))
-        {
-            DataType marker = Children.Count > 0 ? DataType.Data : DataType.MetaData;
-            await writer.WriteControlByteAsync(ControlByte(direction, marker, SizeType.Linear, 0), cancellationToken).ConfigureAwait(false);
-        }
-
-        #region Saving Data
-
-        // Firing event
-        OnDataSaving?.Invoke(this, new PromptuariumSavingEventArgs());
-
-        if (Contains(Data))
-        {
-            direction = await SerializeContentAsync(writer, Data!, DataType.Data, direction, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Firing event
-        OnDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
-
-        #endregion
-
-        #region Saving MetaData
-
-        // Firing event
-        OnMetaDataSaving?.Invoke(this, new PromptuariumSavingEventArgs());
-
-        if (Contains(MetaData))
-        {
-            await SerializeContentAsync(writer, MetaData!, DataType.MetaData, direction, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Firing event
-        OnMetaDataSaved?.Invoke(this, new PromptuariumSavedEventArgs());
-
-        #endregion
-    }
-
-    /// <returns>The direction of the next chunk of the same node (always Append)</returns>
-    private static async Task<Directions> SerializeContentAsync(ChunkWriter writer, Stream source, DataType dataType, Directions direction, CancellationToken cancellationToken)
-    {
-        // The position of the content is restored, saving does not change the stream
-        long originalPosition = source.Position;
-        source.Position = 0;
-
-        try
-        {
-            foreach (SizeDescriptor size in GetSizes(source.Length))
+            foreach ((byte control, ReadOnlyMemory<byte> payload) in EncodeContent(node.Data, DataType.Data, direction))
             {
-                int chunkSize = size.SizeType == SizeType.Linear ? size.SizeBits : 1 << (size.SizeBits + NibbleSizeInBits);
-
-                await writer.WriteChunkAsync(ControlByte(direction, dataType, size.SizeType, size.SizeBits), source, chunkSize, cancellationToken).ConfigureAwait(false);
+                yield return (control, payload);
                 direction = Directions.Append;
             }
-        }
-        finally
-        {
-            source.Position = originalPosition;
+
+            foreach ((byte control, ReadOnlyMemory<byte> payload) in EncodeContent(node.MetaData, DataType.MetaData, direction))
+            {
+                yield return (control, payload);
+                direction = Directions.Append;
+            }
+
+            previousDepth = depth;
+
+            for (int index = node.Children.Count - 1; index >= 0; index--)
+            {
+                nodes.Push((node.Children[index], depth + 1));
+            }
         }
 
-        return direction;
+        yield return (ControlByte(Directions.Append, DataType.Data, SizeType.Linear, 0), ReadOnlyMemory<byte>.Empty);
+    }
+
+    /// <summary>
+    /// The chunks of a content (BINARY_FORMAT.md, 6.2): full 512 KiB chunks, the remainder in binary, the low 4 bits as a linear chunk.
+    /// The first chunk has the given direction, the others are Append chunks.
+    /// </summary>
+    private static IEnumerable<(byte Control, ReadOnlyMemory<byte> Payload)> EncodeContent(ReadOnlyMemory<byte> content, DataType dataType, Directions direction)
+    {
+        while (!content.IsEmpty)
+        {
+            byte control;
+            int length;
+
+            if (content.Length > ChunkMaxValue)
+            {
+                control = ControlByte(direction, dataType, SizeType.Logarithmic, NibbleMaxValue);
+                length = (int)ChunkMaxValue;
+            }
+            else if (content.Length > NibbleMaxValue)
+            {
+                // The highest set bit, between NibbleSizeInBits and ChunkSizeInBits
+                int bit = BitOperations.Log2((uint)content.Length);
+                control = ControlByte(direction, dataType, SizeType.Logarithmic, (byte)(bit - NibbleSizeInBits));
+                length = 1 << bit;
+            }
+            else
+            {
+                control = ControlByte(direction, dataType, SizeType.Linear, (byte)content.Length);
+                length = content.Length;
+            }
+
+            yield return (control, content[..length]);
+            content = content[length..];
+            direction = Directions.Append;
+        }
+    }
+
+    private async Task SerializeAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var writer = new ChunkWriter(stream);
+
+        foreach ((byte control, ReadOnlyMemory<byte> payload) in EncodeChunks())
+        {
+            await writer.WriteAsync(control, payload, cancellationToken).ConfigureAwait(false);
+        }
+
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static byte ControlByte(Directions direction, DataType dataType, SizeType sizeType, byte sizeBits)
@@ -146,229 +136,230 @@ public partial class Element
         throw new PromptuariumException($"Size bits greater than the max value ({NibbleMaxValue.ToString(CultureInfo.InvariantCulture)} bits)");
     }
 
-    private static IEnumerable<SizeDescriptor> GetSizes(long size)
-    {
-        long word = size;
-
-        while (word > 0)
-        {
-            // Logarithmic sizes
-            if (word > ChunkMaxValue)
-            {
-                yield return new SizeDescriptor
-                {
-                    SizeType = SizeType.Logarithmic,
-                    SizeBits = NibbleMaxValue
-                };
-
-                word -= ChunkMaxValue;
-            }
-            else if (word > NibbleMaxValue)
-            {
-                // The highest set bit (between NibbleSizeInBits and ChunkSizeInBits)
-                byte bit = (byte)(63 - BitOperations.LeadingZeroCount((ulong)word));
-
-                yield return new SizeDescriptor
-                {
-                    SizeType = SizeType.Logarithmic,
-                    SizeBits = (byte)(bit - NibbleSizeInBits)
-                };
-
-                word -= (long)1 << bit;
-            }
-            // Linear sizes
-            else
-            {
-                yield return new SizeDescriptor
-                {
-                    SizeType = SizeType.Linear,
-                    SizeBits = (byte)word
-                };
-
-                word = 0;
-            }
-        }
-    }
-
-    private static bool Contains(Stream? stream)
-    {
-        return stream?.Length > 0;
-    }
-
     #endregion
 
-    #region Deserialization routines
+    #region Decoding
 
     private static async Task<Element> DeserializeAsync(Stream stream, LoadOptions? options, CancellationToken cancellationToken)
     {
-        var root = new Element();
-        Element parent = root;
-        Element node = root;
-        long nodes = 0;
+        var decoder = new Decoder(options);
 
-        // Nodes created by an empty MetaData chunk: empty nodes that are part of the tree
-        var keptNodes = new HashSet<Element>(ReferenceEqualityComparer.Instance);
-
-        // The content of the current node that has been started (for the loaded events)
-        bool dataStarted = false;
-        bool metaDataStarted = false;
-
-        void FinishNode()
-        {
-            if (dataStarted)
-            {
-                options?.FireDataLoaded(node);
-            }
-
-            if (metaDataStarted)
-            {
-                options?.FireMetaDataLoaded(node);
-            }
-
-            dataStarted = false;
-            metaDataStarted = false;
-        }
-
-        Element AddNode(Element nodeParent)
-        {
-            if (++nodes > options?.MaxNodes)
-            {
-                throw new PromptuariumException($"The stream contains more nodes than the limit ({options.MaxNodes.Value.ToString(CultureInfo.InvariantCulture)}).");
-            }
-
-            FinishNode();
-
-            var newNode = new Element();
-            nodeParent.UnsafeAdd(newNode);
-            return newNode;
-        }
-
-        using var reader = new ChunkReader(stream, options?.MaxBytes);
+        // On a seekable stream, blocks are read ahead, and the stream is positioned back after the tree at the end.
+        // On a non-seekable stream, only the bytes the decoder needs are read, so nothing after the tree is consumed.
+        bool readAhead = stream.CanSeek;
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(ReadBufferSize);
+        int position = 0;
+        int count = 0;
 
         try
         {
-            // Reading stops at the terminator (or at the end of the stream), and never reads beyond it,
-            // so the stream does not need to be seekable and may contain further data after the tree.
-            int nextByte;
-
-            while ((nextByte = await reader.ReadByteAsync(cancellationToken).ConfigureAwait(false)) >= 0)
+            while (!decoder.Done)
             {
-                byte controlByte = (byte)nextByte;
-
-                switch (controlByte & (byte) Directions.Mask)
+                if (position == count)
                 {
-                    case (byte) Directions.New:
-                        node = AddNode(parent);
-                        break;
+                    int length = readAhead ? ReadBufferSize : Math.Min(decoder.Wanted, ReadBufferSize);
+                    count = await stream.ReadAsync(buffer.AsMemory(0, length), cancellationToken).ConfigureAwait(false);
+                    position = 0;
 
-                    case (byte) Directions.Down:
-                        parent = node;
-                        node = AddNode(parent);
-                        break;
-
-                    case (byte) Directions.Up:
-                        if (parent.Parent != null)
-                        {
-                            parent = parent.Parent;
-                            node = AddNode(parent);
-                        }
-                        else
-                        {
-                            throw new PromptuariumException("Navigating upper the root node during deserialization.");
-                        }
-
-                        break;
-
-                    case (byte) Directions.Append:
-                        break;
-                }
-
-                int chunkSize = GetChunkSize(controlByte);
-
-                if (((controlByte & (byte)Directions.Mask) == (byte) Directions.Append) && (chunkSize == 0))
-                {
-                    break;
-                }
-
-                if (chunkSize == 0)
-                {
-                    if (!IsDataChunk(controlByte))
+                    if (count == 0)
                     {
-                        keptNodes.Add(node);
+                        break;
                     }
-
-                    continue;
                 }
 
-                if (IsDataChunk(controlByte))
-                {
-                    if (!dataStarted)
-                    {
-                        node.Data ??= new MemoryStream();
-                        dataStarted = true;
-                        options?.FireDataLoading(node);
-                    }
-
-                    await reader.ReadPayloadAsync(node.Data!, chunkSize, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    if (!metaDataStarted)
-                    {
-                        node.MetaData ??= new MemoryStream();
-                        metaDataStarted = true;
-                        options?.FireMetaDataLoading(node);
-                    }
-
-                    await reader.ReadPayloadAsync(node.MetaData!, chunkSize, cancellationToken).ConfigureAwait(false);
-                }
+                position += decoder.Push(buffer.AsSpan(position, count - position));
             }
 
-            FinishNode();
+            if (readAhead && count > position)
+            {
+                stream.Seek(position - count, SeekOrigin.Current);
+            }
         }
         finally
         {
-            reader.Finish();
+            ArrayPool<byte>.Shared.Return(buffer);
         }
 
-        FinishLoadedTree(root, keptNodes);
-
-        if (root.Children.Count > 0)
-        {
-            Element result = root.Children[0];
-            result.Parent = null;
-            return result;
-        }
-        else
-        {
-            return new Element();
-        }
+        return decoder.Finish();
     }
 
-    private static int GetChunkSize(byte controlByte) => IsSizeLogarithmic(controlByte) ?
-        1 << ((controlByte & NibbleMaxValue) + NibbleSizeInBits) :
-        controlByte & NibbleMaxValue;
-
-    private static bool IsSizeLogarithmic(byte controlByte) => (controlByte & (byte)SizeType.Mask) == (byte)SizeType.Logarithmic;
-
-    private static bool IsDataChunk(byte controlByte) => (controlByte & (byte)DataType.Mask) == (byte)DataType.Data;
-
     /// <summary>
-    /// Removes the empty nodes (placeholders and Up markers, but not the kept empty nodes) and rewinds the loaded streams.
+    /// A push-based decoder (BINARY_FORMAT.md, section 5): it is fed with bytes until it is done, then it gives the tree.
+    /// It never consumes bytes after the terminator.
     /// </summary>
-    private static void FinishLoadedTree(Element root, HashSet<Element> keptNodes)
+    private sealed class Decoder
     {
-        // In reverse pre-order every node comes after its descendants,
-        // so a node's children are already purged when the node itself is processed.
-        // Iterating (instead of recursion) keeps arbitrarily deep trees from overflowing the stack.
-        List<Element> nodes = PreOrder(root);
+        private readonly long maxBytes;
+        private readonly long maxNodes;
+        private readonly Element virtualRoot = new();
 
-        for (int index = nodes.Count - 1; index >= 0; index--)
+        // Nodes created by an empty MetaData chunk: empty nodes that are part of the tree
+        private readonly HashSet<Element> keptNodes = new(ReferenceEqualityComparer.Instance);
+
+        // The contents of the current node, collected until the decoder moves to another node
+        private readonly ArrayBufferWriter<byte> data = new();
+        private readonly ArrayBufferWriter<byte> metaData = new();
+
+        private Element parent;
+        private Element node;
+
+        // The rest of the payload being read
+        private int remaining;
+        private ArrayBufferWriter<byte>? payloadTarget;
+
+        private long bytes;
+        private long nodes;
+
+        public Decoder(LoadOptions? options)
         {
-            Element node = nodes[index];
-            node.Data?.Seek(0, SeekOrigin.Begin);
-            node.MetaData?.Seek(0, SeekOrigin.Begin);
-            node.children.RemoveAll(child => child.Data == null && child.MetaData == null && child.Children.Count == 0 && !keptNodes.Contains(child));
+            maxBytes = options?.MaxBytes ?? long.MaxValue;
+            maxNodes = options?.MaxNodes ?? long.MaxValue;
+            parent = virtualRoot;
+            node = virtualRoot;
+        }
+
+        /// <summary>True after the terminator.</summary>
+        public bool Done { get; private set; }
+
+        /// <summary>The number of bytes the decoder needs at least: 1 for a control byte, or the rest of the payload.</summary>
+        public int Wanted => remaining > 0 ? remaining : 1;
+
+        /// <returns>The number of bytes consumed; less than the length of the input only if the terminator was reached</returns>
+        public int Push(ReadOnlySpan<byte> input)
+        {
+            int offset = 0;
+
+            while (offset < input.Length && !Done)
+            {
+                if (remaining > 0)
+                {
+                    int length = Math.Min(remaining, input.Length - offset);
+                    Count(length);
+                    payloadTarget!.Write(input.Slice(offset, length));
+                    remaining -= length;
+                    offset += length;
+                    continue;
+                }
+
+                Count(1);
+                Chunk(input[offset++]);
+            }
+
+            return offset;
+        }
+
+        /// <summary>
+        /// Removes the auxiliary nodes and returns the tree. A missing terminator is accepted, but a stream that ends inside a payload is an error.
+        /// </summary>
+        public Element Finish()
+        {
+            if (remaining > 0)
+            {
+                throw new PromptuariumException("Unexpected end of stream during deserialization.");
+            }
+
+            FinishNode();
+            RemoveAuxiliaryNodes();
+
+            if (virtualRoot.Children.Count == 0)
+            {
+                return new Element();
+            }
+
+            Element root = virtualRoot.Children[0];
+            root.Parent = null;
+            return root;
+        }
+
+        private void Chunk(byte controlByte)
+        {
+            switch (controlByte & (byte)Directions.Mask)
+            {
+                case (byte)Directions.New:
+                    NewNode(parent);
+                    break;
+
+                case (byte)Directions.Down:
+                    parent = node;
+                    NewNode(parent);
+                    break;
+
+                case (byte)Directions.Up:
+                    parent = parent.Parent ?? throw new PromptuariumException("Navigating upper the root node during deserialization.");
+                    NewNode(parent);
+                    break;
+            }
+
+            bool isMetaData = (controlByte & (byte)DataType.Mask) == (byte)DataType.MetaData;
+            int length = (controlByte & (byte)SizeType.Mask) == (byte)SizeType.Logarithmic
+                ? 1 << ((controlByte & NibbleMaxValue) + NibbleSizeInBits)
+                : controlByte & NibbleMaxValue;
+
+            if (length > 0)
+            {
+                remaining = length;
+                payloadTarget = isMetaData ? metaData : data;
+            }
+            else if ((controlByte & (byte)Directions.Mask) == (byte)Directions.Append)
+            {
+                Done = true;
+            }
+            else if (isMetaData)
+            {
+                // An empty node (60, A0, E0): part of the tree
+                keptNodes.Add(node);
+            }
+        }
+
+        private void NewNode(Element nodeParent)
+        {
+            if (++nodes > maxNodes)
+            {
+                throw new PromptuariumException($"The stream contains more nodes than the limit ({maxNodes.ToString(CultureInfo.InvariantCulture)}).");
+            }
+
+            FinishNode();
+            node = new Element();
+            nodeParent.UnsafeAdd(node);
+        }
+
+        /// <summary>Stores the collected contents into the current node.</summary>
+        private void FinishNode()
+        {
+            if (data.WrittenCount > 0)
+            {
+                node.Data = data.WrittenSpan.ToArray();
+                data.ResetWrittenCount();
+            }
+
+            if (metaData.WrittenCount > 0)
+            {
+                node.MetaData = metaData.WrittenSpan.ToArray();
+                metaData.ResetWrittenCount();
+            }
+        }
+
+        private void Count(int length)
+        {
+            bytes += length;
+
+            if (bytes > maxBytes)
+            {
+                throw new PromptuariumException($"The stream is longer than the limit ({maxBytes.ToString(CultureInfo.InvariantCulture)} bytes).");
+            }
+        }
+
+        /// <summary>Removes the auxiliary nodes that ended up empty, bottom-up and in linear time.</summary>
+        private void RemoveAuxiliaryNodes()
+        {
+            // In reverse pre-order every node comes after its descendants
+            List<Element> preOrder = PreOrder(virtualRoot);
+
+            for (int index = preOrder.Count - 1; index >= 0; index--)
+            {
+                preOrder[index].children.RemoveAll(child =>
+                    child.Data.IsEmpty && child.MetaData.IsEmpty && child.Children.Count == 0 && !keptNodes.Contains(child));
+            }
         }
     }
 
@@ -383,9 +374,9 @@ public partial class Element
             Element node = nodes.Pop();
             result.Add(node);
 
-            for (int childIndex = node.Children.Count - 1; childIndex >= 0; childIndex--)
+            for (int index = node.Children.Count - 1; index >= 0; index--)
             {
-                nodes.Push(node.Children[childIndex]);
+                nodes.Push(node.Children[index]);
             }
         }
 

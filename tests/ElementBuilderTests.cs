@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -35,20 +35,20 @@ namespace PromptuariumTests
         {
             Element root = new ElementBuilder().WithSignature(Data.FromAsciiString("PRMT")).Build();
 
-            Assert.IsNull(root.Data);
-            Assert.AreEqual("PRMT", root.MetaData?.AsAsciiString());
+            Assert.IsTrue(root.Data.IsEmpty);
+            Assert.AreEqual("PRMT", root.MetaData.AsAsciiString());
             Assert.AreEqual(0, root.Children.Count);
         }
 
         [TestMethod]
         public void SignatureIsCopied()
         {
-            var signature = new MemoryStream(new byte[] { 1, 2, 3 });
+            byte[] signature = { 1, 2, 3 };
             Element root = new ElementBuilder().WithSignature(signature).Build();
 
-            signature.WriteByte(4);
+            signature[0] = 4;
 
-            CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, root.MetaData?.AsByteArray());
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, root.MetaData.AsByteArray());
         }
 
         [TestMethod]
@@ -56,11 +56,11 @@ namespace PromptuariumTests
         {
             var builder = new ElementBuilder();
 
-            builder.WithSignature(new MemoryStream(new byte[1]));
-            builder.WithSignature(new MemoryStream(new byte[ElementBuilder.MaxSignatureLength]));
+            builder.WithSignature(new byte[1]);
+            builder.WithSignature(new byte[ElementBuilder.MaxSignatureLength]);
 
-            Assert.ThrowsException<ArgumentException>(() => builder.WithSignature(new MemoryStream()));
-            Assert.ThrowsException<ArgumentException>(() => builder.WithSignature(new MemoryStream(new byte[ElementBuilder.MaxSignatureLength + 1])));
+            Assert.ThrowsException<ArgumentException>(() => builder.WithSignature(ReadOnlyMemory<byte>.Empty));
+            Assert.ThrowsException<ArgumentException>(() => builder.WithSignature(new byte[ElementBuilder.MaxSignatureLength + 1]));
         }
 
         [TestMethod]
@@ -86,8 +86,8 @@ namespace PromptuariumTests
                 .WithChildren(child2)
                 .Build();
 
-            Assert.AreEqual(42, node.Data?.AsInt());
-            Assert.AreEqual("answer", node.MetaData?.AsAsciiString());
+            Assert.AreEqual(42, node.Data.AsInt());
+            Assert.AreEqual("answer", node.MetaData.AsAsciiString());
             Assert.AreSame(child1, node[0]);
             Assert.AreSame(child2, node[1]);
             Assert.AreSame(node, child1.Parent);

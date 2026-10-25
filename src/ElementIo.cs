@@ -10,6 +10,84 @@ public partial class Element
     // Buffer size of the file streams
     private const int BufferSize = 64 * 1024;
 
+    #region Byte array functions
+
+    /// <summary>
+    /// Encodes the tree into its canonical byte sequence (BINARY_FORMAT.md, section 6).
+    /// </summary>
+    /// <returns>A new array, exactly as long as the encoding</returns>
+    /// <example>
+    /// <code>
+    /// byte[] bytes = tree.ToBytes();
+    /// </code>
+    /// </example>
+    public byte[] ToBytes()
+    {
+        long length = 0;
+
+        foreach ((_, ReadOnlyMemory<byte> payload) in EncodeChunks())
+        {
+            length += 1 + payload.Length;
+        }
+
+        if (length > Array.MaxLength)
+        {
+            throw new PromptuariumException($"The tree is too large for a byte array ({length.ToString(System.Globalization.CultureInfo.InvariantCulture)} bytes), save it into a stream instead.");
+        }
+
+        byte[] result = new byte[length];
+        int offset = 0;
+
+        foreach ((byte control, ReadOnlyMemory<byte> payload) in EncodeChunks())
+        {
+            result[offset++] = control;
+            payload.Span.CopyTo(result.AsSpan(offset));
+            offset += payload.Length;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Decodes a tree from bytes. Further data (e.g. another tree) may follow the tree.
+    /// </summary>
+    /// <param name="bytes">The bytes</param>
+    /// <param name="options">The limits, or null</param>
+    /// <returns>The tree</returns>
+    /// <exception cref="PromptuariumException">Thrown if the bytes are not a valid Promptuarium stream, or if they exceed a limit</exception>
+    /// <example>
+    /// <code>
+    /// var tree = Element.FromBytes(bytes);
+    /// </code>
+    /// </example>
+    public static Element FromBytes(ReadOnlyMemory<byte> bytes, LoadOptions? options = null)
+    {
+        return FromBytes(bytes, options, out _);
+    }
+
+    /// <summary>
+    /// Decodes a tree from bytes, and tells where the tree ends (further trees may follow from there).
+    /// </summary>
+    /// <param name="bytes">The bytes</param>
+    /// <param name="options">The limits, or null</param>
+    /// <param name="consumed">The number of bytes of the tree, up to and including the terminator</param>
+    /// <returns>The tree</returns>
+    /// <exception cref="PromptuariumException">Thrown if the bytes are not a valid Promptuarium stream, or if they exceed a limit</exception>
+    /// <example>
+    /// <code>
+    /// var first = Element.FromBytes(bytes, null, out int consumed);
+    /// var second = Element.FromBytes(bytes[consumed..]);
+    /// </code>
+    /// </example>
+    public static Element FromBytes(ReadOnlyMemory<byte> bytes, LoadOptions? options, out int consumed)
+    {
+        var decoder = new Decoder(options);
+        consumed = decoder.Push(bytes.Span);
+        return decoder.Finish();
+    }
+
+    #endregion
+
     #region Load functions
 
     /// <summary>
@@ -31,10 +109,10 @@ public partial class Element
     }
 
     /// <summary>
-    /// Loads a tree from a stream, with limits and events.
+    /// Loads a tree from a stream, with limits.
     /// </summary>
     /// <param name="stream">The source stream</param>
-    /// <param name="options">The limits and events, or null</param>
+    /// <param name="options">The limits, or null</param>
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>The tree, if no error occurred</returns>
     /// <exception cref="PromptuariumException">Thrown if the stream is not a valid Promptuarium stream, or if it exceeds a limit</exception>
@@ -85,10 +163,10 @@ public partial class Element
     }
 
     /// <summary>
-    /// Loads a tree from a file, with limits and events.
+    /// Loads a tree from a file, with limits.
     /// </summary>
     /// <param name="fileName">The source file name</param>
-    /// <param name="options">The limits and events, or null</param>
+    /// <param name="options">The limits, or null</param>
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>The tree, if no error occurred</returns>
     /// <exception cref="PromptuariumException">Thrown if the file is not a valid Promptuarium file, or if it exceeds a limit</exception>

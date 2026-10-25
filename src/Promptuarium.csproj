@@ -12,7 +12,7 @@
   <PropertyGroup>
     <PackageId>Promptuarium</PackageId>
     <Title>Promptuarium</Title>
-    <Version>7.1.0</Version>
+    <Version>8.0.0</Version>
     <Authors>Fuszenecker Róbert</Authors>
     <Owners>Fuszenecker Róbert</Owners>
     <Company>Fuszenecker Software Development</Company>
@@ -24,8 +24,8 @@
     <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
-    <ReleaseNotes>New: ElementBuilder (with signed roots), Element.Insert, the pedit command line tool (attached to the GitHub release). Releases are created automatically from version tags.</ReleaseNotes>
-    <PackageReleaseNotes>New: ElementBuilder (with signed roots), Element.Insert, the pedit command line tool (attached to the GitHub release). Releases are created automatically from version tags.</PackageReleaseNotes>
+    <ReleaseNotes>The contents are ReadOnlyMemory&lt;byte&gt; instead of Stream: no positions, no disposal, no side effects. Breaking changes: Data and MetaData are ReadOnlyMemory&lt;byte&gt; (empty instead of null; assign byte arrays directly, use node.Data.AsInt() instead of node.Data?.AsInt()); the Data conversions take and return ReadOnlyMemory&lt;byte&gt;; the save events and the load events are removed. New: ToBytes, FromBytes (also with the number of bytes consumed), ToBase64String, FromBase64String, Data.FromElement, AsElement, Data.FromBytes; the conversions are little-endian on every platform; large contents are saved without copying. The binary format is unchanged.</ReleaseNotes>
+    <PackageReleaseNotes>The contents are ReadOnlyMemory&lt;byte&gt; instead of Stream: no positions, no disposal, no side effects. Breaking changes: Data and MetaData are ReadOnlyMemory&lt;byte&gt; (empty instead of null; assign byte arrays directly, use node.Data.AsInt() instead of node.Data?.AsInt()); the Data conversions take and return ReadOnlyMemory&lt;byte&gt;; the save events and the load events are removed. New: ToBytes, FromBytes (also with the number of bytes consumed), ToBase64String, FromBase64String, Data.FromElement, AsElement, Data.FromBytes; the conversions are little-endian on every platform; large contents are saved without copying. The binary format is unchanged.</PackageReleaseNotes>
     <PackageIconUrl></PackageIconUrl>
     <NeutralLanguage></NeutralLanguage>
     <IncludeSymbols>true</IncludeSymbols>

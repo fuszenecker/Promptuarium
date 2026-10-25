@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -134,7 +134,7 @@ namespace PromptuariumTests
             await Ok("new", file).ConfigureAwait(false);
             await Ok("set", file, "/", "--data", $"file:{content}").ConfigureAwait(false);
 
-            CollectionAssert.AreEqual(bytes, (await Element.LoadAsync(file).ConfigureAwait(false)).Data?.AsByteArray());
+            CollectionAssert.AreEqual(bytes, (await Element.LoadAsync(file).ConfigureAwait(false)).Data.AsByteArray());
         }
 
         [TestMethod]

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -17,14 +16,20 @@ public partial class Element : IEnumerable<Element>
     #region Properties
 
     /// <summary>
-    /// Data storage
+    /// The data of the node (empty by default). An absent and an empty content are the same.
     /// </summary>
-    public Stream? Data { get; set; }
+    /// <remarks>
+    /// A byte array can be assigned directly (it is not copied); <see cref="Promptuarium.Data"/> converts values to contents.
+    /// </remarks>
+    public ReadOnlyMemory<byte> Data { get; set; }
 
     /// <summary>
-    /// Metadata storage
+    /// The metadata of the node (empty by default). An absent and an empty content are the same.
     /// </summary>
-    public Stream? MetaData { get; set; }
+    /// <remarks>
+    /// A byte array can be assigned directly (it is not copied); <see cref="Promptuarium.Data"/> converts values to contents.
+    /// </remarks>
+    public ReadOnlyMemory<byte> MetaData { get; set; }
 
     /// <summary>
     /// Reference to the parent node; root node has null as parent.
@@ -39,9 +44,6 @@ public partial class Element : IEnumerable<Element>
     public IReadOnlyList<Element> Children { get; }
 
     private readonly List<Element> children = new();
-
-    // Block size of the content comparison
-    private const int CompareBlockSize = 64 * 1024;
     
     #endregion
 
@@ -88,8 +90,8 @@ public partial class Element : IEnumerable<Element>
         {
             (Element source, Element copy) = nodes.Pop();
 
-            copy.Data = CopyStream(source.Data);
-            copy.MetaData = CopyStream(source.MetaData);
+            copy.Data = source.Data.ToArray();
+            copy.MetaData = source.MetaData.ToArray();
 
             foreach (Element child in source.Children)
             {
@@ -107,7 +109,7 @@ public partial class Element : IEnumerable<Element>
     /// Contractor that also adds child elements
     /// </summary>
     /// <param name="data">Data of the parent node</param>
-    /// <param name="metaData"></param>
+    /// <param name="metaData">Metadata of the parent node</param>
     /// <param name="children">List of child nodes</param>
     /// <example>
     /// <code>
@@ -121,7 +123,7 @@ public partial class Element : IEnumerable<Element>
     /// var node = new Element(data, metaData, child1, child2, child3);
     /// </code>
     /// </example>
-    public Element(Stream? data, Stream? metaData, params Element[] children)
+    public Element(ReadOnlyMemory<byte> data, ReadOnlyMemory<byte> metaData, params Element[] children)
         : this()
     {
         ArgumentNullException.ThrowIfNull(children);
@@ -136,7 +138,7 @@ public partial class Element : IEnumerable<Element>
     /// LINQ friendly contractor that also adds child elements
     /// </summary>
     /// <param name="data">Data of the parent node</param>
-    /// <param name="metaData"></param>
+    /// <param name="metaData">Metadata of the parent node</param>
     /// <param name="children">LINQ query of child nodes</param>
     /// <example>
     /// <code>
@@ -147,7 +149,7 @@ public partial class Element : IEnumerable<Element>
     ///    Enumerable.Range(0, 10).Select(i => new Element(Data.FromVarInt(i))));
     /// </code>
     /// </example>
-    public Element(Stream? data, Stream? metaData, IEnumerable<Element> children)
+    public Element(ReadOnlyMemory<byte> data, ReadOnlyMemory<byte> metaData, IEnumerable<Element> children)
         : this()
     {
         ArgumentNullException.ThrowIfNull(children);
@@ -457,7 +459,7 @@ public partial class Element : IEnumerable<Element>
     /// </summary>
     /// <remarks>
     /// An absent (null) and an empty content are equal, as in the binary format. The parents are not compared,
-    /// so a subtree can be compared to a standalone tree. The positions of the content streams do not change.
+    /// so a subtree can be compared to a standalone tree.
     /// (Equals is not overridden: a tree is mutable, and the tree operations identify the nodes by reference.)
     /// </remarks>
     /// <param name="other">The other tree</param>
@@ -489,8 +491,8 @@ public partial class Element : IEnumerable<Element>
             }
 
             if (left.Children.Count != right.Children.Count ||
-                !ContentEquals(left.Data, right.Data) ||
-                !ContentEquals(left.MetaData, right.MetaData))
+                !left.Data.Span.SequenceEqual(right.Data.Span) ||
+                !left.MetaData.Span.SequenceEqual(right.MetaData.Span))
             {
                 return false;
             }
@@ -585,14 +587,22 @@ public partial class Element : IEnumerable<Element>
     /// var base64String = await tree.ToBase64StringAsync();
     /// </code>
     /// </example>
-    public async Task<string> ToBase64StringAsync(CancellationToken cancellationToken)
+    public Task<string> ToBase64StringAsync(CancellationToken cancellationToken)
     {
-        using var memoryStream = new MemoryStream();
-
-        await SaveAsync(memoryStream, cancellationToken).ConfigureAwait(false);
-
-        return Convert.ToBase64String(memoryStream.GetBuffer(), 0, (int)memoryStream.Length);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ToBase64String());
     }
+
+    /// <summary>
+    /// Converts the tree to a Base64 string.
+    /// </summary>
+    /// <returns>The tree in Base64.</returns>
+    /// <example>
+    /// <code>
+    /// var base64String = tree.ToBase64String();
+    /// </code>
+    /// </example>
+    public string ToBase64String() => Convert.ToBase64String(ToBytes());
 
     /// <summary>
     /// Converts the tree to Base64 string.
@@ -628,11 +638,23 @@ public partial class Element : IEnumerable<Element>
     /// var tree = await Element.FromBase64StringAsync(base64String);
     /// </code>
     /// </example>
-    public static async Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
+    public static Task<Element> FromBase64StringAsync(string base64String, CancellationToken cancellationToken)
     {
-        using var memoryStream = new MemoryStream(Convert.FromBase64String(base64String));
-        return await LoadAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(FromBase64String(base64String));
     }
+
+    /// <summary>
+    /// Creates a tree from a Base64 string.
+    /// </summary>
+    /// <param name="base64String">The tree in Base64.</param>
+    /// <returns>The tree.</returns>
+    /// <example>
+    /// <code>
+    /// var tree = Element.FromBase64String(base64String);
+    /// </code>
+    /// </example>
+    public static Element FromBase64String(string base64String) => FromBytes(Convert.FromBase64String(base64String));
 
     /// <summary>
     /// Creates a tree from a Base64 string.
@@ -725,30 +747,28 @@ public partial class Element : IEnumerable<Element>
     {
         stringBuilder.Append('(');
 
-        if (Contains(node.MetaData))
+        if (!node.MetaData.IsEmpty)
         {
             stringBuilder.Append('[');
-            ContentToString(node.MetaData!, stringBuilder);
+            ContentToString(node.MetaData.Span, stringBuilder);
             stringBuilder.Append(']');
         }
 
-        if (Contains(node.Data) && Contains(node.MetaData))
+        if (!node.Data.IsEmpty && !node.MetaData.IsEmpty)
         {
             stringBuilder.Append(' ');
         }
 
-        if (Contains(node.Data))
+        if (!node.Data.IsEmpty)
         {
-            ContentToString(node.Data!, stringBuilder);
+            ContentToString(node.Data.Span, stringBuilder);
         }
 
         stringBuilder.Append(')');
     }
 
-    private static void ContentToString(Stream content, StringBuilder stringBuilder)
+    private static void ContentToString(ReadOnlySpan<byte> bytes, StringBuilder stringBuilder)
     {
-        byte[] bytes = content.AsByteArray();
-
         stringBuilder.Append(Convert.ToHexString(bytes));
         stringBuilder.Append(" = \"");
         stringBuilder.Append(Encoding.UTF8.GetString(bytes)
@@ -768,67 +788,6 @@ public partial class Element : IEnumerable<Element>
         }
 
         return false;
-    }
-
-    private static bool ContentEquals(Stream? left, Stream? right)
-    {
-        long leftLength = left?.Length ?? 0;
-        long rightLength = right?.Length ?? 0;
-
-        if (leftLength != rightLength)
-        {
-            return false;
-        }
-
-        if (leftLength == 0 || ReferenceEquals(left, right))
-        {
-            return true;
-        }
-
-        // Compared in blocks, the positions of the streams are restored
-        long leftPosition = left!.Position;
-        long rightPosition = right!.Position;
-        byte[] leftBuffer = ArrayPool<byte>.Shared.Rent(CompareBlockSize);
-        byte[] rightBuffer = ArrayPool<byte>.Shared.Rent(CompareBlockSize);
-
-        try
-        {
-            left.Position = 0;
-            right.Position = 0;
-
-            for (long remaining = leftLength; remaining > 0;)
-            {
-                int length = (int)Math.Min(remaining, CompareBlockSize);
-                left.ReadExactly(leftBuffer, 0, length);
-                right.ReadExactly(rightBuffer, 0, length);
-
-                if (!leftBuffer.AsSpan(0, length).SequenceEqual(rightBuffer.AsSpan(0, length)))
-                {
-                    return false;
-                }
-
-                remaining -= length;
-            }
-
-            return true;
-        }
-        finally
-        {
-            left.Position = leftPosition;
-            right.Position = rightPosition;
-            ArrayPool<byte>.Shared.Return(leftBuffer);
-            ArrayPool<byte>.Shared.Return(rightBuffer);
-        }
-    }
-
-    private static MemoryStream? CopyStream(Stream? source)
-    {
-        if (source == null)
-        {
-            return null;
-        }
-
-        return new MemoryStream(source.AsByteArray());
     }
 
     private string DebuggerDisplay => ToString();

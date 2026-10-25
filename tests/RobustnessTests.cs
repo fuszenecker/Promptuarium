@@ -79,7 +79,7 @@ namespace PromptuariumTests
         [TestMethod]
         public async Task ZeroLengthContentIsAnEmptyNode()
         {
-            var tree = Node("R", new Element(new MemoryStream(), new MemoryStream()), Node("A"));
+            var tree = Node("R", new Element(ReadOnlyMemory<byte>.Empty, ReadOnlyMemory<byte>.Empty), Node("A"));
 
             byte[] bytes = await SaveAsync(tree).ConfigureAwait(false);
             CollectionAssert.AreEqual(new byte[] { 0x41, 0x52, 0x60, 0xC1, 0x41, 0x00 }, bytes);
@@ -124,7 +124,7 @@ namespace PromptuariumTests
             var loaded = await LoadAsync(bytes).ConfigureAwait(false);
 
             Assert.AreEqual(count, loaded.Children.Count);
-            Assert.IsTrue(loaded.Children.All(child => child.Data == null && child.MetaData == null && child.Children.Count == 0));
+            Assert.IsTrue(loaded.Children.All(child => child.Data.IsEmpty && child.MetaData.IsEmpty && child.Children.Count == 0));
             CollectionAssert.AreEqual(bytes, await SaveAsync(loaded).ConfigureAwait(false));
         }
 
@@ -150,10 +150,10 @@ namespace PromptuariumTests
                 random.NextBytes(data);
                 random.NextBytes(metaData);
 
-                var loaded = await LoadAsync(await SaveAsync(new Element(new MemoryStream(data), new MemoryStream(metaData))).ConfigureAwait(false)).ConfigureAwait(false);
+                var loaded = await LoadAsync(await SaveAsync(new Element(data, metaData)).ConfigureAwait(false)).ConfigureAwait(false);
 
-                CollectionAssert.AreEqual(data, loaded.Data?.AsByteArray(), $"Length: {length}");
-                CollectionAssert.AreEqual(metaData, loaded.MetaData?.AsByteArray(), $"Length: {length}");
+                CollectionAssert.AreEqual(data, loaded.Data.AsByteArray(), $"Length: {length}");
+                CollectionAssert.AreEqual(metaData, loaded.MetaData.AsByteArray(), $"Length: {length}");
             }
         }
 
@@ -165,9 +165,8 @@ namespace PromptuariumTests
             Assert.IsNull(loaded.Parent);
             Assert.AreEqual(loaded, loaded[0].Parent);
 
-            // The streams are rewound, so they can be read directly
-            Assert.AreEqual('R', loaded.Data?.ReadByte());
-            Assert.AreEqual('A', loaded[0].Data?.ReadByte());
+            Assert.AreEqual((byte)'R', loaded.Data.Span[0]);
+            Assert.AreEqual((byte)'A', loaded[0].Data.Span[0]);
         }
 
         [TestMethod]
@@ -186,7 +185,7 @@ namespace PromptuariumTests
                 }
 
                 var loaded = await Element.LoadAsync(fileName).ConfigureAwait(false);
-                Assert.AreEqual("R", loaded.Data?.AsAsciiString());
+                Assert.AreEqual("R", loaded.Data.AsAsciiString());
             }
             finally
             {
@@ -221,7 +220,7 @@ namespace PromptuariumTests
             {
                 if (ancestors.Count > 0)
                 {
-                    Assert.AreEqual(++expected, node.Data?.AsVarInt());
+                    Assert.AreEqual(++expected, node.Data.AsVarInt());
                 }
             });
             Assert.AreEqual(Depth - 1, expected);
@@ -239,7 +238,7 @@ namespace PromptuariumTests
 
             var loaded = await LoadAsync(bytes).ConfigureAwait(false);
 
-            Assert.IsNull(loaded.Data);
+            Assert.IsTrue(loaded.Data.IsEmpty);
             Assert.AreEqual(0, loaded.Children.Count);
         }
 
@@ -254,8 +253,8 @@ namespace PromptuariumTests
             var loaded = await LoadAsync(bytes).ConfigureAwait(false);
 
             Assert.AreEqual(2, loaded.Children.Count);
-            Assert.AreEqual("A", loaded[0].Data?.AsAsciiString());
-            Assert.AreEqual("B", loaded[1].Data?.AsAsciiString());
+            Assert.AreEqual("A", loaded[0].Data.AsAsciiString());
+            Assert.AreEqual("B", loaded[1].Data.AsAsciiString());
         }
 
         [TestMethod]
@@ -330,9 +329,12 @@ namespace PromptuariumTests
             Assert.AreEqual(original, child.Parent);
             Assert.AreEqual(1, original.Children.Count);
 
-            // The content is copied, too
-            copy.Data!.WriteByte((byte)'X');
-            Assert.AreEqual("R", original.Data?.AsAsciiString());
+            // The content is copied, too: changing the array of the original does not change the copy
+            byte[] originalData = { (byte)'R' };
+            original.Data = originalData;
+            var secondCopy = new Element(original);
+            originalData[0] = (byte)'X';
+            Assert.AreEqual("R", secondCopy.Data.AsAsciiString());
         }
 
         [TestMethod]
@@ -341,7 +343,7 @@ namespace PromptuariumTests
             var tree = Node("R", Node("A", Node("A1"), Node("A2")), Node("B"));
             var visited = new List<string>();
 
-            tree.Walk((node, ancestors) => visited.Add($"{node.Data?.AsAsciiString()}:{string.Join("/", ancestors.Select(a => a.Data?.AsAsciiString()))}"));
+            tree.Walk((node, ancestors) => visited.Add($"{node.Data.AsAsciiString()}:{string.Join("/", ancestors.Select(a => a.Data.AsAsciiString()))}"));
 
             CollectionAssert.AreEqual(new[] { "R:", "A:R", "A1:R/A", "A2:R/A", "B:R" }, visited);
         }
@@ -418,12 +420,11 @@ namespace PromptuariumTests
         {
             var inner = Node("Inner", Node("Child"));
 
-            using Stream stream = await Data.FromElementAsync(inner).ConfigureAwait(false);
-            Assert.AreEqual(0, stream.Position);
+            ReadOnlyMemory<byte> content = await Data.FromElementAsync(inner).ConfigureAwait(false);
 
-            var outer = new Element(stream, null);
+            var outer = new Element(content, null);
             var loaded = await LoadAsync(await SaveAsync(outer).ConfigureAwait(false)).ConfigureAwait(false);
-            var innerLoaded = await loaded.Data!.AsElementAsync().ConfigureAwait(false);
+            var innerLoaded = await loaded.Data.AsElementAsync().ConfigureAwait(false);
 
             Assert.IsTrue(inner.StructurallyEquals(innerLoaded));
         }

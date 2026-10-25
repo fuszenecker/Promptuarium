@@ -82,7 +82,7 @@ namespace PromptuariumTests
             random.NextBytes(longData);
 
             return new Element(Data.FromUtf8String("Root"), Data.FromGuid(Guid.NewGuid()),
-                new Element(new MemoryStream(longData), null,
+                new Element(longData, null,
                     new Element(null, null,
                         new Element(Data.FromVarInt(-12345), null))),
                 new Element(null, Data.FromUtf8String("MetaData only")),

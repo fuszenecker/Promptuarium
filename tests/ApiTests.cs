@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -78,7 +78,7 @@ namespace PromptuariumTests
             tree.Insert(3, Node("D"));
             tree.Insert(0, Node("0"));
 
-            CollectionAssert.AreEqual(new[] { "0", "A", "B", "C", "D" }, tree.Children.Select(child => child.Data?.AsAsciiString()).ToArray());
+            CollectionAssert.AreEqual(new[] { "0", "A", "B", "C", "D" }, tree.Children.Select(child => child.Data.AsAsciiString()).ToArray());
             Assert.AreSame(tree, b.Parent);
         }
 
@@ -103,7 +103,7 @@ namespace PromptuariumTests
         [TestMethod]
         public void StatisticsIgnoreEmptyContents()
         {
-            var tree = new Element(new MemoryStream(), new MemoryStream(), Node("A"));
+            var tree = new Element(ReadOnlyMemory<byte>.Empty, ReadOnlyMemory<byte>.Empty, Node("A"));
 
             Statistics stats = tree.GetStatistics();
 
@@ -128,7 +128,7 @@ namespace PromptuariumTests
             Assert.IsFalse(Tree().StructurallyEquals(Node("R", Node("A", Node("A2")), new Element(null, Data.FromInt(7)), new Element())));
 
             // Absent and empty contents are equal, the parent is not compared
-            Assert.IsTrue(new Element(null, null).StructurallyEquals(new Element(new MemoryStream(), new MemoryStream())));
+            Assert.IsTrue(new Element(null, null).StructurallyEquals(new Element(ReadOnlyMemory<byte>.Empty, ReadOnlyMemory<byte>.Empty)));
             Assert.IsTrue(Tree()[0].StructurallyEquals(Node("A", Node("A1"))));
         }
 
@@ -146,53 +146,7 @@ namespace PromptuariumTests
 
         #endregion
 
-        #region No side effects
-
-        [TestMethod]
-        public void ReadingDoesNotChangeThePositions()
-        {
-            var tree = new Element(Data.FromAsciiString("Hello"), Data.FromInt(42), Node("A"));
-            tree.Data!.Position = 3;
-            tree.MetaData!.Position = 1;
-
-            _ = tree.ToString();
-            _ = tree.TreeToString();
-            _ = new Element(tree);
-            _ = tree.StructurallyEquals(new Element(tree));
-            _ = tree.Data.AsAsciiString();
-            _ = tree.MetaData.AsInt();
-            _ = tree.Data.AsByteArray();
-
-            Assert.AreEqual(3, tree.Data.Position);
-            Assert.AreEqual(1, tree.MetaData.Position);
-        }
-
-        [TestMethod]
-        public async Task AsElementDoesNotChangeThePosition()
-        {
-            using Stream content = await Data.FromElementAsync(Node("R")).ConfigureAwait(false);
-            content.Position = 1;
-
-            var tree = await content.AsElementAsync().ConfigureAwait(false);
-
-            Assert.AreEqual("R", tree.Data?.AsAsciiString());
-            Assert.AreEqual(1, content.Position);
-        }
-
-        #endregion
-
         #region Saving and loading
-
-        [TestMethod]
-        public async Task SavingKeepsThePositionOfTheContent()
-        {
-            var tree = Node("Hello");
-            tree.Data!.Position = 2;
-
-            await SaveAsync(tree).ConfigureAwait(false);
-
-            Assert.AreEqual(2, tree.Data.Position);
-        }
 
         [TestMethod]
         public async Task ManySmallChunksAreWrittenAtOnce()
@@ -220,32 +174,8 @@ namespace PromptuariumTests
             var second = await Element.LoadAsync(stream).ConfigureAwait(false);
             Assert.AreEqual(6, stream.Position);
 
-            Assert.AreEqual("A", first.Data?.AsAsciiString());
-            Assert.AreEqual("B", second.Data?.AsAsciiString());
-        }
-
-        [TestMethod]
-        public async Task LoadEventsAreFiredOncePerNode()
-        {
-            // 37 bytes of data and 20 bytes of metadata: 2 chunks each
-            var tree = new Element(new MemoryStream(new byte[37]), new MemoryStream(new byte[20]),
-                new Element(Data.FromAsciiString("A"), null));
-
-            var events = new List<string>();
-            var options = new LoadOptions();
-            options.OnDataLoading += (sender, _) => events.Add($"data loading {((Element)sender!).Data!.Length}");
-            options.OnDataLoaded += (sender, _) => events.Add($"data loaded {((Element)sender!).Data!.Length}");
-            options.OnMetaDataLoading += (sender, _) => events.Add($"metadata loading {((Element)sender!).MetaData!.Length}");
-            options.OnMetaDataLoaded += (sender, _) => events.Add($"metadata loaded {((Element)sender!).MetaData!.Length}");
-
-            using var stream = new MemoryStream(await SaveAsync(tree).ConfigureAwait(false));
-            await Element.LoadAsync(stream, options, CancellationToken.None).ConfigureAwait(false);
-
-            CollectionAssert.AreEqual(new[]
-            {
-                "data loading 0", "metadata loading 0", "data loaded 37", "metadata loaded 20",
-                "data loading 0", "data loaded 1"
-            }, events);
+            Assert.AreEqual("A", first.Data.AsAsciiString());
+            Assert.AreEqual("B", second.Data.AsAsciiString());
         }
 
         [TestMethod]
@@ -274,7 +204,7 @@ namespace PromptuariumTests
         public void FromByteArrayCopiesTheArray()
         {
             byte[] bytes = { 1, 2, 3 };
-            Stream content = Data.FromByteArray(bytes);
+            ReadOnlyMemory<byte> content = Data.FromByteArray(bytes);
 
             bytes[0] = 42;
 
@@ -284,13 +214,13 @@ namespace PromptuariumTests
         [TestMethod]
         public void AsByteOfEmptyContentIsZero()
         {
-            Assert.AreEqual(0, new MemoryStream().AsByte());
+            Assert.AreEqual(0, ReadOnlyMemory<byte>.Empty.AsByte());
         }
 
         [TestMethod]
         public void VarIntLongerThanEightBytes()
         {
-            var content = new MemoryStream(new byte[9]);
+            ReadOnlyMemory<byte> content = new byte[9];
 
             Assert.ThrowsException<PromptuariumException>(() => content.AsVarInt());
             Assert.ThrowsException<PromptuariumException>(() => content.AsVarUInt());
