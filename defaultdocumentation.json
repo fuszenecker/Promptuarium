@@ -1,0 +1,8 @@
+{
+  "AssemblyFilePath": "src/bin/Release/net10.0/Promptuarium.dll",
+  "OutputDirectoryPath": "docs",
+  "AssemblyPageName": "README",
+  "GeneratedPages": "Assembly, Types",
+  "FileNameFactory": "Name",
+  "GeneratedAccessModifiers": "Public, Protected, ProtectedInternal"
+}

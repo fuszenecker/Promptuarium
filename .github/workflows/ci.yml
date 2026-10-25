@@ -61,6 +61,16 @@ jobs:
             fi
           done
 
+      # docs/ is generated from the XML comments, it has to follow the code
+      - name: Check the API reference
+        run: |
+          tools/generate-docs.sh
+          if [ -n "$(git status --porcelain -- docs)" ]; then
+            git status --short -- docs
+            echo "::error::docs/ is not up to date: run tools/generate-docs.sh and commit it."
+            exit 1
+          fi
+
       - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@v4

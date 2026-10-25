@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <Nullable>enable</Nullable>
+    <!-- IntelliSense for the users of the package, and the source of docs/ -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AnalysisLevel>preview</AnalysisLevel>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <PackageReadmeFile>README.md</PackageReadmeFile>

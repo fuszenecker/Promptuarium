@@ -123,9 +123,10 @@ This code is distributed under the terms of the MIT license.
 
 ## Internals
 
-Generate documentation:
+The [API reference](docs/README.md) is generated from the XML comments with [DefaultDocumentation](https://github.com/Doraku/DefaultDocumentation) (a local tool, settings in `defaultdocumentation.json`). After changing the public API or its comments:
 
 ```sh
-cd src
-roslynator.exe generate-doc .\Promptuarium.csproj -o ..\docs --host github --heading "Promptuarium API Reference"
+tools/generate-docs.sh
 ```
+
+CI fails if `docs/` is not up to date.

@@ -10,6 +10,10 @@ using System.Threading.Tasks;
 
 namespace Promptuarium;
 
+/// <summary>
+/// A node of a tree: a data, a metadata (both are byte arrays, empty by default) and children.
+/// A tree is saved and loaded as a whole, with its structure; see BINARY_FORMAT.md for the binary form.
+/// </summary>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public partial class Element : IEnumerable<Element>
 {

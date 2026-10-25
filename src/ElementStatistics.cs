@@ -29,8 +29,8 @@ public class Statistics
     /// </summary>
     public int NodesWithData { get; internal set; }
 
+    /// <summary>
     /// The number of nodes with metadata, but without data
-    /// The number of nodes with metadata
     /// </summary>
     public int NodesWithMetaData { get; internal set; }
 
