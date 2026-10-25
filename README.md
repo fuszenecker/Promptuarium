@@ -129,4 +129,4 @@ The [API reference](docs/README.md) is generated from the XML comments with [Def
 tools/generate-docs.sh
 ```
 
-CI fails if `docs/` is not up to date.
+CI fails if `docs/` is not up to date, and after every push to master it copies `docs/` to the [wiki](https://github.com/fuszenecker/Promptuarium/wiki/API-Reference) (`tools/publish-wiki.sh`; the other wiki pages are not touched).
