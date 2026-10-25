@@ -222,24 +222,54 @@ public partial class Element : IEnumerable<Element>
         foreach (Element node in nodes)
         {
             ArgumentNullException.ThrowIfNull(node, nameof(nodes));
-
-            if (node.Parent == this)
-            {
-                throw new PromptuariumException("Node already exists in the tree");
-            }
-
-            // Only a node with children can be an ancestor of this node, so leaves need no walk up the tree
-            if (node == this || (node.Children.Count > 0 && IsAncestor(node, this)))
-            {
-                throw new PromptuariumException("A node can not be added to itself or to its own descendant");
-            }
-
-            // A node can have only one parent
-            DetachFromParent(node);
+            PrepareNewChild(node);
             UnsafeAdd(node);
         }
 
         return this;
+    }
+
+    /// <summary>
+    /// Inserts a node at the given position of the children. A node that has another parent is moved here.
+    /// </summary>
+    /// <param name="index">The position of the new child, from 0 to the number of children (to append)</param>
+    /// <param name="node">The node to be inserted</param>
+    /// <returns>The tree itself</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the index is out of range</exception>
+    /// <exception cref="PromptuariumException">Thrown if the node is already a child of this node, or if it is this node or one of its ancestors</exception>
+    /// <example>
+    /// <code>
+    /// var tree = new Element(null, null, node1, node3);
+    /// tree.Insert(1, node2);
+    /// </code>
+    /// </example>
+    public Element Insert(int index, Element node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(index, Children.Count);
+
+        PrepareNewChild(node);
+        children.Insert(index, node);
+        node.Parent = this;
+        return this;
+    }
+
+    private void PrepareNewChild(Element node)
+    {
+        if (node.Parent == this)
+        {
+            throw new PromptuariumException("Node already exists in the tree");
+        }
+
+        // Only a node with children can be an ancestor of this node, so leaves need no walk up the tree
+        if (node == this || (node.Children.Count > 0 && IsAncestor(node, this)))
+        {
+            throw new PromptuariumException("A node can not be added to itself or to its own descendant");
+        }
+
+        // A node can have only one parent
+        DetachFromParent(node);
     }
 
     /// <summary>

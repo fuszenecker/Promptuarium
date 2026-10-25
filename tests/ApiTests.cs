@@ -67,6 +67,40 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public void InsertAtPosition()
+        {
+            var a = Node("A");
+            var b = Node("B");
+            var c = Node("C");
+            var tree = Node("R", a, c);
+
+            tree.Insert(1, b);
+            tree.Insert(3, Node("D"));
+            tree.Insert(0, Node("0"));
+
+            CollectionAssert.AreEqual(new[] { "0", "A", "B", "C", "D" }, tree.Children.Select(child => child.Data?.AsAsciiString()).ToArray());
+            Assert.AreSame(tree, b.Parent);
+        }
+
+        [TestMethod]
+        public void InsertChecks()
+        {
+            var child = Node("A");
+            var tree = Node("R", child);
+
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => tree.Insert(2, Node("X")));
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => tree.Insert(-1, Node("X")));
+            Assert.ThrowsException<PromptuariumException>(() => tree.Insert(0, child));
+            Assert.ThrowsException<PromptuariumException>(() => child.Insert(0, tree));
+
+            // A node of another parent is moved
+            var other = Node("O");
+            other.Insert(0, child);
+            Assert.AreEqual(0, tree.Children.Count);
+            Assert.AreSame(other, child.Parent);
+        }
+
+        [TestMethod]
         public void StatisticsIgnoreEmptyContents()
         {
             var tree = new Element(new MemoryStream(), new MemoryStream(), Node("A"));

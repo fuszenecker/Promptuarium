@@ -70,6 +70,8 @@ The `GetStatistics()` method gives information about i.e.
 
 See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples), the [API Reference](docs/README.md) or the [Binary Format specification](BINARY_FORMAT.md).
 
+The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits trees, and lists the chunks of a file. It is non-interactive and has JSON output, so it can be driven by scripts and AI agents, and it serves as the reference when the format is implemented in another language.
+
 ## Unit tests
 
 **Unit tests** help to keep the project code robust. The stability tests (random trees) are slow, they can be left out:
