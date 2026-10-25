@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/Configuration/Configuration.csproj" />
+    <Project Path="examples/GettingStarted/GettingStarted.csproj" />
+    <Project Path="examples/PPak/PPak.csproj" />
+  </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Dump/Dump.csproj" />
     <Project Path="tools/PEdit/PEdit.csproj" />

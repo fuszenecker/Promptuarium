@@ -91,6 +91,8 @@ The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits 
 
 [PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents as hex, UTF-8, ASCII or base64, import and export, a chunk view, and nested trees in their own windows.
 
+The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with permissions, owners, times and CRCs into one signed file.
+
 Other implementations:
 
 * TypeScript / JavaScript: [promptuarium-js](https://github.com/fuszenecker/promptuarium-js), byte-identical with this one (cross-checked with `pedit`).
