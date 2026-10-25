@@ -1,0 +1,5 @@
+# PStudio is a self-contained .NET application: the runtime and the native libraries of Avalonia (Skia, HarfBuzz)
+# are part of the package, as they are published by their vendors.
+pstudio: embedded-library *
+pstudio: unstripped-binary-or-object *
+pstudio: no-manual-page *

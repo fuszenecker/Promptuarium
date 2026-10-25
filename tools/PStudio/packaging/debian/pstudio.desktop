@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=PStudio
+GenericName=Promptuarium Editor
+Comment=View and edit Promptuarium trees
+Exec=pstudio %f
+Icon=pstudio
+Terminal=false
+Categories=Development;
+MimeType=application/x-promptuarium;
+Keywords=Promptuarium;tree;binary;container;
+StartupWMClass=pstudio

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Removes the rules that postinst added to /etc/magic.
+set -e
+
+MAGIC="${DPKG_ROOT:-}/etc/magic"
+BEGIN="# BEGIN pstudio: Promptuarium container"
+END="# END pstudio"
+
+case "$1" in
+    remove|purge)
+        if [ -f "$MAGIC" ]; then
+            sed -i "/^$BEGIN\$/,/^$END\$/d" "$MAGIC"
+        fi
+        ;;
+esac
+
+exit 0

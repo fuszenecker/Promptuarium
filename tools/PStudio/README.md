@@ -10,6 +10,26 @@ dotnet run --project tools/PStudio [FILE]
 dotnet tools/PStudio/bin/Debug/net10.0/pstudio.dll [FILE]
 ```
 
+## Debian package
+
+Every [release](https://github.com/fuszenecker/Promptuarium/releases) has a Debian package (amd64; .NET is not needed, the package is self-contained):
+
+```sh
+sudo apt install ./pstudio_8.0.0_amd64.deb
+```
+
+The package
+
+* installs `pstudio` (`/usr/bin/pstudio`, the application in `/usr/lib/pstudio`) with its desktop entry and icon;
+* registers the MIME type `application/x-promptuarium` (shared-mime-info): files with the `.prmt` extension, and files with a `PRMT` signature ([BINARY_FORMAT.md](../../BINARY_FORMAT.md), 10) whatever their name is, so file managers show them as Promptuarium containers and open them with PStudio;
+* adds the rules of [`misc/promptuarium.magic`](../../misc/promptuarium.magic) to `/etc/magic`, between `# BEGIN pstudio` and `# END pstudio`, so that `file` recognizes the containers and shows their tags (`photo.prmt: Promptuarium container, IMGZ5.6`). Removing the package removes the rules.
+
+To build the package (needs `dpkg-deb`; the result is in `artifacts/`):
+
+```sh
+tools/PStudio/packaging/build-deb.sh [--version 8.0.0] [--runtime linux-x64|linux-arm64]
+```
+
 ## Features
 
 * **Tree view**: every node shows its index and a short preview of its data and, in brackets, its metadata.

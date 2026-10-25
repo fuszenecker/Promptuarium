@@ -1,0 +1,17 @@
+#!/bin/sh
+# Adds the rules of the Promptuarium containers to /etc/magic (the local magic file of libmagic, as there is no
+# drop-in directory), between markers, so that "file" recognizes them; postrm removes them.
+set -e
+
+MAGIC="${DPKG_ROOT:-}/etc/magic"
+RULES="${DPKG_ROOT:-}/usr/share/pstudio/promptuarium.magic"
+BEGIN="# BEGIN pstudio: Promptuarium container"
+END="# END pstudio"
+
+if [ "$1" = "configure" ] && [ -f "$MAGIC" ] && [ -f "$RULES" ]; then
+    # An earlier version of the rules is replaced
+    sed -i "/^$BEGIN\$/,/^$END\$/d" "$MAGIC"
+    { echo "$BEGIN"; cat "$RULES"; echo "$END"; } >> "$MAGIC"
+fi
+
+exit 0
