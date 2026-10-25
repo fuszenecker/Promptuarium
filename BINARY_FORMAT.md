@@ -455,24 +455,56 @@ root (metadata "PRMT")
 
 Every file built this way starts with `64 50 52 4D 54`, whatever its content is.
 
-An application can put the version of its own content into the signature, e.g. `PRMT` followed by the byte `01` (5 bytes): the file then starts with `65 50 52 4D 54 01`. (This versions the content of the application, not the format, which has no version.) An application can use its own signature as well (e.g. `MYAPP-CONFIG`, 12 bytes, starting with `6C`); different applications are then distinguished by their signatures.
+### 10.3 Tagged signature
 
-### 10.3 Rule for `file` (libmagic)
-
-A magic rule matches the first bytes at offset 0:
+The signature can carry the kind and the version of the content (not of the format, which has no version), so that different applications, or different versions of the content of one application, are told apart: `PRMT`, a colon, then a **tag** of 1 to 10 bytes (the whole signature is at most 15 bytes):
 
 ```text
-# Promptuarium container with the "PRMT" signature
-0       string      \x64PRMT       Promptuarium container
-!:mime  application/x-promptuarium
-
-# The same with a version byte of the content (set by the application)
-0       string      \x65PRMT       Promptuarium container
->5      byte        x               version %d
-!:mime  application/x-promptuarium
+PRMT:IMGZ5.6      12 bytes: the file starts with 6C 50 52 4D 54 3A 49 4D 47 5A 35 2E 36
 ```
 
-The rules can be put into `~/.magic` (per user) or into `/etc/magic` (system wide), or tried out directly with `file -m promptuarium.magic test.prm`.
+The tag is free-form; printable ASCII is recommended, so that tools can show it. As the length of the signature is in the first control byte (`0x60 + length`), the end of the tag is known without a terminator.
+
+| Signature | Length | First bytes |
+| --- | --- | --- |
+| `PRMT` | 4 | `64 50 52 4D 54` |
+| `PRMT:A` | 6 | `66 50 52 4D 54 3A 41` |
+| `PRMT:IMGZ5.6` | 12 | `6C 50 52 4D 54 3A 49 4D 47 5A 35 2E 36` |
+| `PRMT:ABCDEFGHIJ` | 15 | `6F 50 52 4D 54 3A 41 42 …` |
+
+An application can use a signature of its own as well (e.g. `MYAPP-CONFIG`, 12 bytes, starting with `6C`), but then the rule below does not recognize it as a Promptuarium file.
+
+### 10.4 Rules for `file` (libmagic)
+
+A magic rule matches the first bytes: `PRMT` at offset 1, after a control byte of `Down | MetaData | Linear` (`0x6_`). The tag can not be printed with a plain `%s`, because the next chunk follows it directly, and its control byte and content are often printable too. So there is one rule for every length of the signature, printing exactly the bytes of the tag:
+
+```text
+# Promptuarium container: a signed root whose signature starts with "PRMT"
+1	string	PRMT
+>0	byte&0xF0	0x60	Promptuarium container
+!:mime	application/x-promptuarium
+# The tag after "PRMT:" (the control byte tells its length)
+>>0	byte	0x66
+>>>5	string	:
+>>>>6	string	x	\b, %.1s
+>>0	byte	0x67
+>>>5	string	:
+>>>>6	string	x	\b, %.2s
+...
+>>0	byte	0x6F
+>>>5	string	:
+>>>>6	string	x	\b, %.10s
+```
+
+The complete file is [`misc/promptuarium.magic`](misc/promptuarium.magic) (the fields are separated by tabs). It can be appended to `~/.magic` (per user, used together with the system rules) or to `/etc/magic` (system wide), or tried out directly:
+
+```text
+$ file -m misc/promptuarium.magic photo.prmt tree.prmt
+photo.prmt: Promptuarium container, IMGZ5.6
+tree.prmt:  Promptuarium container
+$ file --mime-type -m misc/promptuarium.magic photo.prmt
+photo.prmt: application/x-promptuarium
+```
 
 Without a signature, a Promptuarium stream can not be recognized reliably: it usually starts with a Down chunk (`40`–`7F`), but so do many other files.
 

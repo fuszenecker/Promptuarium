@@ -68,10 +68,12 @@ A file can carry a **signature** (see [File identification](BINARY_FORMAT.md#10-
 
 ```csharp
 var root = new ElementBuilder()
-    .WithSignature(Data.FromAsciiString("PRMT"))
+    .WithSignature(Data.FromAsciiString("PRMT:IMGZ5.6"))
     .WithChildren(content)
     .Build();
 ```
+
+The signature is `PRMT`, optionally followed by `:` and a tag of up to 10 bytes (the kind and the version of the content). With the rules of [`misc/promptuarium.magic`](misc/promptuarium.magic) (append them to `~/.magic` or `/etc/magic`), `file` recognizes such files and shows the tag: `photo.prmt: Promptuarium container, IMGZ5.6`.
 
 The `GetStatistics()` method gives information about i.e.
 
