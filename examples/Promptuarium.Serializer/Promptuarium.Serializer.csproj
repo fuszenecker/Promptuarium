@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A class library (not a console application like the other examples) -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Promptuarium.Serializer</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- The library implements the experimental PromptuariumType control, so it uses it freely -->
+    <NoWarn>$(NoWarn);PRMTSER001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Promptuarium.Serializer.Tests" />
+  </ItemGroup>
+
+</Project>
