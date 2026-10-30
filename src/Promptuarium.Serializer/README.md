@@ -4,6 +4,15 @@ A general serializer between .NET objects and Promptuarium trees, in the layout 
 (`PRMT:CFG1-LE`): every value is a holder node with a TYPE child and, for scalars, a VALUE child. There is no
 intermediate representation (no JSON): a `byte[]` is a BLOB, the bytes as they are.
 
+The serializer is **experimental**: the API and the format can still change. The assembly is marked
+`[Experimental("PRMTSER000")]`, so using it needs an opt-in, e.g. in the project file:
+
+```xml
+<PropertyGroup>
+  <NoWarn>$(NoWarn);PRMTSER000</NoWarn>
+</PropertyGroup>
+```
+
 ```csharp
 using Promptuarium.Serializer;
 

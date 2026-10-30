@@ -91,7 +91,7 @@ The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits 
 
 [PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents as hex, UTF-8, ASCII or base64, import and export, a chunk view, and nested trees in their own windows.
 
-[Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) (a separate package) serializes .NET objects into trees in the `PRMT:CFG1-LE` layout and back.
+[Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) (a separate, experimental package) serializes .NET objects into trees in the `PRMT:CFG1-LE` layout and back.
 
 The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with permissions, owners, times and CRCs into one signed file.
 
@@ -109,7 +109,7 @@ dotnet test --filter "TestCategory!=Slow"
 
 ## Packages and releases
 
-* NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/), and [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/), a serializer between .NET objects and trees ([README](src/Promptuarium.Serializer/README.md))
+* NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/), and [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/) (experimental), a serializer between .NET objects and trees ([README](src/Promptuarium.Serializer/README.md))
 * [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet packages, the symbol packages, and `pedit` and PStudio of every version (zip, and Debian packages for amd64).
 
 A release is created automatically for every version tag:
