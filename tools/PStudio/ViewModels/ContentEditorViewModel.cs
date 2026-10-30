@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,8 +14,8 @@ using PStudio.Services;
 namespace PStudio.ViewModels;
 
 /// <summary>
-/// Shows and edits one content (the data or the metadata of a node) in a chosen form.
-/// The edited text is stored by Apply; Clear and Import store the new content immediately.
+/// Shows and edits one content (the data or the metadata of a node) in a chosen form; only the forms that can show the
+/// content are offered. The edited text is stored by Apply; Clear and Import store the new content immediately.
 /// </summary>
 public sealed partial class ContentEditorViewModel : ViewModelBase
 {
@@ -27,7 +28,7 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
     private bool loading;
 
     [ObservableProperty]
-    private int selectedFormIndex;
+    private FormOption? selectedForm;
 
     [ObservableProperty]
     private string text = string.Empty;
@@ -68,26 +69,35 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
     /// </summary>
     public event EventHandler<ReadOnlyMemory<byte>>? ContentChanged;
 
-    /// <summary>The names of the forms, in the order of <see cref="ContentForm"/>.</summary>
-    public static IReadOnlyList<string> FormNames { get; } = Enum.GetValues<ContentForm>().Select(ContentFormat.Name).ToArray();
+    /// <summary>
+    /// Raised when the user chooses a form (not when the editor chooses one for a loaded content).
+    /// </summary>
+    public event EventHandler<ContentForm>? FormChosen;
+
+    /// <summary>Every form, in the order of <see cref="ContentForm"/>.</summary>
+    public static IReadOnlyList<FormOption> AllForms { get; } = Enum.GetValues<ContentForm>().Select(form => new FormOption(form, ContentFormat.Name(form))).ToArray();
+
+    /// <summary>The forms offered: the ones that can show the content (every form for an empty content).</summary>
+    public ObservableCollection<FormOption> Forms { get; } = [];
 
     /// <summary>The title (Data or MetaData).</summary>
     public string Title { get; }
 
     /// <summary>The form of the text.</summary>
-    public ContentForm Form => (ContentForm)SelectedFormIndex;
+    public ContentForm Form => SelectedForm?.Form ?? ContentForm.Hex;
 
     /// <summary>The shown content (without the edits that are not applied).</summary>
     public ReadOnlyMemory<byte> Content => content;
 
     /// <summary>
-    /// Shows a content, in the form that suits it. A disabled editor shows nothing (no node is selected).
+    /// Shows a content, in <paramref name="preferredForm"/> if it can show the content, otherwise in the form that suits
+    /// it. A disabled editor shows nothing (no node is selected).
     /// </summary>
-    public void Load(ReadOnlyMemory<byte> value, bool enabled = true)
+    public void Load(ReadOnlyMemory<byte> value, bool enabled = true, ContentForm? preferredForm = null)
     {
         content = value;
         IsEnabled = enabled;
-        Show(ContentFormat.Suggest(value.Span));
+        Show(preferredForm ?? ContentFormat.Suggest(value.Span));
         ExportCommand.NotifyCanExecuteChanged();
     }
 
@@ -166,14 +176,15 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
 
     private bool CanExport() => IsEnabled && !content.IsEmpty;
 
-    partial void OnSelectedFormIndexChanged(int oldValue, int newValue)
+    partial void OnSelectedFormChanged(FormOption? oldValue, FormOption? newValue)
     {
-        if (loading || newValue < 0)
+        if (loading || newValue is null)
         {
             return;
         }
 
-        var oldForm = (ContentForm)oldValue;
+        ContentForm oldForm = oldValue?.Form ?? ContentForm.Hex;
+        FormChosen?.Invoke(this, newValue.Form);
 
         if (!IsPending)
         {
@@ -202,7 +213,7 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         }
         else
         {
-            ShowInfo($"Edited as {FormNames[newValue]}, not applied yet", error: false);
+            ShowInfo($"Edited as {newValue.Name}, not applied yet", error: false);
         }
 
         IsReadOnly = false;
@@ -231,7 +242,14 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
     {
         loading = true;
 
-        SelectedFormIndex = (int)form;
+        OfferForms(form);
+
+        if (Forms.All(option => option.Form != form))
+        {
+            form = ContentFormat.Suggest(content.Span);
+        }
+
+        SelectedForm = Forms.First(option => option.Form == form);
 
         if (!IsEnabled)
         {
@@ -247,9 +265,8 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         }
         else
         {
-            // A content that the form can not show is shown as hex, read-only
-            IsReadOnly = !ContentFormat.CanShow(content.Span, form);
-            Text = ContentFormat.Format(content.Span, IsReadOnly ? ContentForm.Hex : form);
+            IsReadOnly = false;
+            Text = ContentFormat.Format(content.Span, form);
             CanChangeForm = true;
         }
 
@@ -261,13 +278,31 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         {
             ShowInfo(string.Empty, error: false);
         }
-        else if (IsReadOnly && content.Length <= ContentFormat.MaxEditableLength)
-        {
-            ShowInfo($"{Describe(content.Length)}, not a valid {FormNames[(int)form]}: shown as hex, read-only", error: true);
-        }
         else
         {
             ShowInfo(Describe(content.Length), error: false);
+        }
+    }
+
+    // The forms that can show the content; a content too long to edit has only its form (it can not be changed). The
+    // list is replaced only when it changes, so that the selector keeps its selection.
+    private void OfferForms(ContentForm form)
+    {
+        List<FormOption> offered = content.Length > ContentFormat.MaxEditableLength
+            ? [AllForms[(int)form]]
+            : AllForms.Where(option => ContentFormat.CanShow(content.Span, option.Form)).ToList();
+
+        if (offered.SequenceEqual(Forms))
+        {
+            return;
+        }
+
+        SelectedForm = null;
+        Forms.Clear();
+
+        foreach (FormOption option in offered)
+        {
+            Forms.Add(option);
         }
     }
 

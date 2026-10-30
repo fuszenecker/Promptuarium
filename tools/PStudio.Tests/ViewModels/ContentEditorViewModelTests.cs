@@ -4,6 +4,7 @@ using PStudio.Models;
 using PStudio.Presentation;
 using PStudio.Services;
 using PStudio.ViewModels;
+using Promptuarium;
 
 namespace PStudio.Tests.ViewModels;
 
@@ -85,7 +86,7 @@ public sealed class ContentEditorViewModelTests
         sut.Load("AB"u8.ToArray());
         sut.Text = "AC";
 
-        sut.SelectedFormIndex = (int)ContentForm.Hex;
+        Choose(sut, ContentForm.Hex);
 
         Assert.AreEqual("41 43", sut.Text);
         Assert.IsTrue(sut.IsPending);
@@ -103,7 +104,7 @@ public sealed class ContentEditorViewModelTests
         sut.Load(new byte[] { 1 });
         sut.Text = "hello";
 
-        sut.SelectedFormIndex = (int)ContentForm.Utf8;
+        Choose(sut, ContentForm.Utf8);
 
         Assert.AreEqual("hello", sut.Text);
         Assert.IsFalse(sut.IsError);
@@ -118,7 +119,7 @@ public sealed class ContentEditorViewModelTests
         sut.Load(Array.Empty<byte>());
         sut.Text = "12";
 
-        sut.SelectedFormIndex = (int)ContentForm.Int32;
+        Choose(sut, ContentForm.Int32);
 
         Assert.AreEqual("12", sut.Text);
         sut.ApplyPending();
@@ -137,22 +138,66 @@ public sealed class ContentEditorViewModelTests
     }
 
     [TestMethod]
-    public void EveryFormOfTheDataClass_CanBeChosen()
+    public void EmptyContent_OffersEveryForm()
     {
-        CollectionAssert.Contains(ContentEditorViewModel.FormNames.ToList(), "DateTimeOffset");
-        Assert.AreEqual(Enum.GetValues<ContentForm>().Length, ContentEditorViewModel.FormNames.Count);
+        ContentEditorViewModel sut = Create();
+
+        sut.Load(Array.Empty<byte>());
+
+        CollectionAssert.AreEqual(Enum.GetValues<ContentForm>(), sut.Forms.Select(option => option.Form).ToArray());
+        Assert.AreEqual("DateTimeOffset", sut.Forms.Single(option => option.Form == ContentForm.DateTimeOffset).Name);
     }
 
     [TestMethod]
-    public void BytesTheFormCanNotShow_AreReadOnly()
+    public void FormsThatCanNotShowTheContent_AreNotOffered()
     {
         ContentEditorViewModel sut = Create();
+
         sut.Load(new byte[] { 0xFF });
+        ContentForm[] offered = sut.Forms.Select(option => option.Form).ToArray();
 
-        sut.SelectedFormIndex = (int)ContentForm.Utf8;
+        CollectionAssert.Contains(offered, ContentForm.Hex);
+        CollectionAssert.Contains(offered, ContentForm.Base64);
+        CollectionAssert.Contains(offered, ContentForm.Byte);
+        CollectionAssert.DoesNotContain(offered, ContentForm.Utf8);
+        CollectionAssert.DoesNotContain(offered, ContentForm.Bool);
+        CollectionAssert.DoesNotContain(offered, ContentForm.Int32);
 
-        Assert.IsTrue(sut.IsReadOnly);
-        Assert.IsTrue(sut.IsError);
+        sut.Load(Data.FromInt(-5).ToArray());
+        offered = sut.Forms.Select(option => option.Form).ToArray();
+
+        CollectionAssert.Contains(offered, ContentForm.Int32);
+        CollectionAssert.Contains(offered, ContentForm.UInt32);
+        CollectionAssert.DoesNotContain(offered, ContentForm.Single, "FB FF FF FF is a NaN, which does not give back the same bytes");
+        CollectionAssert.DoesNotContain(offered, ContentForm.Int64);
+        CollectionAssert.DoesNotContain(offered, ContentForm.Guid);
+    }
+
+    [TestMethod]
+    public void Load_UsesThePreferredForm_IfItCanShowTheContent()
+    {
+        ContentEditorViewModel sut = Create();
+
+        sut.Load(Data.FromInt(1234).ToArray(), preferredForm: ContentForm.Int32);
+        Assert.AreEqual(ContentForm.Int32, sut.Form);
+        Assert.AreEqual("1234", sut.Text);
+
+        sut.Load("text"u8.ToArray(), preferredForm: ContentForm.Int64);
+        Assert.AreEqual(ContentForm.Utf8, sut.Form, "a long can not show 4 bytes");
+    }
+
+    [TestMethod]
+    public void FormChosen_IsRaisedForTheUsersChoiceOnly()
+    {
+        ContentEditorViewModel sut = Create();
+        var chosen = new List<ContentForm>();
+        sut.FormChosen += (_, form) => chosen.Add(form);
+
+        sut.Load(Data.FromInt(7).ToArray(), preferredForm: ContentForm.UInt32);
+        Choose(sut, ContentForm.Int32);
+        sut.Load("x"u8.ToArray());
+
+        CollectionAssert.AreEqual(new[] { ContentForm.Int32 }, chosen);
     }
 
     [TestMethod]
@@ -231,6 +276,11 @@ public sealed class ContentEditorViewModelTests
         await sut.ExportCommand.ExecuteAsync(null);
 
         await files.Received(1).WriteBytesAsync("out.bin", Arg.Is<ReadOnlyMemory<byte>>(content => content.ToArray().SequenceEqual(new byte[] { 7 })));
+    }
+
+    private static void Choose(ContentEditorViewModel sut, ContentForm form)
+    {
+        sut.SelectedForm = sut.Forms.Single(option => option.Form == form);
     }
 
     private ContentEditorViewModel Create()

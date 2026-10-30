@@ -6,8 +6,8 @@
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,6">
       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="72" />
-      <ComboBox ItemsSource="{x:Static vm:ContentEditorViewModel.FormNames}"
-                SelectedIndex="{Binding SelectedFormIndex}"
+      <ComboBox ItemsSource="{Binding Forms}"
+                SelectedItem="{Binding SelectedForm}"
                 IsEnabled="{Binding CanChangeForm}"
                 MinWidth="110" />
       <TextBlock Text="{Binding Info}"

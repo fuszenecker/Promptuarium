@@ -5,7 +5,9 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
 using PStudio.Composition;
+using PStudio.Interfaces;
 using PStudio.Presentation;
+using PStudio.Services;
 using PStudio.ViewModels;
 using PStudio.Views;
 
@@ -82,14 +84,16 @@ internal sealed class Editor : IDisposable
 
     public Editor()
     {
+        Directory = Path.Combine(Path.GetTempPath(), "pstudio-headless-" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(Directory);
+
         var collection = new ServiceCollection();
         collection.AddPresentation();
         collection.AddServices();
         collection.AddViewModels();
+        // The chosen forms are remembered in the temporary directory, not in the user's settings
+        collection.AddSingleton<IFormMemory>(new FormMemory(Path.Combine(Directory, "forms.prmt")));
         services = collection.BuildServiceProvider();
-
-        Directory = Path.Combine(Path.GetTempPath(), "pstudio-headless-" + Guid.NewGuid().ToString("N"));
-        System.IO.Directory.CreateDirectory(Directory);
 
         ViewModel = services.GetRequiredService<MainWindowViewModel>();
         Window = new MainWindow { DataContext = ViewModel, Width = 1100, Height = 720 };

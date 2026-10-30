@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using PStudio.Models;
 using PStudio.Services;
 using Promptuarium;
 
@@ -33,6 +34,12 @@ public sealed partial class NodeViewModel : ViewModelBase
 
     /// <summary>The parent, or null for the root (and for a removed node).</summary>
     public NodeViewModel? Parent { get; private set; }
+
+    /// <summary>The form the user chose for the data, if any.</summary>
+    public ContentForm? DataForm { get; set; }
+
+    /// <summary>The form the user chose for the metadata, if any.</summary>
+    public ContentForm? MetaDataForm { get; set; }
 
     /// <summary>The children.</summary>
     public ObservableCollection<NodeViewModel> Children { get; }

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Promptuarium\Promptuarium.csproj" />
+    <ProjectReference Include="..\..\src\Promptuarium.Serializer\Promptuarium.Serializer.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -14,6 +15,8 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- The texts are formatted with the invariant culture, so the self-contained build needs no ICU -->
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- The chosen forms are stored with the experimental serializer -->
+    <NoWarn>$(NoWarn);PRMTSER000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

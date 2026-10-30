@@ -25,6 +25,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IFileDialogService fileDialogs;
     private readonly IMessageDialogService messages;
     private readonly IEditorWindowService windows;
+    private readonly IFormMemory formMemory;
     private readonly List<MainWindowViewModel> nestedEditors = [];
 
     // The node the content editors show (the selection, until the edits are applied)
@@ -82,7 +83,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IFileDialogService fileDialogs,
         IMessageDialogService messages,
         IEditorWindowService windows,
-        IViewModelFactory viewModelFactory)
+        IViewModelFactory viewModelFactory,
+        IFormMemory formMemory)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);
 
@@ -92,11 +94,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         this.fileDialogs = fileDialogs ?? throw new ArgumentNullException(nameof(fileDialogs));
         this.messages = messages ?? throw new ArgumentNullException(nameof(messages));
         this.windows = windows ?? throw new ArgumentNullException(nameof(windows));
+        this.formMemory = formMemory ?? throw new ArgumentNullException(nameof(formMemory));
 
         Data = viewModelFactory.CreateContentEditor("Data");
         MetaData = viewModelFactory.CreateContentEditor("MetaData");
         Data.ContentChanged += (_, content) => StoreContent(content, data: true);
         MetaData.ContentChanged += (_, content) => StoreContent(content, data: false);
+        Data.FormChosen += (_, form) => editedNode?.DataForm = form;
+        MetaData.FormChosen += (_, form) => editedNode?.MetaDataForm = form;
 
         SetTree(new Element(), null);
     }
@@ -238,6 +243,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (!IsModified)
         {
+            RememberForms();
             return true;
         }
 
@@ -441,8 +447,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         editedNode = value;
-        Data.Load(value?.Element.Data ?? ReadOnlyMemory<byte>.Empty, value is not null);
-        MetaData.Load(value?.Element.MetaData ?? ReadOnlyMemory<byte>.Empty, value is not null);
+        Data.Load(value?.Element.Data ?? ReadOnlyMemory<byte>.Empty, value is not null, value?.DataForm);
+        MetaData.Load(value?.Element.MetaData ?? ReadOnlyMemory<byte>.Empty, value is not null, value?.MetaDataForm);
         HighlightChunks();
     }
 
@@ -548,6 +554,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             await files.SaveAsync(Root.Element, path);
             FileName = path;
             IsModified = false;
+            RememberForms();
             ShowStatus($"Saved {path}", error: false);
             return true;
         }
@@ -566,7 +573,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (node == editedNode)
         {
-            Data.Load(node.Element.Data);
+            Data.Load(node.Element.Data, preferredForm: node.DataForm);
         }
 
         Changed(null, $"The nested tree of {node.Path} was stored");
@@ -578,6 +585,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (!IsModified)
         {
+            RememberForms();
             return true;
         }
 
@@ -621,6 +629,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         editedNode = null;
         Roots.Clear();
         Roots.Add(new NodeViewModel(root));
+        RecallForms(path);
         FileName = path;
         IsModified = false;
         SelectedNode = Root;
@@ -628,6 +637,77 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(DocumentName));
         OnPropertyChanged(nameof(Title));
         RefreshChunks();
+    }
+
+    // The forms chosen in an earlier session; a path that is not in the tree any more is ignored
+    private void RecallForms(string? path)
+    {
+        if (path is null)
+        {
+            return;
+        }
+
+        FileForms forms = formMemory.Recall(path);
+
+        foreach ((string nodePath, ContentForm form) in forms.Data)
+        {
+            FindNode(nodePath)?.DataForm = form;
+        }
+
+        foreach ((string nodePath, ContentForm form) in forms.MetaData)
+        {
+            FindNode(nodePath)?.MetaDataForm = form;
+        }
+    }
+
+    // The forms are remembered by the paths of the nodes, so only when the tree is the same as the file: after saving,
+    // or when the window closes or opens another tree without changes. A nested tree has no file.
+    private void RememberForms()
+    {
+        if (FileName is null || IsNested)
+        {
+            return;
+        }
+
+        var forms = new FileForms();
+        var stack = new Stack<NodeViewModel>([Root]);
+
+        while (stack.Count > 0)
+        {
+            NodeViewModel node = stack.Pop();
+
+            if (node.DataForm is { } dataForm)
+            {
+                forms.Data[node.Path] = dataForm;
+            }
+
+            if (node.MetaDataForm is { } metaDataForm)
+            {
+                forms.MetaData[node.Path] = metaDataForm;
+            }
+
+            foreach (NodeViewModel child in node.Children)
+            {
+                stack.Push(child);
+            }
+        }
+
+        formMemory.Remember(FileName, forms);
+    }
+
+    // A node by its path ("/", "/0/2"), or null
+    private NodeViewModel? FindNode(string path)
+    {
+        NodeViewModel? node = Root;
+
+        foreach (string part in path.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            node = int.TryParse(part, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int index) && node is not null && index < node.Children.Count
+                ? node.Children[index]
+                : null;
+        }
+
+        return node;
     }
 
     // After a change of the tree: selects the node (if given), and refreshes everything that depends on the tree

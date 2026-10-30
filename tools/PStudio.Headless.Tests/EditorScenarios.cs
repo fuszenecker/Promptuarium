@@ -194,7 +194,7 @@ public sealed class EditorScenarios
     public Task TypedForms_CanBeChosenAndEdited() => Scenario.Run(editor =>
     {
         ComboBox forms = editor.Find<ContentEditorView>().First().GetVisualDescendantsOf<ComboBox>().Single();
-        forms.SelectedIndex = (int)PStudio.Models.ContentForm.Double;
+        forms.SelectedItem = forms.Items.OfType<PStudio.Models.FormOption>().Single(option => option.Form == PStudio.Models.ContentForm.Double);
         TextBox data = Editors(editor)[0];
         data.Text = "2.5";
         editor.ViewModel.Data.ApplyPending();

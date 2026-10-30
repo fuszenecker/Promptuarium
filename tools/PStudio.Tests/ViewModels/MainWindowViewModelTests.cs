@@ -17,6 +17,7 @@ public sealed class MainWindowViewModelTests
     private readonly IEditorWindowService windows = Substitute.For<IEditorWindowService>();
     private readonly IViewModelFactory factory = Substitute.For<IViewModelFactory>();
     private readonly INodeClipboard clipboard = new NodeClipboard();
+    private readonly InMemoryFormMemory formMemory = new();
 
     public MainWindowViewModelTests()
     {
@@ -126,7 +127,7 @@ public sealed class MainWindowViewModelTests
         sut.SelectedNode = sut.Root.Children[0];
 
         sut.Data.Text = "changed";
-        sut.MetaData.SelectedFormIndex = (int)ContentForm.Hex;
+        Choose(sut.MetaData, ContentForm.Hex);
         sut.MetaData.Text = "01 02";
 
         // Changing the selection applies the edits
@@ -144,7 +145,7 @@ public sealed class MainWindowViewModelTests
     {
         MainWindowViewModel sut = CreateWithChildren("a");
         sut.SelectedNode = sut.Root.Children[0];
-        sut.Data.SelectedFormIndex = (int)ContentForm.Hex;
+        Choose(sut.Data, ContentForm.Hex);
         sut.Data.Text = "0";
 
         sut.SelectedNode = sut.Root;
@@ -165,6 +166,62 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual("tree.prmt - Promptuarium Studio", sut.Title);
         Assert.AreEqual("x", sut.Root.Children.Single().Element.Data.AsAsciiString());
         Assert.AreSame(sut.Root, sut.SelectedNode);
+    }
+
+    [TestMethod]
+    public async Task ChosenForms_AreRememberedOnSave_AndRecalledOnOpen()
+    {
+        var tree = new Element(null, null, new Element(Data.FromInt(5), Data.FromAsciiString("count")));
+        files.LoadAsync("/data/tree.prmt").Returns(_ => Element.FromBytes(tree.ToBytes()));
+
+        MainWindowViewModel sut = Create();
+        await sut.OpenFileAsync("/data/tree.prmt");
+        sut.SelectedNode = sut.Root.Children[0];
+        Choose(sut.Data, ContentForm.Int32);
+        Choose(sut.MetaData, ContentForm.Ascii);
+        await sut.SaveCommand.ExecuteAsync(null);
+
+        FileForms remembered = formMemory.Recall("/data/tree.prmt");
+        Assert.AreEqual(ContentForm.Int32, remembered.Data["/0"]);
+        Assert.AreEqual(ContentForm.Ascii, remembered.MetaData["/0"]);
+
+        MainWindowViewModel reopened = Create();
+        await reopened.OpenFileAsync("/data/tree.prmt");
+        reopened.SelectedNode = reopened.Root.Children[0];
+
+        Assert.AreEqual(ContentForm.Int32, reopened.Data.Form);
+        Assert.AreEqual("5", reopened.Data.Text);
+        Assert.AreEqual(ContentForm.Ascii, reopened.MetaData.Form);
+    }
+
+    [TestMethod]
+    public async Task ChosenForms_FollowTheNode_AndAreRememberedWhenClosingWithoutChanges()
+    {
+        files.LoadAsync("/data/tree.prmt").Returns(_ => new Element(null, null, new Element(Data.FromInt(1), null), new Element(Data.FromInt(2), null)));
+
+        MainWindowViewModel sut = Create();
+        await sut.OpenFileAsync("/data/tree.prmt");
+        sut.SelectedNode = sut.Root.Children[1];
+        Choose(sut.Data, ContentForm.Single);
+        sut.MoveUpCommand.Execute(null);
+        sut.MoveDownCommand.Execute(null);
+        sut.SelectedNode = sut.Root.Children[0];
+        sut.SelectedNode = sut.Root.Children[1];
+
+        Assert.AreEqual(ContentForm.Single, sut.Data.Form);
+
+        // The moves changed the tree: closing without saving does not remember paths of an unsaved tree
+        messages.AskSaveChangesAsync(Arg.Any<string>()).Returns(SaveChoice.Discard);
+        Assert.IsTrue(await sut.ConfirmCloseAsync());
+        Assert.IsTrue(formMemory.Recall("/data/tree.prmt").IsEmpty);
+
+        MainWindowViewModel unchanged = Create();
+        await unchanged.OpenFileAsync("/data/tree.prmt");
+        unchanged.SelectedNode = unchanged.Root.Children[1];
+        Choose(unchanged.Data, ContentForm.Single);
+        Assert.IsTrue(await unchanged.ConfirmCloseAsync());
+
+        Assert.AreEqual(ContentForm.Single, formMemory.Recall("/data/tree.prmt").Data["/1"]);
     }
 
     [TestMethod]
@@ -329,7 +386,7 @@ public sealed class MainWindowViewModelTests
     {
         MainWindowViewModel sut = Create();
 
-        sut.MetaData.SelectedFormIndex = (int)ContentForm.Ascii;
+        Choose(sut.MetaData, ContentForm.Ascii);
         sut.MetaData.Text = "PRMT";
         sut.MetaData.ApplyPending();
 
@@ -384,9 +441,23 @@ public sealed class MainWindowViewModelTests
         return view;
     }
 
+    private static void Choose(ContentEditorViewModel editor, ContentForm form)
+    {
+        editor.SelectedForm = editor.Forms.Single(option => option.Form == form);
+    }
+
+    private sealed class InMemoryFormMemory : IFormMemory
+    {
+        private readonly Dictionary<string, FileForms> files = [];
+
+        public FileForms Recall(string path) => files.TryGetValue(path, out FileForms? forms) ? forms : new FileForms();
+
+        public void Remember(string path, FileForms forms) => files[path] = forms;
+    }
+
     private MainWindowViewModel Create()
     {
-        return new MainWindowViewModel(files, new ChunkAnalyzer(), clipboard, fileDialogs, messages, windows, factory);
+        return new MainWindowViewModel(files, new ChunkAnalyzer(), clipboard, fileDialogs, messages, windows, factory, formMemory);
     }
 
     private MainWindowViewModel CreateWithChildren(params string[] data)
