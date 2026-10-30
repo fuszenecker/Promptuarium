@@ -86,7 +86,8 @@ jobs:
           path: TestResults
 
       - name: Pack
-        run: for project in src/Promptuarium/Promptuarium.csproj src/Promptuarium.Serializer/Promptuarium.Serializer.csproj; do
+        run: |
+          for project in src/Promptuarium/Promptuarium.csproj src/Promptuarium.Serializer/Promptuarium.Serializer.csproj; do
             dotnet pack "$project" --no-build -c Release -o packages
           done
 
