@@ -1,6 +1,6 @@
 # Promptuarium.Serializer
 
-A general serializer between .NET objects and Promptuarium trees, in the layout of [CONFIG_FORMAT.md](CONFIG_FORMAT.md):
+A general serializer between .NET objects and Promptuarium trees, in the layout of [SERIALIZER_FORMAT.md](../../SERIALIZER_FORMAT.md):
 every value is a holder node with a TYPE child and, for scalars, a VALUE child. There is no intermediate representation
 (no JSON): a `byte[]` is a BLOB, the bytes as they are. The files are signed with `PRMT:GEN1-LE` (general objects) by
 default; configuration files have `PRMT:CFG1-LE` (`PromptuariumSerializerOptions.ConfigurationSignature`).

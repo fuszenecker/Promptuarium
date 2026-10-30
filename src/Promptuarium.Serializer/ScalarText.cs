@@ -4,7 +4,7 @@ using System.Globalization;
 namespace Promptuarium.Serializer;
 
 /// <summary>
-/// The values that CFG1-LE has no type for, stored as UTF8_STRING: <c>char</c>, enums (by name) and the invariant
+/// The values that version 1 of the format has no type for, stored as UTF8_STRING: <c>char</c>, enums (by name) and the invariant
 /// round-trip text of the common date, time and identifier types.
 /// </summary>
 internal static class ScalarText

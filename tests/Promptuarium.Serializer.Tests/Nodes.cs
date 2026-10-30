@@ -3,7 +3,7 @@ using Promptuarium.Serializer;
 
 namespace Promptuarium.Serializer.Tests;
 
-/// <summary>Builds CFG1-LE trees by hand, for the cases a writer never produces.</summary>
+/// <summary>Builds trees of SERIALIZER_FORMAT.md by hand, for the cases a writer never produces.</summary>
 internal static class Nodes
 {
     public static byte[] Hex(string hex)

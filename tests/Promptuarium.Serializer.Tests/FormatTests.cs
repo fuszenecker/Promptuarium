@@ -3,11 +3,11 @@ using Promptuarium.Serializer;
 
 namespace Promptuarium.Serializer.Tests;
 
-/// <summary>The serializer against CONFIG_FORMAT.md: the test vectors and the rules a reader enforces.</summary>
+/// <summary>The serializer against SERIALIZER_FORMAT.md: the test vectors and the rules a reader enforces.</summary>
 [TestClass]
 public sealed class FormatTests
 {
-    // CONFIG_FORMAT.md, section 7
+    // SERIALIZER_FORMAT.md, section 7
     private const string TestVector = """
         6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45 44 6b 65
         79 31 21 00 41 80 21 01 c6 76 61 6c 75 65 31 21
@@ -69,6 +69,15 @@ public sealed class FormatTests
         CollectionAssert.AreEqual(new List<object?> { "value41", "value42" }, (List<object?>)decoded["key4"]!);
         Assert.AreEqual("value51", ((Dictionary<string, object?>)decoded["key5"]!)["key51"]);
         Assert.IsNull(decoded["key6"]);
+    }
+
+    [TestMethod]
+    public void Serialize_SpecExampleAsAGeneralObject_DiffersInTheSignatureOnly()
+    {
+        byte[] expected = Nodes.Hex(TestVector);
+        "GEN"u8.CopyTo(expected.AsSpan(6));
+
+        CollectionAssert.AreEqual(expected, PromptuariumSerializer.Serialize(Example()));
     }
 
     [TestMethod]

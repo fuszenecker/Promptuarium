@@ -1,8 +1,9 @@
-# Promptuarium Configuration Format (`PRMT:CFG1-LE`)
+# Promptuarium Serializer Format
 
-This document specifies how a JSON-like configuration (e.g. the content of an `appsettings.json`) is stored in a Promptuarium container (`PRMT:CFG1-LE`).
-PentaGrammata uses it for `settings.prmt` (the bundled defaults and the per-user settings) and `windows.prmt` (the window sizes).
-It builds on the [Binary Format Specification](../../BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the data and metadata of its nodes.
+This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs) are stored in a Promptuarium container.
+[Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) writes and reads it, mapping .NET objects to it and back (the mapping is described in its README).
+The same layout is used for general objects (`PRMT:GEN1-LE`), for configurations (`PRMT:CFG1-LE`, e.g. the content of an `appsettings.json`) and for the files of applications that give them a signature of their own; only the signature differs.
+It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the data and metadata of its nodes.
 
 **Contents**
 
@@ -24,19 +25,26 @@ It builds on the [Binary Format Specification](../../BINARY_FORMAT.md): the cont
 
 ## 2. Signature
 
-The root node follows the [file identification convention](../../BINARY_FORMAT.md#10-file-identification-optional-convention):
+The root node follows the [file identification convention](BINARY_FORMAT.md#10-file-identification-optional-convention):
 
 * the root has **no data**,
-* its metadata is the signature `PRMT:CFG1-LE` (12 bytes: the tag `CFG1-LE` is the kind `CFG`, the version `1` and the byte order `LE`),
-* its children are the members of the configuration.
+* its metadata is the signature (see below),
+* its children are the members of the stored object.
 
 The root is an **implicit OBJECT**: it has no TYPE child, its children are NAME nodes.
 
-A file in this format starts with the bytes `6C 50 52 4D 54 3A 43 46 47 31 2D 4C 45` (`0x60 + 12`, then the signature).
-A reader MUST reject any other signature, including `PRMT:CFG1`.
+The signature tells the **kind** of the content; the layout is the same for every kind:
 
-The same layout carries general objects, too: Promptuarium.Serializer signs them with `PRMT:GEN1-LE` (the kind `GEN`)
-by default. Apart from the signature, such a file follows every rule of this document; it is not a configuration file.
+| Signature      | Kind | First bytes of the file |
+|----------------|------|-------------------------|
+| `PRMT:GEN1-LE` | general objects (the default of Promptuarium.Serializer) | `6C 50 52 4D 54 3A 47 45 4E 31 2D 4C 45` |
+| `PRMT:CFG1-LE` | configurations (PentaGrammata: `settings.prmt`, the bundled defaults and the per-user settings, and `windows.prmt`, the window sizes) | `6C 50 52 4D 54 3A 43 46 47 31 2D 4C 45` |
+
+The tag is the kind (`GEN`, `CFG`), the version of this layout (`1`) and the byte order (`LE`); the first byte is the control byte of the metadata chunk (`0x60 + 12`).
+
+An application MAY sign its files with a signature of its own (1 to 15 ASCII bytes, e.g. `PRMT:PStNT1`, the forms remembered by PStudio), so that its files are told apart from other files of this layout. Such a signature names the version of the layout only if the application says so: an application that adopts a later version of this layout SHOULD change its signature too.
+
+A reader expects one signature (the one of the kind it reads). It MUST reject a file with any other signature (including a truncated one such as `PRMT:CFG1`) and a root with data, unless the application explicitly decides otherwise for that file: it may read the file by the rules of this document anyway, or skip it (read it as an object without members, e.g. a configuration layer of another kind). Promptuarium.Serializer asks the application with `PromptuariumSerializerOptions.UnexpectedSignature`; without it, such a file is rejected.
 
 ## 3. Metadata tags
 
@@ -76,7 +84,7 @@ Rules:
 
 ### 4.2 Reserved types
 
-These codes are reserved for later versions and are **not** supported by `CFG1-LE`:
+These codes are reserved for later versions and are **not** supported by version 1 of the layout:
 
 | Type       | Code   | Type       | Code   | Type       | Code   |
 |------------|--------|------------|--------|------------|--------|
@@ -195,7 +203,7 @@ TYPE and VALUE nodes have no children.
 
 ## 7. Test vector
 
-The canonical encoding of the example above (160 bytes):
+The canonical encoding of the example above, as a configuration (`PRMT:CFG1-LE`, 160 bytes):
 
 ```text
 6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45 44 6b 65
@@ -223,4 +231,6 @@ A `BLOB` member `key7` with the bytes `DE AD BE EF`, appended to the example, is
 ```
 
 These 18 bytes are inserted before the final `00` of the test vector, which gives a 178-byte file.
+
+With the signature `PRMT:GEN1-LE`, the same example is the same 160 bytes, except bytes 6 to 8 (counted from 0): `47 45 4e` (`GEN`) instead of `43 46 47` (`CFG`).
 

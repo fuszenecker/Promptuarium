@@ -4,7 +4,7 @@ namespace Promptuarium.Serializer;
 
 /// <summary>
 /// Options of <see cref="PromptuariumSerializer"/>. The defaults read and write <c>PRMT:GEN1-LE</c> files, the layout of
-/// <c>CONFIG_FORMAT.md</c> with a signature of their own; configuration files have <see cref="ConfigurationSignature"/>,
+/// <c>SERIALIZER_FORMAT.md</c> with a signature of their own; configuration files have <see cref="ConfigurationSignature"/>,
 /// and an application can give its files a signature of its own, too. The layout stays the same.
 /// </summary>
 public sealed class PromptuariumSerializerOptions
@@ -12,7 +12,7 @@ public sealed class PromptuariumSerializerOptions
     /// <summary>The default signature, <c>PRMT:GEN1-LE</c>: general objects.</summary>
     public const string DefaultSignature = "PRMT:GEN1-LE";
 
-    /// <summary>The signature of configuration files, <c>PRMT:CFG1-LE</c> (<c>CONFIG_FORMAT.md</c>).</summary>
+    /// <summary>The signature of configuration files, <c>PRMT:CFG1-LE</c> (<c>SERIALIZER_FORMAT.md</c>).</summary>
     public const string ConfigurationSignature = "PRMT:CFG1-LE";
 
     /// <summary>The options used when none are given.</summary>

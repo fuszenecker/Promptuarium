@@ -4,7 +4,7 @@ using System.Globalization;
 namespace Promptuarium.Serializer;
 
 /// <summary>
-/// Maps .NET objects to Promptuarium trees in the layout of <c>CONFIG_FORMAT.md</c> and back, directly, without an
+/// Maps .NET objects to Promptuarium trees in the layout of <c>SERIALIZER_FORMAT.md</c> and back, directly, without an
 /// intermediate representation such as JSON. The files are signed with
 /// <see cref="PromptuariumSerializerOptions.Signature"/> (<c>PRMT:GEN1-LE</c> by default).
 /// <list type="table">
@@ -67,7 +67,7 @@ public static partial class PromptuariumSerializer
     {
         if (declared is { } reserved && !PromptuariumTypeAttribute.IsSupported((PromptuariumType)reserved))
         {
-            throw new NotSupportedException($"The type {(PromptuariumType)reserved} is reserved in CFG1-LE.");
+            throw new NotSupportedException($"The type {(PromptuariumType)reserved} is reserved in version 1 of the format.");
         }
 
         Element holder = Holder(tag, name, value, depth, options);
@@ -144,7 +144,7 @@ public static partial class PromptuariumSerializer
                 return true;
 
             case nint or nuint or Int128 or UInt128 or Half:
-                throw new NotSupportedException($"A {value.GetType().Name} can not be stored: CFG1-LE has FLOAT64 numbers only.");
+                throw new NotSupportedException($"A {value.GetType().Name} can not be stored: version 1 of the format has FLOAT64 numbers only.");
 
             default:
                 if (ScalarText.TryFormat(value, out string? formatted))

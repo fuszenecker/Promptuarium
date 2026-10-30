@@ -1,6 +1,6 @@
 namespace Promptuarium.Serializer;
 
-/// <summary>The metadata tags and the type codes of CONFIG_FORMAT.md (sections 3 and 4).</summary>
+/// <summary>The metadata tags and the type codes of SERIALIZER_FORMAT.md (sections 3 and 4).</summary>
 internal static class CfgFormat
 {
     // Metadata tags: the whole metadata of every node except the root

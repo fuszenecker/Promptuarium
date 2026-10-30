@@ -1,5 +1,5 @@
 // Configuration: settings in sections, with typed values, stored with Promptuarium.Serializer as configuration files
-// (PRMT:CFG1-LE, src/Promptuarium.Serializer/CONFIG_FORMAT.md).
+// (PRMT:CFG1-LE, SERIALIZER_FORMAT.md).
 //
 // The settings are plain classes. The defaults are one file, the user's changes another one on top of them; a file of
 // another kind is skipped, not an error. Unlike a text format, the values keep their types and need no escaping, and

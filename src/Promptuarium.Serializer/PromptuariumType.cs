@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Promptuarium.Serializer;
 
 /// <summary>
-/// The type codes of CONFIG_FORMAT.md (section 4), the data of a TYPE node. CFG1-LE supports <see cref="Null"/>,
+/// The type codes of SERIALIZER_FORMAT.md (section 4), the data of a TYPE node. Version 1 of the layout supports <see cref="Null"/>,
 /// <see cref="Boolean"/>, <see cref="Object"/>, <see cref="Array"/>, <see cref="Float64"/>, <see cref="Utf8String"/>
 /// and <see cref="Blob"/>; the others are reserved for later versions.
 /// </summary>
@@ -95,7 +95,7 @@ public sealed class PromptuariumTypeAttribute(PromptuariumType type) : Attribute
     /// <summary>The type code the property is stored as.</summary>
     public PromptuariumType Type { get; } = type;
 
-    /// <summary>Whether CFG1-LE supports the type (it is not reserved).</summary>
+    /// <summary>Whether version 1 of the format supports the type (it is not reserved).</summary>
     internal static bool IsSupported(PromptuariumType type) => type is PromptuariumType.Null or PromptuariumType.Boolean
         or PromptuariumType.Object or PromptuariumType.Array or PromptuariumType.Float64 or PromptuariumType.Utf8String or PromptuariumType.Blob;
 }
