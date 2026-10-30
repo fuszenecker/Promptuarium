@@ -25,7 +25,7 @@ done
 
 # The version of the tools is the version of the library
 if [[ -z "${VERSION}" ]]; then
-  VERSION="$(dotnet msbuild "${REPO_ROOT}/src/Promptuarium.csproj" -getProperty:Version)"
+  VERSION="$(dotnet msbuild "${REPO_ROOT}/src/Promptuarium/Promptuarium.csproj" -getProperty:Version)"
 fi
 
 case "${RUNTIME}" in

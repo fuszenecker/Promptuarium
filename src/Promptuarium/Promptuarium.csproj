@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AnalysisLevel>preview</AnalysisLevel>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Promptuarium</PackageId>
+    <Title>Promptuarium</Title>
+    <Description>Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, can be used in F#, too.</Description>
+    <PackageTags>promptuarium binary tree serialization space-efficient limitless container</PackageTags>
+    <ReleaseNotes>The contents are ReadOnlyMemory&lt;byte&gt; instead of Stream: no positions, no disposal, no side effects. Breaking changes: Data and MetaData are ReadOnlyMemory&lt;byte&gt; (empty instead of null; assign byte arrays directly, use node.Data.AsInt() instead of node.Data?.AsInt()); the Data conversions take and return ReadOnlyMemory&lt;byte&gt;; the save events and the load events are removed. New: ToBytes, FromBytes (also with the number of bytes consumed), ToBase64String, FromBase64String, Data.FromElement, AsElement, Data.FromBytes; the conversions are little-endian on every platform; large contents are saved without copying. The binary format is unchanged.</ReleaseNotes>
+    <PackageReleaseNotes>The contents are ReadOnlyMemory&lt;byte&gt; instead of Stream: no positions, no disposal, no side effects. Breaking changes: Data and MetaData are ReadOnlyMemory&lt;byte&gt; (empty instead of null; assign byte arrays directly, use node.Data.AsInt() instead of node.Data?.AsInt()); the Data conversions take and return ReadOnlyMemory&lt;byte&gt;; the save events and the load events are removed. New: ToBytes, FromBytes (also with the number of bytes consumed), ToBase64String, FromBase64String, Data.FromElement, AsElement, Data.FromBytes; the conversions are little-endian on every platform; large contents are saved without copying. The binary format is unchanged.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+</Project>

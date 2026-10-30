@@ -91,6 +91,8 @@ The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits 
 
 [PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents as hex, UTF-8, ASCII or base64, import and export, a chunk view, and nested trees in their own windows.
 
+[Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) (a separate package) serializes .NET objects into trees in the `PRMT:CFG1-LE` layout and back.
+
 The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with permissions, owners, times and CRCs into one signed file.
 
 Other implementations:
@@ -107,15 +109,15 @@ dotnet test --filter "TestCategory!=Slow"
 
 ## Packages and releases
 
-* NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/)
-* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet package, the symbol package, and `pedit` and PStudio of every version (zip, and Debian packages for amd64).
+* NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/), and [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/), a serializer between .NET objects and trees ([README](src/Promptuarium.Serializer/README.md))
+* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet packages, the symbol packages, and `pedit` and PStudio of every version (zip, and Debian packages for amd64).
 
 A release is created automatically for every version tag:
 
-1. set the new `Version` (and the release notes) in `src/Promptuarium.csproj`, and commit;
+1. set the new `Version` in `src/Directory.Build.props` (one version for both packages) and the release notes in `src/Promptuarium/Promptuarium.csproj` and `src/Promptuarium.Serializer/Promptuarium.Serializer.csproj`, and commit;
 2. tag the commit with the version (`git tag 7.1.0`) and push the tag (`git push origin 7.1.0`).
 
-The release workflow checks that the tag is the version of the package, runs the tests, and publishes the release as the latest one (a tag like `7.1.0-beta.1` is a pre-release). Releases of existing tags can be created by hand: `gh workflow run release.yml -f tag=7.0.0`.
+The release workflow checks that the tag is the version of the packages, runs the tests, and publishes the release as the latest one (a tag like `7.1.0-beta.1` is a pre-release). Releases of existing tags can be created by hand: `gh workflow run release.yml -f tag=7.0.0`.
 
 ## License
 

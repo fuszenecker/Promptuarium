@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Promptuarium.csproj" />
+    <ProjectReference Include="..\..\src\Promptuarium\Promptuarium.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

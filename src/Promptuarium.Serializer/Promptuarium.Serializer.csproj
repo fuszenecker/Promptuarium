@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Promptuarium.Serializer</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The library implements the experimental PromptuariumType control, so it uses it freely -->
+    <NoWarn>$(NoWarn);PRMTSER001</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Promptuarium.Serializer</PackageId>
+    <Title>Promptuarium.Serializer</Title>
+    <Description>A general serializer between .NET objects and Promptuarium trees in the PRMT:CFG1-LE layout: typed holders, byte[] as BLOB, no JSON in between; layering (Populate), records, attributes.</Description>
+    <PackageTags>promptuarium serializer serialization configuration binary tree</PackageTags>
+    <PackageReleaseNotes>The first version of the serializer.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Promptuarium/Promptuarium.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Promptuarium.Serializer.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

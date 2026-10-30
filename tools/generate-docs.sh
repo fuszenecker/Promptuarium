@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-dotnet build src/Promptuarium.csproj -c Release -v quiet -nologo
+dotnet build src/Promptuarium/Promptuarium.csproj -c Release -v quiet -nologo
 dotnet tool restore > /dev/null
 rm -rf docs
 dotnet tool run defaultdocumentation -- --ConfigurationFilePath "$PWD/defaultdocumentation.json" --LogLevel Warning

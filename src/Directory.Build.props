@@ -1,0 +1,26 @@
+<Project>
+  <!-- Common settings of the packages (Promptuarium, Promptuarium.Serializer): one version, released together -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <!-- IntelliSense for the users of the packages -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Version>8.0.0</Version>
+    <Authors>Fuszenecker Róbert</Authors>
+    <Owners>Fuszenecker Róbert</Owners>
+    <Company>Fuszenecker Software Development</Company>
+    <Copyright>Copyright 2012-2026, Fuszenecker Róbert</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <ProjectUrl>https://github.com/fuszenecker/Promptuarium</ProjectUrl>
+    <PackageProjectUrl>https://github.com/fuszenecker/Promptuarium</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/fuszenecker/Promptuarium</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+</Project>

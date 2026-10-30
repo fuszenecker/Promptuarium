@@ -9,6 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/Promptuarium.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/Promptuarium/Promptuarium.csproj" />
   </ItemGroup>
 </Project>

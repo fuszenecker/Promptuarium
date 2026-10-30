@@ -1,7 +1,7 @@
 name: Release
 
 # A new version tag (e.g. 7.1.0, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
-# with the NuGet package, the symbol package and pedit. It can also be started by hand for an existing tag.
+# with the NuGet packages, the symbol packages and pedit. It can also be started by hand for an existing tag.
 
 on:
   push:
@@ -36,12 +36,12 @@ jobs:
         with:
           dotnet-version: 10.x
 
-      # The tag must be the version of the package, so the version is always bumped before tagging
+      # The tag must be the version of the packages (one version in src/Directory.Build.props), so the version is always bumped before tagging
       - name: Check the version
         run: |
-          VERSION=$(dotnet msbuild src/Promptuarium.csproj -getProperty:Version)
+          VERSION=$(dotnet msbuild src/Promptuarium/Promptuarium.csproj -getProperty:Version)
           if [ "$VERSION" != "$TAG" ]; then
-            echo "::error::The tag ($TAG) is not the version of src/Promptuarium.csproj ($VERSION)."
+            echo "::error::The tag ($TAG) is not the version of src/Directory.Build.props ($VERSION)."
             exit 1
           fi
 
@@ -49,7 +49,10 @@ jobs:
         run: dotnet test -c Release --filter "TestCategory!=Slow"
 
       - name: Pack
-        run: dotnet pack src/Promptuarium.csproj -c Release -o artifacts
+        run: |
+          for project in src/Promptuarium/Promptuarium.csproj src/Promptuarium.Serializer/Promptuarium.Serializer.csproj; do
+            dotnet pack "$project" -c Release -o artifacts
+          done
 
       - name: Publish pedit
         if: hashFiles('tools/PEdit/PEdit.csproj') != ''
@@ -76,12 +79,12 @@ jobs:
       - name: Release notes
         run: |
           {
-            dotnet msbuild src/Promptuarium.csproj -getProperty:PackageReleaseNotes
+            dotnet msbuild src/Promptuarium/Promptuarium.csproj -getProperty:PackageReleaseNotes
             echo
             echo "### Attachments"
             echo
 
-            echo "- The NuGet package and the symbol package (upload both to nuget.org)."
+            echo "- The NuGet packages (Promptuarium, Promptuarium.Serializer) and their symbol packages (upload all of them to nuget.org)."
 
             if [ -f "artifacts/pedit-$TAG.zip" ]; then
               echo "- pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
