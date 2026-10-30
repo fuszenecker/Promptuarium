@@ -278,6 +278,40 @@ public sealed class ContentEditorViewModelTests
         await files.Received(1).WriteBytesAsync("out.bin", Arg.Is<ReadOnlyMemory<byte>>(content => content.ToArray().SequenceEqual(new byte[] { 7 })));
     }
 
+    [TestMethod]
+    public void AWrongTypeCode_HasAShortMessage_AndEveryTypeCodeInItsTooltip()
+    {
+        ContentEditorViewModel sut = Create();
+        sut.Load(new byte[] { 0x63 }, preferredForm: ContentForm.SerializerType);
+
+        sut.Text = "DOUBLE";
+
+        Assert.IsFalse(sut.ApplyPending());
+        Assert.AreEqual("Not a type code, e.g. FLOAT64, UTF8_STRING or BLOB.", sut.Info);
+        StringAssert.StartsWith(sut.InfoDetail, sut.Info + "\n\nThe type codes:\n", StringComparison.Ordinal);
+
+        foreach (string name in SerializerLayout.Types.Values)
+        {
+            StringAssert.Contains(sut.InfoDetail, name, StringComparison.Ordinal);
+        }
+
+        StringAssert.Contains(sut.InfoDetail, "FLOAT64  (0x63)\n", StringComparison.Ordinal);
+        StringAssert.Contains(sut.InfoDetail, "INT32  (0x42), reserved", StringComparison.Ordinal);
+        Assert.AreEqual(SerializerLayout.Types.Count + 3, sut.InfoDetail!.Split('\n').Length, "the message, a blank line, the title, a line for each code");
+    }
+
+    [TestMethod]
+    public void OtherInfos_HaveThemselvesAsTheTooltip()
+    {
+        ContentEditorViewModel sut = Create();
+
+        sut.Load(new byte[] { 1, 2 });
+        Assert.AreEqual("2 bytes", sut.InfoDetail);
+
+        sut.Load(Array.Empty<byte>(), enabled: false);
+        Assert.IsNull(sut.InfoDetail);
+    }
+
     private static void Choose(ContentEditorViewModel sut, ContentForm form)
     {
         sut.SelectedForm = sut.Forms.Single(option => option.Form == form);

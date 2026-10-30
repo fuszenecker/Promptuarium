@@ -46,6 +46,10 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
     [ObservableProperty]
     private string info = string.Empty;
 
+    // The tooltip of the info: the whole message, or more (e.g. every valid value after an error); none without a message
+    [ObservableProperty]
+    private string? infoDetail;
+
     [ObservableProperty]
     private bool isError;
 
@@ -119,7 +123,7 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         }
         catch (FormatException ex)
         {
-            ShowInfo(ex.Message, error: true);
+            ShowInfo(ex.Message, error: true, ContentFormat.Help(Form));
             return false;
         }
     }
@@ -306,9 +310,10 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
         }
     }
 
-    private void ShowInfo(string message, bool error)
+    private void ShowInfo(string message, bool error, string? detail = null)
     {
         Info = message;
+        InfoDetail = message.Length == 0 ? null : detail is null ? message : $"{message}\n\n{detail}";
         IsError = error;
     }
 

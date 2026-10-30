@@ -119,7 +119,7 @@ public sealed class EditorScenarios
         MenuItem view = editor.Find<MenuItem>().Single(item => (string?)item.Header == "_View");
         view.Open();
         Editor.Pump();
-        MenuItem chunks = view.Items.OfType<MenuItem>().Single();
+        MenuItem chunks = view.Items.OfType<MenuItem>().Single(item => (string?)item.Header == "_Chunks");
         chunks.Command!.Execute(chunks.CommandParameter);
         view.Close();
         Editor.Pump();
@@ -187,6 +187,84 @@ public sealed class EditorScenarios
         Editor.Pump();
 
         Assert.AreEqual(0, editor.ViewModel.Root.Children.Count);
+        return Task.CompletedTask;
+    });
+
+    [TestMethod]
+    public Task OpenRecent_ListsTheFiles_AndOpensOne() => Scenario.Run(async editor =>
+    {
+        string path = Path.Combine(editor.Directory, "recent_one.prmt");
+        await new Element(Data.FromUtf8String("recent"), null).SaveAsync(path);
+        Assert.IsTrue(await editor.ViewModel.OpenFileAsync(path));
+        editor.ViewModel.NewCommand.Execute(null);
+        Editor.Pump();
+
+        MenuItem file = editor.Find<MenuItem>().Single(item => (string?)item.Header == "_File");
+        file.Open();
+        Editor.Pump();
+        MenuItem recent = file.Items.OfType<MenuItem>().Single(item => (string?)item.Header == "Open _Recent");
+        Assert.IsTrue(recent.IsEnabled);
+        recent.Open();
+        Editor.Pump();
+
+        MenuItem[] entries = recent.GetRealizedContainers().OfType<MenuItem>().ToArray();
+        Assert.AreEqual($"_1 recent__one.prmt  ({editor.Directory})", entries[0].Header);
+        editor.Screenshot("open-recent");
+
+        entries[0].Command!.Execute(entries[0].CommandParameter);
+        recent.Close();
+        file.Close();
+        Editor.Pump();
+
+        Assert.AreEqual("recent_one.prmt - Promptuarium Studio", editor.Window.Title);
+    });
+
+    [TestMethod]
+    public Task SerializerTree_IsShownInItsLayout_AndAWrongTypeCodeIsReported() => Scenario.Run(async editor =>
+    {
+        string path = Path.Combine(editor.Directory, "settings.prmt");
+        await Promptuarium.Serializer.PromptuariumSerializer.ToElement(new Dictionary<string, object> { ["rate"] = 1.5 }).SaveAsync(path);
+        Assert.IsTrue(await editor.ViewModel.OpenFileAsync(path));
+
+        editor.ViewModel.SelectedNode = editor.ViewModel.Root.Children[0].Children[0];
+        Editor.Pump();
+        Assert.AreEqual("FLOAT64 | TYPE", string.Join(" | ", Editors(editor).Select(box => box.Text)));
+
+        Editors(editor)[0].Text = "DOUBLE";
+        Assert.IsFalse(editor.ViewModel.Data.ApplyPending());
+        Editor.Pump();
+
+        Assert.AreEqual("Not a type code, e.g. FLOAT64, UTF8_STRING or BLOB.", editor.ViewModel.Data.Info);
+        editor.Screenshot("wrong-type-code");
+
+        // The tooltip of the message lists every type code
+        TextBlock info = editor.Find<ContentEditorView>().First().GetVisualDescendantsOf<TextBlock>().Single(block => block.Text == editor.ViewModel.Data.Info);
+        StringAssert.Contains((string?)ToolTip.GetTip(info), "UINT128  (0x54), reserved", StringComparison.Ordinal);
+        ToolTip.SetIsOpen(info, true);
+        Editor.Pump();
+        editor.Screenshot("wrong-type-code-tooltip");
+        ToolTip.SetIsOpen(info, false);
+    });
+
+    [TestMethod]
+    public Task ANewNode_GetsATagTypedByHand() => Scenario.Run(editor =>
+    {
+        editor.ViewModel.AddChildCommand.Execute(null);
+        Editor.Pump();
+
+        ComboBox forms = editor.Find<ContentEditorView>().Last().GetVisualDescendantsOf<ComboBox>().Single();
+        forms.SelectedItem = forms.Items.OfType<PStudio.Models.FormOption>().Single(option => option.Form == PStudio.Models.ContentForm.SerializerTag);
+        Editor.Pump();
+        TextBox metaData = Editors(editor)[1];
+        metaData.Text = "NAME";
+        Editor.Pump();
+        Assert.IsTrue(editor.ViewModel.MetaData.ApplyPending(), editor.ViewModel.MetaData.Info);
+        Editor.Pump();
+
+        CollectionAssert.AreEqual(new byte[] { 0x00 }, editor.ViewModel.Root.Children[0].Element.MetaData.ToArray());
+        Assert.AreEqual("NAME", metaData.Text);
+        Assert.AreEqual("serializer tag", forms.SelectedItem?.ToString());
+        editor.Screenshot("new-name");
         return Task.CompletedTask;
     });
 

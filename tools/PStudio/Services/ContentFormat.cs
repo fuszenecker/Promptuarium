@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -42,6 +43,8 @@ public static class ContentFormat
         ContentForm.Single => "float",
         ContentForm.Double => "double",
         ContentForm.Decimal => "decimal",
+        ContentForm.SerializerTag => "serializer tag",
+        ContentForm.SerializerType => "serializer type",
         _ => form.ToString(),
     };
 
@@ -113,6 +116,8 @@ public static class ContentFormat
             ContentForm.DateTime => memory.AsDateTime().ToString("o", Invariant),
             ContentForm.DateTimeOffset => memory.AsDateTimeOffset().ToString("o", Invariant),
             ContentForm.TimeSpan => memory.AsTimeSpan().ToString("c", Invariant),
+            ContentForm.SerializerTag => FormatCode(content, SerializerLayout.Tags, "tag"),
+            ContentForm.SerializerType => FormatCode(content, SerializerLayout.Types, "type code"),
             _ => throw new ArgumentOutOfRangeException(nameof(form), form, null),
         };
     }
@@ -161,6 +166,8 @@ public static class ContentFormat
                 ContentForm.DateTime => Data.FromDateTime(System.DateTime.Parse(value, Invariant, DateTimeStyles.RoundtripKind)),
                 ContentForm.DateTimeOffset => Data.FromDateTimeOffset(System.DateTimeOffset.Parse(value, Invariant)),
                 ContentForm.TimeSpan => Data.FromTimeSpan(System.TimeSpan.Parse(value, Invariant)),
+                ContentForm.SerializerTag => ParseCode(value, SerializerLayout.Tags, "Not a tag: NAME, TYPE, ITEM, VALUE or COMMENT."),
+                ContentForm.SerializerType => ParseCode(value, SerializerLayout.Types, "Not a type code, e.g. FLOAT64, UTF8_STRING or BLOB."),
                 _ => throw new ArgumentOutOfRangeException(nameof(form), form, null),
             };
 
@@ -171,6 +178,16 @@ public static class ContentFormat
             throw new FormatException($"The value is out of the range of {Name(form)}.", ex);
         }
     }
+
+    /// <summary>
+    /// The valid values of a form, for the tooltip of an error (the message has to be short), or null.
+    /// </summary>
+    public static string? Help(ContentForm form) => form switch
+    {
+        ContentForm.SerializerTag => SerializerLayout.TagList,
+        ContentForm.SerializerType => SerializerLayout.TypeList,
+        _ => null,
+    };
 
     /// <summary>
     /// A short, one-line preview of a content, for the tree.
@@ -198,6 +215,28 @@ public static class ContentFormat
         }
 
         return Convert.ToHexString(head) + ellipsis;
+    }
+
+    // A one-byte code of SERIALIZER_FORMAT.md by its name
+    private static string FormatCode(ReadOnlySpan<byte> content, IReadOnlyDictionary<byte, string> names, string kind)
+    {
+        return content.Length == 1 && names.TryGetValue(content[0], out string? name)
+            ? name
+            : throw new FormatException($"The content is not a {kind} of the serializer format.");
+    }
+
+    // The message is short, so that it fits in the line of the editor
+    private static byte[] ParseCode(string value, IReadOnlyDictionary<byte, string> names, string error)
+    {
+        foreach ((byte code, string name) in names)
+        {
+            if (string.Equals(name, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return [code];
+            }
+        }
+
+        throw new FormatException(error);
     }
 
     private static string FormatHex(ReadOnlySpan<byte> content)

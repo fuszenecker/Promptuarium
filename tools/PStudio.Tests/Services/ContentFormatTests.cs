@@ -98,6 +98,23 @@ public sealed class ContentFormatTests
         Assert.IsTrue(ContentFormat.CanShow([0xFF], ContentForm.Base64));
     }
 
+    [TestMethod]
+    public void SerializerForms_AreTheNamesOfTheCodes()
+    {
+        AssertForm(ContentForm.SerializerTag, "NAME", new byte[] { 0x00 });
+        AssertForm(ContentForm.SerializerTag, "VALUE", new byte[] { 0x03 });
+        AssertForm(ContentForm.SerializerTag, "COMMENT", new byte[] { 0x04 });
+        AssertForm(ContentForm.SerializerType, "FLOAT64", new byte[] { 0x63 });
+        AssertForm(ContentForm.SerializerType, "UTF8_STRING", new byte[] { 0x80 });
+        AssertForm(ContentForm.SerializerType, "INT32", new byte[] { 0x42 });
+        CollectionAssert.AreEqual(new byte[] { 0xF0 }, ContentFormat.Parse("blob", ContentForm.SerializerType));
+
+        Assert.IsFalse(ContentFormat.CanShow([0x05], ContentForm.SerializerTag));
+        Assert.IsFalse(ContentFormat.CanShow([0x02], ContentForm.SerializerType));
+        Assert.IsFalse(ContentFormat.CanShow([0x00, 0x00], ContentForm.SerializerTag));
+        Assert.ThrowsExactly<FormatException>(() => ContentFormat.Parse("DOUBLE", ContentForm.SerializerType));
+    }
+
     private static void AssertForm(ContentForm form, string text, ReadOnlyMemory<byte> bytes)
     {
         Assert.AreEqual(text, ContentFormat.Format(bytes.Span, form), form.ToString());

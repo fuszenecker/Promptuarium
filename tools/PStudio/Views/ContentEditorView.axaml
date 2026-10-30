@@ -11,6 +11,7 @@
                 IsEnabled="{Binding CanChangeForm}"
                 MinWidth="110" />
       <TextBlock Text="{Binding Info}"
+                 ToolTip.Tip="{Binding InfoDetail}"
                  Classes.error="{Binding IsError}"
                  VerticalAlignment="Center"
                  TextTrimming="CharacterEllipsis" />

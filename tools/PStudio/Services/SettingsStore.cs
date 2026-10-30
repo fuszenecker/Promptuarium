@@ -32,5 +32,12 @@ public sealed class SettingsStore : ISettingsStore
     public StudioSettings Settings => settings ??= SettingsFile.Load<StudioSettings>(settingsPath, Options);
 
     /// <inheritdoc/>
-    public void Save() => SettingsFile.Save(settingsPath, Settings, Options);
+    public event EventHandler? Saved;
+
+    /// <inheritdoc/>
+    public void Save()
+    {
+        SettingsFile.Save(settingsPath, Settings, Options);
+        Saved?.Invoke(this, EventArgs.Empty);
+    }
 }

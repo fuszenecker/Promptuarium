@@ -99,6 +99,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         this.formMemory = formMemory ?? throw new ArgumentNullException(nameof(formMemory));
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         isChunkPanelVisible = settings.Settings.View.IsChunkPanelVisible;
+        settings.Saved += OnSettingsSaved;
+        RefreshRecentFiles();
 
         Data = viewModelFactory.CreateContentEditor("Data");
         MetaData = viewModelFactory.CreateContentEditor("MetaData");
@@ -118,6 +120,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>The root of the tree.</summary>
     public NodeViewModel Root => Roots[0];
+
+    /// <summary>The items of File / Open Recent: the recent files, then Clear Recent Files.</summary>
+    public ObservableCollection<MenuEntry> RecentFiles { get; } = [];
+
+    /// <summary>Whether there are recent files.</summary>
+    public bool HasRecentFiles => RecentFiles.Count > 0;
 
     /// <summary>The editor of the data of the selected node.</summary>
     public ContentEditorViewModel Data { get; }
@@ -197,11 +205,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             Element root = await files.LoadAsync(path);
             SetTree(root, path);
+            AddRecentFile(path);
             ShowStatus($"Opened {path}", error: false);
             return true;
         }
         catch (Exception ex) when (ex is PromptuariumException or IOException or UnauthorizedAccessException)
         {
+            // A recent file that can not be opened any more is dropped from the list
+            RemoveRecentFile(path);
             ShowStatus($"Can not open {path}: {ex.Message}", error: true);
             await messages.ShowErrorAsync("Can not open the file", $"{path}\n\n{ex.Message}");
             return false;
@@ -225,6 +236,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         SetTree(root, null);
         OnPropertyChanged(nameof(IsNested));
         OnPropertyChanged(nameof(IsNotNested));
+        OpenRecentCommand.NotifyCanExecuteChanged();
         ShowStatus($"Editing the data of {node.Path} as a tree; Save stores it in the node", error: false);
     }
 
@@ -268,6 +280,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public void Closed()
     {
+        settings.Saved -= OnSettingsSaved;
         hostEditor?.nestedEditors.Remove(this);
     }
 
@@ -290,6 +303,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand(CanExecute = nameof(IsNotNested))]
+    private async Task OpenRecentAsync(string path)
+    {
+        if (await ConfirmDiscardAsync())
+        {
+            await OpenFileAsync(path);
+        }
+    }
+
+    [RelayCommand]
+    private void ClearRecentFiles()
+    {
+        settings.Settings.RecentFiles.Clear();
+        settings.Save();
+    }
+
     [RelayCommand]
     private Task SaveAsync() => SaveTreeAsync(saveAs: false);
 
@@ -301,6 +330,95 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void ToggleChunkPanel() => IsChunkPanelVisible = !IsChunkPanelVisible;
+
+    // The forms chosen by the user are forgotten: every content gets its default form again
+    [RelayCommand]
+    private void ResetTypes()
+    {
+        if (!CommitEdits())
+        {
+            ShowStatus("The types were not reset: an edited content is not valid", error: true);
+            return;
+        }
+
+        var stack = new Stack<NodeViewModel>([Root]);
+
+        while (stack.Count > 0)
+        {
+            NodeViewModel node = stack.Pop();
+            node.DataForm = null;
+            node.MetaDataForm = null;
+
+            foreach (NodeViewModel child in node.Children)
+            {
+                stack.Push(child);
+            }
+        }
+
+        if (editedNode is not null)
+        {
+            Data.Load(editedNode.Element.Data, preferredForm: DataFormOf(editedNode));
+            MetaData.Load(editedNode.Element.MetaData, preferredForm: MetaDataFormOf(editedNode));
+        }
+
+        // The tree is the same as the file, so the memory can follow at once
+        if (!IsModified)
+        {
+            RememberForms();
+        }
+
+        ShowStatus("The types were reset to the defaults", error: false);
+    }
+
+    private void AddRecentFile(string path)
+    {
+        string fullPath = System.IO.Path.GetFullPath(path);
+        List<string> recent = settings.Settings.RecentFiles;
+
+        recent.Remove(fullPath);
+        recent.Insert(0, fullPath);
+
+        if (recent.Count > StudioSettings.MaxRecentFiles)
+        {
+            recent.RemoveRange(StudioSettings.MaxRecentFiles, recent.Count - StudioSettings.MaxRecentFiles);
+        }
+
+        settings.Save();
+    }
+
+    private void RemoveRecentFile(string path)
+    {
+        if (settings.Settings.RecentFiles.Remove(System.IO.Path.GetFullPath(path)))
+        {
+            settings.Save();
+        }
+    }
+
+    // Another window (or this one) changed the settings
+    private void OnSettingsSaved(object? sender, EventArgs e) => RefreshRecentFiles();
+
+    private void RefreshRecentFiles()
+    {
+        RecentFiles.Clear();
+        List<string> recent = settings.Settings.RecentFiles;
+
+        for (int i = 0; i < recent.Count; i++)
+        {
+            // The number is the access key; an underscore in the name is not one
+            string name = System.IO.Path.GetFileName(recent[i]).Replace("_", "__", StringComparison.Ordinal);
+            string folder = (System.IO.Path.GetDirectoryName(recent[i]) ?? string.Empty).Replace("_", "__", StringComparison.Ordinal);
+            string key = i < 9 ? $"_{i + 1} " : string.Empty;
+            RecentFiles.Add(new MenuEntry($"{key}{name}  ({folder})", OpenRecentCommand, recent[i]));
+        }
+
+        if (recent.Count > 0)
+        {
+            RecentFiles.Add(new MenuEntry("-"));
+            RecentFiles.Add(new MenuEntry("_Clear Recent Files", ClearRecentFilesCommand));
+        }
+
+        OnPropertyChanged(nameof(HasRecentFiles));
+    }
 
     // The choice is kept for the next windows and sessions
     partial void OnIsChunkPanelVisibleChanged(bool value)
@@ -458,8 +576,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         editedNode = value;
-        Data.Load(value?.Element.Data ?? ReadOnlyMemory<byte>.Empty, value is not null, value?.DataForm);
-        MetaData.Load(value?.Element.MetaData ?? ReadOnlyMemory<byte>.Empty, value is not null, value?.MetaDataForm);
+        Data.Load(value?.Element.Data ?? ReadOnlyMemory<byte>.Empty, value is not null, DataFormOf(value));
+        MetaData.Load(value?.Element.MetaData ?? ReadOnlyMemory<byte>.Empty, value is not null, MetaDataFormOf(value));
         HighlightChunks();
     }
 
@@ -566,6 +684,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             FileName = path;
             IsModified = false;
             RememberForms();
+            AddRecentFile(path);
             ShowStatus($"Saved {path}", error: false);
             return true;
         }
@@ -584,7 +703,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (node == editedNode)
         {
-            Data.Load(node.Element.Data, preferredForm: node.DataForm);
+            Data.Load(node.Element.Data, preferredForm: DataFormOf(node));
         }
 
         Changed(null, $"The nested tree of {node.Path} was stored");
@@ -630,6 +749,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         else
         {
             editedNode.SetMetaData(content);
+
+            // The default form of the data follows the tag (e.g. a NAME is UTF-8, a TYPE is a type code)
+            if (editedNode.DataForm is null && !Data.IsPending)
+            {
+                Data.Load(editedNode.Element.Data, preferredForm: DataFormOf(editedNode));
+            }
         }
 
         Changed(null, $"Changed the {(data ? "data" : "metadata")} of {editedNode.Path}");
@@ -648,6 +773,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(DocumentName));
         OnPropertyChanged(nameof(Title));
         RefreshChunks();
+    }
+
+    // The form the user chose, otherwise the one of the serializer layout (a one-byte metadata is a tag)
+    private static ContentForm? DataFormOf(NodeViewModel? node)
+    {
+        return node is null ? null : node.DataForm ?? Services.SerializerLayout.DataForm(node.Element, node.Parent?.Element);
+    }
+
+    private static ContentForm? MetaDataFormOf(NodeViewModel? node)
+    {
+        return node is null ? null : node.MetaDataForm ?? Services.SerializerLayout.MetaDataForm(node.Element, node.Parent?.Element);
     }
 
     // The forms chosen in an earlier session; a path that is not in the tree any more is ignored

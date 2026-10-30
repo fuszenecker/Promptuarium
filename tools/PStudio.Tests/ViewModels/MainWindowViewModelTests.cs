@@ -226,6 +226,90 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public async Task SerializerTree_IsShownInItsLayout_UntilAnotherFormIsChosen_AndAfterResetTypes()
+    {
+        files.LoadAsync("/data/settings.prmt").Returns(_ => Promptuarium.Serializer.PromptuariumSerializer.ToElement(new Dictionary<string, object> { ["rate"] = 1.5 }));
+        MainWindowViewModel sut = Create();
+        await sut.OpenFileAsync("/data/settings.prmt");
+        NodeViewModel holder = sut.Root.Children[0];
+
+        sut.SelectedNode = holder.Children[0];
+        Assert.AreEqual(ContentForm.SerializerTag, sut.MetaData.Form);
+        Assert.AreEqual("TYPE", sut.MetaData.Text);
+        Assert.AreEqual("FLOAT64", sut.Data.Text);
+
+        sut.SelectedNode = holder.Children[1];
+        Assert.AreEqual(ContentForm.Double, sut.Data.Form);
+        Assert.AreEqual("1.5", sut.Data.Text);
+
+        Choose(sut.Data, ContentForm.Hex);
+        sut.SelectedNode = holder;
+        sut.SelectedNode = holder.Children[1];
+        Assert.AreEqual(ContentForm.Hex, sut.Data.Form, "the choice of the user wins");
+
+        sut.ResetTypesCommand.Execute(null);
+
+        Assert.AreEqual(ContentForm.Double, sut.Data.Form);
+        Assert.IsNull(holder.Children[1].DataForm);
+        Assert.IsTrue(formMemory.Recall("/data/settings.prmt").IsEmpty);
+    }
+
+    [TestMethod]
+    public async Task ANewMember_OfASerializerTree_GetsItsTagTypedInDirectly()
+    {
+        files.LoadAsync("/data/settings.prmt").Returns(_ => Promptuarium.Serializer.PromptuariumSerializer.ToElement(new Dictionary<string, object> { ["rate"] = 1.5 }));
+        MainWindowViewModel sut = Create();
+        await sut.OpenFileAsync("/data/settings.prmt");
+
+        sut.SelectedNode = sut.Root.Children[0];
+        sut.AddSiblingCommand.Execute(null);
+
+        Assert.AreEqual(ContentForm.SerializerTag, sut.MetaData.Form);
+        sut.MetaData.Text = "NAME";
+        Assert.IsTrue(sut.MetaData.ApplyPending(), sut.MetaData.Info);
+
+        CollectionAssert.AreEqual(new byte[] { 0x00 }, sut.Root.Children[1].Element.MetaData.ToArray());
+        Assert.AreEqual(ContentForm.Utf8, sut.Data.Form, "the data of a NAME is its name");
+
+        // Its TYPE child: the data becomes a type code
+        sut.AddChildCommand.Execute(null);
+        Assert.AreEqual(ContentForm.SerializerTag, sut.MetaData.Form);
+        sut.MetaData.Text = "TYPE";
+        Assert.IsTrue(sut.MetaData.ApplyPending());
+        Assert.AreEqual(ContentForm.SerializerType, sut.Data.Form);
+        sut.Data.Text = "UTF8_STRING";
+        Assert.IsTrue(sut.Data.ApplyPending(), sut.Data.Info);
+        CollectionAssert.AreEqual(new byte[] { 0x80 }, sut.Root.Children[1].Children[0].Element.Data.ToArray());
+    }
+
+    [TestMethod]
+    public void ANewNode_CanGetATag_ByChoosingTheForm()
+    {
+        MainWindowViewModel sut = Create();
+        sut.AddChildCommand.Execute(null);
+
+        Choose(sut.MetaData, ContentForm.SerializerTag);
+        sut.MetaData.Text = "NAME";
+        Assert.IsTrue(sut.MetaData.ApplyPending(), sut.MetaData.Info);
+
+        CollectionAssert.AreEqual(new byte[] { 0x00 }, sut.Root.Children[0].Element.MetaData.ToArray());
+        Assert.AreEqual("NAME", sut.MetaData.Text);
+    }
+
+    [TestMethod]
+    public void ANewNode_CanGetATag_TypedBeforeChoosingTheForm()
+    {
+        MainWindowViewModel sut = Create();
+        sut.AddChildCommand.Execute(null);
+
+        sut.MetaData.Text = "NAME";
+        Choose(sut.MetaData, ContentForm.SerializerTag);
+        Assert.IsTrue(sut.MetaData.ApplyPending(), sut.MetaData.Info);
+
+        CollectionAssert.AreEqual(new byte[] { 0x00 }, sut.Root.Children[0].Element.MetaData.ToArray());
+    }
+
+    [TestMethod]
     public async Task Open_ReportsInvalidFiles()
     {
         MainWindowViewModel sut = Create();
@@ -383,6 +467,57 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public async Task RecentFiles_AreTheOpenedAndSavedFiles_TheMostRecentFirst()
+    {
+        files.LoadAsync(Arg.Any<string>()).Returns(_ => new Element());
+        MainWindowViewModel sut = Create();
+        MainWindowViewModel other = Create();
+        Assert.IsFalse(sut.HasRecentFiles);
+
+        await sut.OpenFileAsync("/data/a.prmt");
+        await sut.OpenFileAsync("/data/my_b.prmt");
+        await sut.OpenFileAsync("/data/a.prmt");
+
+        CollectionAssert.AreEqual(new[] { "/data/a.prmt", "/data/my_b.prmt" }, settings.Settings.RecentFiles);
+        CollectionAssert.AreEqual(
+            new[] { "_1 a.prmt  (/data)", "_2 my__b.prmt  (/data)", "-", "_Clear Recent Files" },
+            sut.RecentFiles.Select(entry => entry.Header).ToArray());
+        Assert.AreEqual(4, other.RecentFiles.Count, "every window follows the list");
+
+        fileDialogs.PickTreeToSaveAsync(Arg.Any<string?>()).Returns("/data/c.prmt");
+        await sut.SaveAsCommand.ExecuteAsync(null);
+        Assert.AreEqual("/data/c.prmt", settings.Settings.RecentFiles[0]);
+
+        MenuEntry b = sut.RecentFiles[2];
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<string>)b.Command!).ExecuteAsync((string)b.Parameter!);
+        Assert.AreEqual("my_b.prmt - Promptuarium Studio", sut.Title);
+
+        sut.RecentFiles.Single(entry => entry.Header == "_Clear Recent Files").Command!.Execute(null);
+        Assert.AreEqual(0, settings.Settings.RecentFiles.Count);
+        Assert.IsFalse(other.HasRecentFiles);
+    }
+
+    [TestMethod]
+    public async Task RecentFiles_KeepTheLastTen_AndDropAFileThatCanNotBeOpened()
+    {
+        files.LoadAsync(Arg.Any<string>()).Returns(_ => new Element());
+        files.LoadAsync("/data/gone.prmt").Returns(_ => Task.FromException<Element>(new FileNotFoundException("gone")));
+        MainWindowViewModel sut = Create();
+
+        for (int i = 0; i < 12; i++)
+        {
+            await sut.OpenFileAsync($"/data/{i}.prmt");
+        }
+
+        Assert.AreEqual(StudioSettings.MaxRecentFiles, settings.Settings.RecentFiles.Count);
+        Assert.AreEqual("/data/11.prmt", settings.Settings.RecentFiles[0]);
+
+        settings.Settings.RecentFiles.Insert(0, "/data/gone.prmt");
+        Assert.IsFalse(await sut.OpenFileAsync("/data/gone.prmt"));
+        CollectionAssert.DoesNotContain(settings.Settings.RecentFiles, "/data/gone.prmt");
+    }
+
+    [TestMethod]
     public void ChunkPanel_IsKeptInTheSettings()
     {
         MainWindowViewModel sut = Create();
@@ -468,7 +603,13 @@ public sealed class MainWindowViewModelTests
 
         public int Saves { get; private set; }
 
-        public void Save() => Saves++;
+        public event EventHandler? Saved;
+
+        public void Save()
+        {
+            Saves++;
+            Saved?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private sealed class InMemoryFormMemory : IFormMemory

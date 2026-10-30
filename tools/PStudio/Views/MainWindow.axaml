@@ -21,6 +21,15 @@
       <MenuItem Header="_File">
         <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N" />
         <MenuItem Header="_Open…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
+        <MenuItem Header="Open _Recent" ItemsSource="{Binding RecentFiles}" IsEnabled="{Binding HasRecentFiles}">
+          <MenuItem.Styles>
+            <Style Selector="MenuItem > MenuItem" x:DataType="vm:MenuEntry">
+              <Setter Property="Header" Value="{Binding Header}" />
+              <Setter Property="Command" Value="{Binding Command}" />
+              <Setter Property="CommandParameter" Value="{Binding Parameter}" />
+            </Style>
+          </MenuItem.Styles>
+        </MenuItem>
         <Separator />
         <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
         <MenuItem Header="Save _As…" Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S" />
@@ -47,6 +56,8 @@
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="_Chunks" ToggleType="CheckBox" IsChecked="{Binding IsChunkPanelVisible, Mode=OneWay}" Command="{Binding ToggleChunkPanelCommand}" InputGesture="F6" />
+        <Separator />
+        <MenuItem Header="_Reset Types" Command="{Binding ResetTypesCommand}" ToolTip.Tip="Forget the forms chosen for the data and the metadata of the nodes of this tree" />
       </MenuItem>
     </Menu>
 

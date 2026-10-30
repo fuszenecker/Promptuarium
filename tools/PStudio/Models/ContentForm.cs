@@ -76,4 +76,10 @@ public enum ContentForm
 
     /// <summary>TimeSpan (ticks), 8 bytes.</summary>
     TimeSpan,
+
+    /// <summary>A metadata tag of SERIALIZER_FORMAT.md (NAME, TYPE, ITEM, VALUE, COMMENT), 1 byte.</summary>
+    SerializerTag,
+
+    /// <summary>A type code of SERIALIZER_FORMAT.md (NULL, BOOLEAN, ..., FLOAT64, UTF8_STRING, BLOB), 1 byte.</summary>
+    SerializerType,
 }
