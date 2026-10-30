@@ -26,6 +26,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IMessageDialogService messages;
     private readonly IEditorWindowService windows;
     private readonly IFormMemory formMemory;
+    private readonly ISettingsStore settings;
     private readonly List<MainWindowViewModel> nestedEditors = [];
 
     // The node the content editors show (the selection, until the edits are applied)
@@ -84,7 +85,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IMessageDialogService messages,
         IEditorWindowService windows,
         IViewModelFactory viewModelFactory,
-        IFormMemory formMemory)
+        IFormMemory formMemory,
+        ISettingsStore settings)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);
 
@@ -95,6 +97,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         this.messages = messages ?? throw new ArgumentNullException(nameof(messages));
         this.windows = windows ?? throw new ArgumentNullException(nameof(windows));
         this.formMemory = formMemory ?? throw new ArgumentNullException(nameof(formMemory));
+        this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        isChunkPanelVisible = settings.Settings.View.IsChunkPanelVisible;
 
         Data = viewModelFactory.CreateContentEditor("Data");
         MetaData = viewModelFactory.CreateContentEditor("MetaData");
@@ -297,6 +301,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void ToggleChunkPanel() => IsChunkPanelVisible = !IsChunkPanelVisible;
+
+    // The choice is kept for the next windows and sessions
+    partial void OnIsChunkPanelVisibleChanged(bool value)
+    {
+        settings.Settings.View.IsChunkPanelVisible = value;
+        settings.Save();
+    }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void AddChild()

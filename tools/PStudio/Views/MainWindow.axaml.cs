@@ -61,6 +61,9 @@ public partial class MainWindow : Window
         {
             viewModel.CloseRequested += Close;
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+            // The panel may be hidden from the start (the setting of the previous session)
+            ShowChunkPanel(viewModel.IsChunkPanelVisible);
         }
 
         base.OnDataContextChanged(e);
@@ -106,19 +109,22 @@ public partial class MainWindow : Window
             return;
         }
 
-        // The hidden chunk panel gives its row back to the editor (and gets its height back when it is shown again)
-        if (e.PropertyName != nameof(MainWindowViewModel.IsChunkPanelVisible))
+        if (e.PropertyName == nameof(MainWindowViewModel.IsChunkPanelVisible))
         {
-            return;
+            ShowChunkPanel(viewModel.IsChunkPanelVisible);
         }
+    }
 
+    // The hidden chunk panel gives its row back to the editor (and gets its height back when it is shown again)
+    private void ShowChunkPanel(bool visible)
+    {
         RowDefinition row = MainGrid.RowDefinitions[2];
 
-        if (viewModel.IsChunkPanelVisible)
+        if (visible)
         {
             row.Height = chunkPanelHeight;
         }
-        else
+        else if (row.Height.Value > 0)
         {
             chunkPanelHeight = row.Height;
             row.Height = new GridLength(0);

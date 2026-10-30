@@ -34,7 +34,7 @@ public sealed class FormMemory : IFormMemory
     }
 
     /// <summary>The default file: forms.prmt in the PStudio folder of the user's application data (~/.config on Linux).</summary>
-    public static string DefaultPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PStudio", "forms.prmt");
+    public static string DefaultPath => Path.Combine(SettingsFile.Folder, "forms.prmt");
 
     /// <inheritdoc/>
     public FileForms Recall(string path)
@@ -70,42 +70,10 @@ public sealed class FormMemory : IFormMemory
             }
         }
 
-        Save();
+        SettingsFile.Save(settingsPath, memory!, Options);
     }
 
-    private Memory Load()
-    {
-        if (memory is not null)
-        {
-            return memory;
-        }
-
-        try
-        {
-            memory = File.Exists(settingsPath) ? PromptuariumSerializer.Deserialize<Memory>(File.ReadAllBytes(settingsPath), Options) : new Memory();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
-        {
-            memory = new Memory();
-        }
-
-        return memory;
-    }
-
-    // The file is replaced only after the whole memory is written
-    private void Save()
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            string temporary = settingsPath + ".tmp";
-            File.WriteAllBytes(temporary, PromptuariumSerializer.Serialize(memory!, Options));
-            File.Move(temporary, settingsPath, overwrite: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-        }
-    }
+    private Memory Load() => memory ??= SettingsFile.Load<Memory>(settingsPath, Options);
 
     /// <summary>The content of the file.</summary>
     internal sealed class Memory

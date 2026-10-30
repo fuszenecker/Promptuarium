@@ -91,8 +91,9 @@ internal sealed class Editor : IDisposable
         collection.AddPresentation();
         collection.AddServices();
         collection.AddViewModels();
-        // The chosen forms are remembered in the temporary directory, not in the user's settings
+        // The chosen forms and the settings are kept in the temporary directory, not in the user's ones
         collection.AddSingleton<IFormMemory>(new FormMemory(Path.Combine(Directory, "forms.prmt")));
+        collection.AddSingleton<ISettingsStore>(new SettingsStore(Path.Combine(Directory, "settings.prmt")));
         services = collection.BuildServiceProvider();
 
         ViewModel = services.GetRequiredService<MainWindowViewModel>();

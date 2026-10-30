@@ -26,12 +26,13 @@ public static class ServiceCollectionExtensions
         }
 
         /// <summary>
-        /// The files, the chunk analysis, the node clipboard and the memory of the chosen forms shared by the windows.
+        /// The files, the chunk analysis, the node clipboard, the memory of the chosen forms and the settings shared by the windows.
         /// </summary>
         public void AddServices()
         {
             services.AddSingleton<ITreeFileService, TreeFileService>();
             services.AddSingleton<IFormMemory>(_ => new FormMemory(FormMemory.DefaultPath));
+            services.AddSingleton<ISettingsStore>(_ => new SettingsStore(SettingsStore.DefaultPath));
             services.AddSingleton<IChunkAnalyzer, ChunkAnalyzer>();
             services.AddSingleton<INodeClipboard, NodeClipboard>();
         }

@@ -18,6 +18,7 @@ public sealed class MainWindowViewModelTests
     private readonly IViewModelFactory factory = Substitute.For<IViewModelFactory>();
     private readonly INodeClipboard clipboard = new NodeClipboard();
     private readonly InMemoryFormMemory formMemory = new();
+    private readonly InMemorySettings settings = new();
 
     public MainWindowViewModelTests()
     {
@@ -382,6 +383,21 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public void ChunkPanel_IsKeptInTheSettings()
+    {
+        MainWindowViewModel sut = Create();
+
+        sut.ToggleChunkPanelCommand.Execute(null);
+
+        Assert.IsFalse(settings.Settings.View.IsChunkPanelVisible);
+        Assert.AreEqual(1, settings.Saves);
+        Assert.IsFalse(Create().IsChunkPanelVisible, "a new window starts with the setting");
+
+        sut.ToggleChunkPanelCommand.Execute(null);
+        Assert.IsTrue(settings.Settings.View.IsChunkPanelVisible);
+    }
+
+    [TestMethod]
     public void NodeSummary_ShowsTheSignature()
     {
         MainWindowViewModel sut = Create();
@@ -446,6 +462,15 @@ public sealed class MainWindowViewModelTests
         editor.SelectedForm = editor.Forms.Single(option => option.Form == form);
     }
 
+    private sealed class InMemorySettings : ISettingsStore
+    {
+        public StudioSettings Settings { get; } = new();
+
+        public int Saves { get; private set; }
+
+        public void Save() => Saves++;
+    }
+
     private sealed class InMemoryFormMemory : IFormMemory
     {
         private readonly Dictionary<string, FileForms> files = [];
@@ -457,7 +482,7 @@ public sealed class MainWindowViewModelTests
 
     private MainWindowViewModel Create()
     {
-        return new MainWindowViewModel(files, new ChunkAnalyzer(), clipboard, fileDialogs, messages, windows, factory, formMemory);
+        return new MainWindowViewModel(files, new ChunkAnalyzer(), clipboard, fileDialogs, messages, windows, factory, formMemory, settings);
     }
 
     private MainWindowViewModel CreateWithChildren(params string[] data)
