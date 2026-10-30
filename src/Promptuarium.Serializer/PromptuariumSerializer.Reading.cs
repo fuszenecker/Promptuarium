@@ -96,12 +96,17 @@ public static partial class PromptuariumSerializer
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        if (!root.Data.IsEmpty || !root.MetaData.Span.SequenceEqual(options.SignatureBytes))
+        if (root.Data.IsEmpty && root.MetaData.Span.SequenceEqual(options.SignatureBytes))
         {
-            throw new InvalidDataException($"The file does not have the signature \"{options.Signature}\".");
+            return [.. root.Children];
         }
 
-        return [.. root.Children];
+        return (options.UnexpectedSignature?.Invoke(Encoding.Latin1.GetString(root.MetaData.Span)) ?? SignatureAction.Reject) switch
+        {
+            SignatureAction.Accept => [.. root.Children],
+            SignatureAction.Skip => [],
+            _ => throw new InvalidDataException($"The file does not have the signature \"{options.Signature}\"."),
+        };
     }
 
     // ---------------------------------------------------------------- holders

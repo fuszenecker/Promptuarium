@@ -4,8 +4,9 @@ using System.Globalization;
 namespace Promptuarium.Serializer;
 
 /// <summary>
-/// Maps .NET objects to Promptuarium trees in the layout of <c>CONFIG_FORMAT.md</c> (<c>PRMT:CFG1-LE</c>) and back,
-/// directly, without an intermediate representation such as JSON.
+/// Maps .NET objects to Promptuarium trees in the layout of <c>CONFIG_FORMAT.md</c> and back, directly, without an
+/// intermediate representation such as JSON. The files are signed with
+/// <see cref="PromptuariumSerializerOptions.Signature"/> (<c>PRMT:GEN1-LE</c> by default).
 /// <list type="table">
 /// <item><term><c>bool</c></term><description>BOOLEAN</description></item>
 /// <item><term>number types (<c>int</c>, <c>double</c>, <c>decimal</c>, ...)</term><description>FLOAT64</description></item>

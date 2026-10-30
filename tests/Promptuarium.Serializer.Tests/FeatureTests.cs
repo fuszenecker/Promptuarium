@@ -145,6 +145,58 @@ public sealed class FeatureTests
     }
 
     [TestMethod]
+    public void Options_UnexpectedSignature_GetsTheRootMetadata()
+    {
+        byte[] bytes = PromptuariumSerializer.Serialize(new Audio { SampleRate = 8000 }, new() { Signature = "PRMT:TEST1-LE" });
+        var seen = new List<string>();
+        var options = new PromptuariumSerializerOptions
+        {
+            UnexpectedSignature = signature =>
+            {
+                seen.Add(signature);
+                return SignatureAction.Accept;
+            },
+        };
+
+        Assert.AreEqual(8000, PromptuariumSerializer.Deserialize<Audio>(bytes, options).SampleRate);
+        PromptuariumSerializer.Deserialize<Audio>(PromptuariumSerializer.Serialize(new Audio()), options);
+        CollectionAssert.AreEqual(new[] { "PRMT:TEST1-LE" }, seen, "a file with the signature does not ask");
+    }
+
+    [TestMethod]
+    public void Options_UnexpectedSignature_Skip_ReadsNoMembers()
+    {
+        byte[] bytes = PromptuariumSerializer.Serialize(new Audio { SampleRate = 8000, Device = "hw:1" }, new() { Signature = "PRMT:TEST1-LE" });
+        var options = new PromptuariumSerializerOptions { UnexpectedSignature = _ => SignatureAction.Skip };
+        var target = new Audio { Device = "mine" };
+
+        PromptuariumSerializer.Populate(bytes, target, options);
+
+        Assert.AreEqual(44100, PromptuariumSerializer.Deserialize<Audio>(bytes, options).SampleRate);
+        Assert.AreEqual("CW", PromptuariumSerializer.Deserialize<Station>(bytes, options).Mode, "a record gets its default values");
+        Assert.AreEqual("mine", target.Device);
+        Assert.AreEqual(44100, target.SampleRate);
+    }
+
+    [TestMethod]
+    public void Options_UnexpectedSignature_RejectOrThrow()
+    {
+        byte[] bytes = PromptuariumSerializer.Serialize(new Audio(), new() { Signature = "PRMT:TEST1-LE" });
+
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Audio>(bytes, new() { UnexpectedSignature = _ => SignatureAction.Reject }));
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Deserialize<Audio>(bytes, new() { UnexpectedSignature = _ => throw new NotSupportedException() }));
+    }
+
+    [TestMethod]
+    public void Options_UnexpectedSignature_IsAskedForARootWithData()
+    {
+        var root = new Element(Data.FromByte(1), Data.FromAsciiString(PromptuariumSerializerOptions.DefaultSignature));
+        var options = new PromptuariumSerializerOptions { UnexpectedSignature = _ => SignatureAction.Accept };
+
+        Assert.AreEqual(0, PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(root, options).Count);
+    }
+
+    [TestMethod]
     [DataRow("")]
     [DataRow("PRMT:THIS-IS-TOO-LONG")]
     [DataRow("PRMT:ÁRVÍZ")]

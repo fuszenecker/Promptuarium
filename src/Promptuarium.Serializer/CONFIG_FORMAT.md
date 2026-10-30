@@ -35,6 +35,9 @@ The root is an **implicit OBJECT**: it has no TYPE child, its children are NAME 
 A file in this format starts with the bytes `6C 50 52 4D 54 3A 43 46 47 31 2D 4C 45` (`0x60 + 12`, then the signature).
 A reader MUST reject any other signature, including `PRMT:CFG1`.
 
+The same layout carries general objects, too: Promptuarium.Serializer signs them with `PRMT:GEN1-LE` (the kind `GEN`)
+by default. Apart from the signature, such a file follows every rule of this document; it is not a configuration file.
+
 ## 3. Metadata tags
 
 The metadata of every node (except the root) is exactly one byte, the tag:

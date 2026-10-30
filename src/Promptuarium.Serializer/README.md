@@ -1,8 +1,9 @@
 # Promptuarium.Serializer
 
-A general serializer between .NET objects and Promptuarium trees, in the layout of [CONFIG_FORMAT.md](CONFIG_FORMAT.md)
-(`PRMT:CFG1-LE`): every value is a holder node with a TYPE child and, for scalars, a VALUE child. There is no
-intermediate representation (no JSON): a `byte[]` is a BLOB, the bytes as they are.
+A general serializer between .NET objects and Promptuarium trees, in the layout of [CONFIG_FORMAT.md](CONFIG_FORMAT.md):
+every value is a holder node with a TYPE child and, for scalars, a VALUE child. There is no intermediate representation
+(no JSON): a `byte[]` is a BLOB, the bytes as they are. The files are signed with `PRMT:GEN1-LE` (general objects) by
+default; configuration files have `PRMT:CFG1-LE` (`PromptuariumSerializerOptions.ConfigurationSignature`).
 
 The serializer is **experimental**: the API and the format can still change. The assembly is marked
 `[Experimental("PRMTSER000")]`, so using it needs an opt-in, e.g. in the project file:
@@ -51,8 +52,9 @@ The root is always an `OBJECT`: an object or a dictionary.
 * Unknown members are **validated and ignored**; so are computed (get-only) properties.
 * A type without a parameterless constructor, e.g. a **positional record**, is created through its public constructor
   whose parameters are its members; a missing parameter gets its default value.
-* Everything the specification requires a reader to reject is rejected with `InvalidDataException`: another
-  signature, unknown metadata, reserved or unknown type codes, invalid booleans, non-finite or wrongly sized numbers,
+* A file with another signature (or a root with data) is rejected, unless the `UnexpectedSignature` callback decides
+  otherwise (see [Signatures](#signatures)).
+* Everything the specification requires a reader to reject is rejected with `InvalidDataException`: unknown metadata, reserved or unknown type codes, invalid booleans, non-finite or wrongly sized numbers,
   invalid UTF-8, malformed holders. So is a file that does not fit the type (a string for an `int`, `1.5` for an `int`,
   `256` for a `byte`, ...).
 
@@ -71,6 +73,31 @@ if (File.Exists(userPath))
 }
 ```
 
+## Signatures
+
+The signature tells the kind of the file; the layout is the same for every signature. A reader requires `Signature`,
+and asks `UnexpectedSignature` about every other file; it gets the metadata of the root as a string (Latin-1, byte
+by byte). The answer:
+
+| `SignatureAction` | |
+|-------------------|---|
+| `Reject` | `InvalidDataException` (also when there is no callback) |
+| `Accept` | the file is read by the usual rules |
+| `Skip` | the file is read as if it had no members: `Deserialize` gives the default values, `Populate` changes nothing |
+
+The callback can also throw an exception of its own. Configuration layers that take general files too, and skip the
+rest:
+
+```csharp
+var options = new PromptuariumSerializerOptions
+{
+    Signature = PromptuariumSerializerOptions.ConfigurationSignature,
+    UnexpectedSignature = signature => signature == PromptuariumSerializerOptions.DefaultSignature
+        ? SignatureAction.Accept
+        : SignatureAction.Skip,
+};
+```
+
 ## Control
 
 | Attribute | Effect |
@@ -83,7 +110,8 @@ if (File.Exists(userPath))
 
 | Option | Default | |
 |--------|---------|---|
-| `Signature` | `PRMT:CFG1-LE` | the root metadata, 1 to 15 ASCII bytes; a reader requires it |
+| `Signature` | `PRMT:GEN1-LE` | the root metadata, 1 to 15 ASCII bytes; a reader requires it |
+| `UnexpectedSignature` | `null` (reject) | what a reader does with a file of another signature |
 | `PropertyNameCaseInsensitive` | `true` | |
 | `MaxDepth` | `64` | the deepest nesting written or read; it stops cycles, too |
 | `LoadOptions` | 16 MiB, 1 000 000 nodes | the limits of loading; `null` for none |

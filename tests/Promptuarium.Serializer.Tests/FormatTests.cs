@@ -24,6 +24,9 @@ public sealed class FormatTests
     // The BLOB member key7 of section 7, inserted before the final terminator
     private const string BlobMember = "84 6b 65 79 37 21 00 41 f0 21 01 c4 de ad be ef 21 03";
 
+    // The test vectors are configuration files
+    private static readonly PromptuariumSerializerOptions Configuration = new() { Signature = PromptuariumSerializerOptions.ConfigurationSignature };
+
     private static Dictionary<string, object?> Example() => new()
     {
         ["key1"] = "value1",
@@ -37,7 +40,7 @@ public sealed class FormatTests
     [TestMethod]
     public void Serialize_SpecExample_IsTheTestVector()
     {
-        CollectionAssert.AreEqual(Nodes.Hex(TestVector), PromptuariumSerializer.Serialize(Example()));
+        CollectionAssert.AreEqual(Nodes.Hex(TestVector), PromptuariumSerializer.Serialize(Example(), Configuration));
     }
 
     [TestMethod]
@@ -48,7 +51,7 @@ public sealed class FormatTests
 
         byte[] expected = [.. Nodes.Hex(TestVector)[..^1], .. Nodes.Hex(BlobMember), 0x00];
 
-        byte[] actual = PromptuariumSerializer.Serialize(example);
+        byte[] actual = PromptuariumSerializer.Serialize(example, Configuration);
 
         Assert.AreEqual(178, actual.Length);
         CollectionAssert.AreEqual(expected, actual);
@@ -57,7 +60,7 @@ public sealed class FormatTests
     [TestMethod]
     public void Deserialize_TestVector_IsTheSpecExample()
     {
-        var decoded = PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(Nodes.Hex(TestVector));
+        var decoded = PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(Nodes.Hex(TestVector), Configuration);
 
         CollectionAssert.AreEqual(new[] { "key1", "key2", "key3", "key4", "key5", "key6" }, decoded.Keys.ToArray());
         Assert.AreEqual("value1", decoded["key1"]);
@@ -73,7 +76,14 @@ public sealed class FormatTests
     {
         byte[] bytes = PromptuariumSerializer.Serialize(new Dictionary<string, object>());
 
-        CollectionAssert.AreEqual(Nodes.Hex("6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45"), bytes[..13]);
+        // PRMT:GEN1-LE
+        CollectionAssert.AreEqual(Nodes.Hex("6c 50 52 4d 54 3a 47 45 4e 31 2d 4c 45"), bytes[..13]);
+    }
+
+    [TestMethod]
+    public void Deserialize_ConfigurationFile_IsRejectedByDefault()
+    {
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<object>(Nodes.Hex(TestVector)));
     }
 
     [TestMethod]
