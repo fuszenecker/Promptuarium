@@ -49,7 +49,7 @@ The root is always an `OBJECT`: an object or a dictionary.
 
 * Member names match **regardless of case** (as in `IConfiguration`), unless
   `PropertyNameCaseInsensitive = false`.
-* Unknown members are **validated and ignored**; so are computed (get-only) properties.
+* Unknown members are **validated and ignored**; so are computed (get-only) properties, and the comments.
 * A type without a parameterless constructor, e.g. a **positional record**, is created through its public constructor
   whose parameters are its members; a missing parameter gets its default value.
 * A file with another signature (or a root with data) is rejected, unless the `UnexpectedSignature` callback decides
@@ -98,12 +98,30 @@ var options = new PromptuariumSerializerOptions
 };
 ```
 
+## Comments
+
+`[PromptuariumComment]` writes a comment with the value, a COMMENT node right after its TYPE node
+([SERIALIZER_FORMAT.md, 5.1](../../SERIALIZER_FORMAT.md#51-comments)), for the people and the editors (e.g. PStudio)
+that read the file. Reading ignores the comments.
+
+```csharp
+[PromptuariumComment("The audio settings")]   // in the root (or in the holder of every Audio object)
+public sealed class Audio
+{
+    [PromptuariumComment("The sample rate, in Hz")]   // in the holder of the member
+    public int SampleRate { get; set; } = 44100;
+}
+```
+
+The comment of a property wins over the comment of its type.
+
 ## Control
 
 | Attribute | Effect |
 |-----------|--------|
 | `[PromptuariumName("sample-rate")]` | the property is stored under another name |
 | `[PromptuariumIgnore]` | the property is neither written nor read |
+| `[PromptuariumComment("In Hz")]` | a comment written with the value (a COMMENT node, [section 5.1](../../SERIALIZER_FORMAT.md#51-comments)): on a property, in its member; on a class or a struct, in its objects (in the root for the root object), unless the property has one; readers ignore it |
 | `[PromptuariumType(PromptuariumType.Float64)]` | **experimental** (`PRMTSER001`): the type the property is stored as; see below |
 
 `PromptuariumSerializerOptions`:

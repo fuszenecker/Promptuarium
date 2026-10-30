@@ -8,6 +8,7 @@ internal static class CfgFormat
     public const byte Type = 0x01;
     public const byte Item = 0x02;
     public const byte Value = 0x03;
+    public const byte Comment = 0x04;
 
     // Type codes: the data of a TYPE node
     public const byte Null = 0x00;

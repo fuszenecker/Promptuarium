@@ -98,12 +98,12 @@ public static partial class PromptuariumSerializer
 
         if (root.Data.IsEmpty && root.MetaData.Span.SequenceEqual(options.SignatureBytes))
         {
-            return [.. root.Children];
+            return WithoutComments(root.Children);
         }
 
         return (options.UnexpectedSignature?.Invoke(Encoding.Latin1.GetString(root.MetaData.Span)) ?? SignatureAction.Reject) switch
         {
-            SignatureAction.Accept => [.. root.Children],
+            SignatureAction.Accept => WithoutComments(root.Children),
             SignatureAction.Skip => [],
             _ => throw new InvalidDataException($"The file does not have the signature \"{options.Signature}\"."),
         };
@@ -129,6 +129,9 @@ public static partial class PromptuariumSerializer
         RequireTag(typeNode, CfgFormat.Type, "the first child of a holder");
         RequireLeaf(typeNode);
 
+        // The rest of the children, without the comments
+        List<Element> content = WithoutComments(children.Skip(1));
+
         if (typeNode.Data.Length != 1)
         {
             throw new InvalidDataException("A TYPE node holds exactly one byte.");
@@ -139,17 +142,17 @@ public static partial class PromptuariumSerializer
         switch (typeNode.Data.Span[0])
         {
             case CfgFormat.Null:
-                RequireChildCount(holder, 1);
+                RequireChildCount(content, 0);
                 return existing;
 
             case CfgFormat.Object:
-                return ReadObject([.. children.Skip(1)], target, existing, depth, options);
+                return ReadObject(content, target, existing, depth, options);
 
             case CfgFormat.Array:
-                return ReadArray([.. children.Skip(1)], target, depth, options);
+                return ReadArray(content, target, depth, options);
 
             case CfgFormat.Boolean:
-                ReadOnlyMemory<byte> flag = ScalarValue(holder);
+                ReadOnlyMemory<byte> flag = ScalarValue(content);
 
                 if (flag.Length != 1 || flag.Span[0] > 1)
                 {
@@ -159,7 +162,7 @@ public static partial class PromptuariumSerializer
                 return Fit(flag.Span[0] == 1, target);
 
             case CfgFormat.Float64:
-                ReadOnlyMemory<byte> raw = ScalarValue(holder);
+                ReadOnlyMemory<byte> raw = ScalarValue(content);
 
                 if (raw.Length != sizeof(double))
                 {
@@ -176,10 +179,10 @@ public static partial class PromptuariumSerializer
                 return FitNumber(number, target);
 
             case CfgFormat.Utf8String:
-                return FitText(DecodeUtf8(ScalarValue(holder)), target);
+                return FitText(DecodeUtf8(ScalarValue(content)), target);
 
             case CfgFormat.Blob:
-                return Fit(ScalarValue(holder).ToArray(), target);
+                return Fit(ScalarValue(content).ToArray(), target);
 
             case byte unknown:
                 throw new InvalidDataException($"Unsupported type code 0x{unknown:x2}.");
@@ -522,10 +525,11 @@ public static partial class PromptuariumSerializer
 
     // ---------------------------------------------------------------- nodes
 
-    private static ReadOnlyMemory<byte> ScalarValue(Element holder)
+    // The content of a holder after its TYPE node: exactly one VALUE node
+    private static ReadOnlyMemory<byte> ScalarValue(List<Element> content)
     {
-        RequireChildCount(holder, 2);
-        Element valueNode = holder.Children[1];
+        RequireChildCount(content, 1);
+        Element valueNode = content[0];
         RequireTag(valueNode, CfgFormat.Value, "the value of a holder");
         RequireLeaf(valueNode);
         return valueNode.Data;
@@ -555,15 +559,36 @@ public static partial class PromptuariumSerializer
     {
         if (node.Children.Count != 0)
         {
-            throw new InvalidDataException("A TYPE or VALUE node has no children.");
+            throw new InvalidDataException("A TYPE, VALUE or COMMENT node has no children.");
         }
     }
 
-    private static void RequireChildCount(Element holder, int count)
+    // The number of the children of a holder after its TYPE node, without the comments
+    private static void RequireChildCount(List<Element> content, int count)
     {
-        if (holder.Children.Count != count)
+        if (content.Count != count)
         {
             throw new InvalidDataException("A holder has an unexpected number of children.");
         }
+    }
+
+    // The COMMENT nodes are validated (a leaf, UTF-8), then left out
+    private static List<Element> WithoutComments(IEnumerable<Element> children)
+    {
+        var content = new List<Element>();
+
+        foreach (Element child in children)
+        {
+            if (child.MetaData.Length == 1 && child.MetaData.Span[0] == CfgFormat.Comment)
+            {
+                RequireLeaf(child);
+                DecodeUtf8(child.Data);
+                continue;
+            }
+
+            content.Add(child);
+        }
+
+        return content;
     }
 }

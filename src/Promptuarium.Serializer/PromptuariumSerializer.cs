@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Globalization;
+using System.Reflection;
 
 namespace Promptuarium.Serializer;
 
@@ -44,7 +45,7 @@ public static partial class PromptuariumSerializer
         ArgumentNullException.ThrowIfNull(value);
         options ??= PromptuariumSerializerOptions.Default;
 
-        IEnumerable<(string Name, object? Value, byte? Declared)>? members = TryScalar(value, out _, out _) ? null : MembersOf(value, options);
+        IEnumerable<(string Name, object? Value, byte? Declared, string? Comment)>? members = TryScalar(value, out _, out _) ? null : MembersOf(value, options);
 
         if (members is null)
         {
@@ -53,9 +54,14 @@ public static partial class PromptuariumSerializer
 
         Element root = new ElementBuilder().WithSignature(Data.FromAsciiString(options.Signature)).Build();
 
-        foreach ((string name, object? member, byte? declared) in members)
+        if (TypeComment(value) is { } comment)
         {
-            root.Add(Holder(CfgFormat.Name, Data.FromUtf8String(name), member, declared, 1, options));
+            root.Add(CommentNode(comment));
+        }
+
+        foreach ((string name, object? member, byte? declared, string? memberComment) in members)
+        {
+            root.Add(Holder(CfgFormat.Name, Data.FromUtf8String(name), member, declared, memberComment, 1, options));
         }
 
         return root;
@@ -63,7 +69,7 @@ public static partial class PromptuariumSerializer
 
     // ---------------------------------------------------------------- writing
 
-    private static Element Holder(byte tag, ReadOnlyMemory<byte> name, object? value, byte? declared, int depth, PromptuariumSerializerOptions options)
+    private static Element Holder(byte tag, ReadOnlyMemory<byte> name, object? value, byte? declared, string? comment, int depth, PromptuariumSerializerOptions options)
     {
         if (declared is { } reserved && !PromptuariumTypeAttribute.IsSupported((PromptuariumType)reserved))
         {
@@ -76,6 +82,12 @@ public static partial class PromptuariumSerializer
         if (declared is { } type && stored != CfgFormat.Null && stored != type)
         {
             throw new NotSupportedException($"A {value!.GetType().Name} is stored as {(PromptuariumType)stored}, not as the declared {(PromptuariumType)type}.");
+        }
+
+        // The comment follows the TYPE node; the one of the member, or else the one of the type of an object
+        if ((comment ?? (stored == CfgFormat.Object ? TypeComment(value!) : null)) is { } text)
+        {
+            holder.Insert(1, CommentNode(text));
         }
 
         return holder;
@@ -104,9 +116,9 @@ public static partial class PromptuariumSerializer
         {
             holder.Add(TypeNode(CfgFormat.Object));
 
-            foreach ((string memberName, object? member, byte? declared) in members)
+            foreach ((string memberName, object? member, byte? declared, string? comment) in members)
             {
-                holder.Add(Holder(CfgFormat.Name, Data.FromUtf8String(memberName), member, declared, depth + 1, options));
+                holder.Add(Holder(CfgFormat.Name, Data.FromUtf8String(memberName), member, declared, comment, depth + 1, options));
             }
 
             return holder;
@@ -116,7 +128,7 @@ public static partial class PromptuariumSerializer
 
         foreach (object? item in (IEnumerable)value)
         {
-            holder.Add(Holder(CfgFormat.Item, ReadOnlyMemory<byte>.Empty, item, depth + 1, options));
+            holder.Add(Holder(CfgFormat.Item, ReadOnlyMemory<byte>.Empty, item, null, null, depth + 1, options));
         }
 
         return holder;
@@ -165,7 +177,7 @@ public static partial class PromptuariumSerializer
     }
 
     // The members of an OBJECT, or null when the value is an ARRAY
-    private static IEnumerable<(string Name, object? Value, byte? Declared)>? MembersOf(object value, PromptuariumSerializerOptions options)
+    private static IEnumerable<(string Name, object? Value, byte? Declared, string? Comment)>? MembersOf(object value, PromptuariumSerializerOptions options)
     {
         if (value is IDictionary dictionary)
         {
@@ -177,19 +189,27 @@ public static partial class PromptuariumSerializer
             return null;
         }
 
-        return TypeShape.Of(value.GetType(), options).Members.Select(member => (member.Name, member.Property.GetValue(value), member.DeclaredType));
+        return TypeShape.Of(value.GetType(), options).Members.Select(member => (member.Name, member.Property.GetValue(value), member.DeclaredType, member.Comment));
     }
 
     // IDictionary's own enumerator: the generic one of a Dictionary<,> yields KeyValuePairs, not DictionaryEntries
-    private static IEnumerable<(string Name, object? Value, byte? Declared)> DictionaryMembers(IDictionary dictionary)
+    private static IEnumerable<(string Name, object? Value, byte? Declared, string? Comment)> DictionaryMembers(IDictionary dictionary)
     {
         IDictionaryEnumerator entries = dictionary.GetEnumerator();
 
         while (entries.MoveNext())
         {
-            yield return (entries.Key as string ?? throw new NotSupportedException("Only dictionaries with string keys can be stored."), entries.Value, null);
+            yield return (entries.Key as string ?? throw new NotSupportedException("Only dictionaries with string keys can be stored."), entries.Value, null, null);
         }
     }
+
+    // The comment of a class or a struct (not of a dictionary or a collection, which are not objects of their own)
+    private static string? TypeComment(object value)
+    {
+        return value is IEnumerable ? null : value.GetType().GetCustomAttribute<PromptuariumCommentAttribute>(inherit: false)?.Text;
+    }
+
+    private static Element CommentNode(string comment) => new(Data.FromUtf8String(comment), Data.FromByte(CfgFormat.Comment));
 
     private static Element TypeNode(byte type) => new(Data.FromByte(type), Data.FromByte(CfgFormat.Type));
 

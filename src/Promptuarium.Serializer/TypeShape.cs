@@ -5,9 +5,10 @@ namespace Promptuarium.Serializer;
 
 /// <summary>
 /// A property as the serializer sees it: its name in the file, the type code it is declared to be stored as (from
-/// <see cref="PromptuariumTypeAttribute"/>) and whether it can be set.
+/// <see cref="PromptuariumTypeAttribute"/>), its comment (<see cref="PromptuariumCommentAttribute"/>) and whether it
+/// can be set.
 /// </summary>
-internal sealed record ShapeMember(string Name, PropertyInfo Property, byte? DeclaredType)
+internal sealed record ShapeMember(string Name, PropertyInfo Property, byte? DeclaredType, string? Comment)
 {
     public bool CanSet => Property.SetMethod is { IsPublic: true };
 }
@@ -29,7 +30,8 @@ internal sealed class TypeShape
             .Select(property => new ShapeMember(
                 property.GetCustomAttribute<PromptuariumNameAttribute>()?.Name ?? property.Name,
                 property,
-                (byte?)property.GetCustomAttribute<PromptuariumTypeAttribute>()?.Type))
+                (byte?)property.GetCustomAttribute<PromptuariumTypeAttribute>()?.Type,
+                property.GetCustomAttribute<PromptuariumCommentAttribute>()?.Text))
             .ToList();
 
         // Several names that differ only in case: the first one is found when reading

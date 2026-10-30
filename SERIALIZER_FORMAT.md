@@ -1,6 +1,6 @@
 # Promptuarium Serializer Format
 
-This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs) are stored in a Promptuarium container.
+This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs), with comments, are stored in a Promptuarium container.
 [Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) writes and reads it, mapping .NET objects to it and back (the mapping is described in its README).
 The same layout is used for general objects (`PRMT:GEN1-LE`), for configurations (`PRMT:CFG1-LE`, e.g. the content of an `appsettings.json`) and for the files of applications that give them a signature of their own; only the signature differs.
 It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the data and metadata of its nodes.
@@ -12,6 +12,7 @@ It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container 
 3. [Metadata tags](#3-metadata-tags)
 4. [Type codes](#4-type-codes)
 5. [Tree structure](#5-tree-structure)
+   1. [Comments](#51-comments)
 6. [Example](#6-example)
 7. [Test vector](#7-test-vector)
 
@@ -31,7 +32,7 @@ The root node follows the [file identification convention](BINARY_FORMAT.md#10-f
 * its metadata is the signature (see below),
 * its children are the members of the stored object.
 
-The root is an **implicit OBJECT**: it has no TYPE child, its children are NAME nodes.
+The root is an **implicit OBJECT**: it has no TYPE child, its children are NAME nodes (and COMMENT nodes, see [section 5.1](#51-comments)).
 
 The signature tells the **kind** of the content; the layout is the same for every kind:
 
@@ -50,12 +51,13 @@ A reader expects one signature (the one of the kind it reads). It MUST reject a 
 
 The metadata of every node (except the root) is exactly one byte, the tag:
 
-| Tag     | Code   | Data of the node |
-|---------|--------|------------------|
-| `NAME`  | `0x00` | the name of an object member, UTF-8 |
-| `TYPE`  | `0x01` | one type code (see [section 4](#4-type-codes)) |
-| `ITEM`  | `0x02` | empty (an array element has no name) |
-| `VALUE` | `0x03` | the value, encoded according to the type |
+| Tag       | Code   | Data of the node |
+|-----------|--------|------------------|
+| `NAME`    | `0x00` | the name of an object member, UTF-8 |
+| `TYPE`    | `0x01` | one type code (see [section 4](#4-type-codes)) |
+| `ITEM`    | `0x02` | empty (an array element has no name) |
+| `VALUE`   | `0x03` | the value, encoded according to the type |
+| `COMMENT` | `0x04` | a comment, UTF-8 (see [section 5.1](#51-comments)) |
 
 A reader MUST reject a node with any other metadata.
 
@@ -105,6 +107,7 @@ NAME        = 0x00
 TYPE        = 0x01
 ITEM        = 0x02
 VALUE       = 0x03
+COMMENT     = 0x04
 
 Type codes:
 
@@ -141,7 +144,7 @@ BLOB        = 0xF0
 
 A NAME node (an object member) or an ITEM node (an array element) is a **holder**: it holds one value.
 
-A holder has exactly one TYPE child, as its **first** child, followed by:
+A holder has exactly one TYPE child, as its **first** child, followed by (besides its comments, see [section 5.1](#51-comments)):
 
 | Type | Further children |
 |------|------------------|
@@ -159,6 +162,26 @@ So:
 * if an object has several members with the same name, the **last one wins** (as in `IConfiguration`); a writer SHOULD NOT write duplicate names.
 
 TYPE and VALUE nodes have no children.
+
+### 5.1 Comments
+
+A COMMENT node is a note for the readers of the file (people and editors), not a part of the value:
+
+* it MAY be a child of any holder, except its **first** child (that is the TYPE node), and of the root, anywhere; there may be several,
+* it has no children, and its data MUST be valid UTF-8 (it may be empty),
+* it is **not counted** by the rules above: a holder of a scalar has exactly one VALUE node besides its comments, a `NULL` holder has nothing but comments, and the members of an object and the elements of an array are its NAME and ITEM nodes,
+* a reader MUST validate it, and otherwise ignore it: the comments do not change the value.
+
+A comment in a holder is about its value (e.g. the member); a comment in the root is about the whole file. A writer SHOULD write a comment right after the TYPE node of the holder it is about (first in the root), so that it is read with the type:
+
+```text
+[m: NAME] [d: rate]
+├── [m: TYPE] [d: FLOAT64]
+├── [m: COMMENT] [d: The sample rate, in Hz]
+└── [m: VALUE] [d: 44100]
+```
+
+Promptuarium.Serializer writes the comments of `[PromptuariumComment("...")]`: of a property in the holder of the member, of a class or a struct in the holder of its objects (in the root for the root object), unless the property has a comment of its own.
 
 ## 6. Example
 
@@ -231,6 +254,23 @@ A `BLOB` member `key7` with the bytes `DE AD BE EF`, appended to the example, is
 ```
 
 These 18 bytes are inserted before the final `00` of the test vector, which gives a 178-byte file.
+
+A member `key8` with the value `value8` and the comment `the eighth key`:
+
+```text
+[m: NAME] [d: key8]
+├── [m: TYPE] [d: UTF8_STRING]
+├── [m: COMMENT] [d: the eighth key]
+└── [m: VALUE] [d: value8]
+```
+
+```text
+84 6b 65 79 38 21 00 41 80 21 01 ce 74 68 65 20
+65 69 67 68 74 68 20 6b 65 79 21 04 c6 76 61 6c
+75 65 38 21 03
+```
+
+These 37 bytes, inserted before the final `00` of the test vector, give a 197-byte file; read, it is the example with `"key8": "value8"`.
 
 With the signature `PRMT:GEN1-LE`, the same example is the same 160 bytes, except bytes 6 to 8 (counted from 0): `47 45 4e` (`GEN`) instead of `43 46 47` (`CFG`).
 

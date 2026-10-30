@@ -3,13 +3,14 @@
 [![CI](https://github.com/fuszenecker/Promptuarium/actions/workflows/ci.yml/badge.svg)](https://github.com/fuszenecker/Promptuarium/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/fuszenecker/Promptuarium)](https://github.com/fuszenecker/Promptuarium/releases/latest)
 [![NuGet](https://img.shields.io/nuget/v/Promptuarium)](https://www.nuget.org/packages/Promptuarium/)
+[![NuGet Serializer](https://img.shields.io/nuget/vpre/Promptuarium.Serializer?label=nuget%20serializer)](https://www.nuget.org/packages/Promptuarium.Serializer/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Project summary
 
 Promptuarium is a versatile, tree-based data structure to store or exchange data and metadata efficiently (in binary format). Written in pure C#, but can be used in F#, as well.
 
-Last reviewed: 25. Oct. 2026. Targets .NET 10.
+Last reviewed: 30. Oct. 2026. Targets .NET 10.
 
 ## Promptuarium details
 
@@ -89,11 +90,27 @@ See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Exampl
 
 The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits trees, and lists the chunks of a file. It is non-interactive and has JSON output, so it can be driven by scripts and AI agents, and it serves as the reference when the format is implemented in another language.
 
-[PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents as hex, UTF-8, ASCII or base64, import and export, a chunk view, and nested trees in their own windows.
+[PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents in every form of the `Data` class (only the forms that give the content back byte for byte are offered), import and export, a chunk view, and nested trees in their own windows. It knows the layout of the serializer (the tags and the type codes by name, the forms of the values by their types), remembers the form chosen for every node of a file, and keeps its settings and the recent files.
 
-[Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) (a separate, experimental package) serializes .NET objects into trees and back (`PRMT:GEN1-LE`; configuration files: `PRMT:CFG1-LE`).
+[Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) (a separate package, experimental: using it needs the opt-in `PRMTSER000`) serializes .NET objects into trees and back, directly, without JSON, in the layout of [SERIALIZER_FORMAT.md](SERIALIZER_FORMAT.md): typed holders, `byte[]` as BLOB, comments (`[PromptuariumComment]`), layering (`Populate`), records. The files are signed `PRMT:GEN1-LE` (general objects) or `PRMT:CFG1-LE` (configurations), or with a signature of the application; a callback decides about the files of another signature.
 
-The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with permissions, owners, times and CRCs into one signed file.
+```csharp
+byte[] bytes = PromptuariumSerializer.Serialize(settings);
+Settings copy = PromptuariumSerializer.Deserialize<Settings>(bytes);
+```
+
+The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with permissions, owners, times and CRCs into one signed file, and [Configuration](examples/Configuration/Program.cs), which layers settings with the serializer.
+
+## Repository layout
+
+| Folder | |
+|--------|---|
+| `src/Promptuarium` | the library (NuGet: Promptuarium) |
+| `src/Promptuarium.Serializer` | the serializer (NuGet: Promptuarium.Serializer) |
+| `tests/` | the tests of the library and of the serializer |
+| `tools/` | `pedit`, PStudio (with their tests) and Dump |
+| `examples/` | small applications that use the library |
+| `docs/` | the API reference of the library, generated |
 
 Other implementations:
 
@@ -101,7 +118,7 @@ Other implementations:
 
 ## Unit tests
 
-**Unit tests** help to keep the project code robust. The stability tests (random trees) are slow, they can be left out:
+**Unit tests** help to keep the project code robust: the library and `pedit` (`tests/Promptuarium.Tests`), the serializer, against the test vectors of its specification (`tests/Promptuarium.Serializer.Tests`), and PStudio, also with its real windows rendered without a display (`tools/PStudio.Tests`, `tools/PStudio.Headless.Tests`). The stability tests (random trees) are slow, they can be left out:
 
 ```sh
 dotnet test --filter "TestCategory!=Slow"
@@ -125,7 +142,7 @@ This code is distributed under the terms of the MIT license.
 
 ## Internals
 
-The [API reference](docs/README.md) is generated from the XML comments with [DefaultDocumentation](https://github.com/Doraku/DefaultDocumentation) (a local tool, settings in `defaultdocumentation.json`). After changing the public API or its comments:
+The [API reference](docs/README.md) of the library (`Promptuarium`; the serializer is described in its [README](src/Promptuarium.Serializer/README.md)) is generated from the XML comments with [DefaultDocumentation](https://github.com/Doraku/DefaultDocumentation) (a local tool, settings in `defaultdocumentation.json`). After changing the public API or its comments:
 
 ```sh
 tools/generate-docs.sh

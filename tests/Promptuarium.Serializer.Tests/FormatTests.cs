@@ -27,7 +27,7 @@ public sealed class FormatTests
     // The test vectors are configuration files
     private static readonly PromptuariumSerializerOptions Configuration = new() { Signature = PromptuariumSerializerOptions.ConfigurationSignature };
 
-    private static Dictionary<string, object?> Example() => new()
+    internal static Dictionary<string, object?> Example() => new()
     {
         ["key1"] = "value1",
         ["key2"] = 1.5,
