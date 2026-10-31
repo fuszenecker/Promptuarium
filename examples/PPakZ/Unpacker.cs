@@ -182,6 +182,6 @@ internal static class Unpacker
 
         string? owner = Find(entry, Flag.Owner)?.Data.AsUtf8String();
         string? group = Find(entry, Flag.Group)?.Data.AsUtf8String();
-        return owner is null && group is null || UnixOwner.Set(target, owner, group);
+        return owner is null && group is null || UnixOwner.Set(target, owner, group) is null;
     }
 }

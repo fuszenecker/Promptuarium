@@ -18,7 +18,7 @@ public sealed class FormMemory : IFormMemory
     public const int MaxFiles = 200;
 
     /// <summary>The signature of the file: PStudio node types, version 1.</summary>
-    public const string Signature = "PRMT:PStNT1";
+    public const string Signature = "PRMT:PSTNT1";
 
     private static readonly PromptuariumSerializerOptions Options = new() { Signature = Signature };
 

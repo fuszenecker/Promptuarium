@@ -43,7 +43,7 @@ The signature tells the **kind** of the content; the layout is the same for ever
 
 The tag is the kind (`GEN`, `CFG`), the version of this layout (`1`) and the byte order (`LE`); the first byte is the control byte of the metadata chunk (`0x60 + 12`).
 
-An application MAY sign its files with a signature of its own (1 to 15 ASCII bytes, e.g. `PRMT:PStNT1`, the forms remembered by PStudio), so that its files are told apart from other files of this layout. Such a signature names the version of the layout only if the application says so: an application that adopts a later version of this layout SHOULD change its signature too.
+An application MAY sign its files with a signature of its own (1 to 15 ASCII bytes, e.g. `PRMT:PSTNT1`, the forms remembered by PStudio), so that its files are told apart from other files of this layout. Such a signature names the version of the layout only if the application says so: an application that adopts a later version of this layout SHOULD change its signature too.
 
 A reader expects one signature (the one of the kind it reads). It MUST reject a file with any other signature (including a truncated one such as `PRMT:CFG1`) and a root with data, unless the application explicitly decides otherwise for that file: it may read the file by the rules of this document anyway, or skip it (read it as an object without members, e.g. a configuration layer of another kind). Promptuarium.Serializer asks the application with `PromptuariumSerializerOptions.UnexpectedSignature`; without it, such a file is rejected.
 

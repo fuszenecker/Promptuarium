@@ -463,7 +463,7 @@ The signature can carry the kind and the version of the content (not of the form
 PRMT:IMGZ5.6      12 bytes: the file starts with 6C 50 52 4D 54 3A 49 4D 47 5A 35 2E 36
 ```
 
-The tag is free-form; printable ASCII is recommended, so that tools can show it. As the length of the signature is in the first control byte (`0x60 + length`), the end of the tag is known without a terminator.
+The tag is free-form; printable ASCII is recommended, so that tools can show it. A signature is compared **byte by byte**, so its case matters (`prmt:imgz5.6` is not `PRMT:IMGZ5.6`); the signatures of this project (`PRMT:GEN1-LE`, `PRMT:CFG1-LE`, `PRMT:PSTNT1`, and those of the examples) are written in **upper case** (letters, digits, `.` and `-`), and new ones SHOULD be too. As the length of the signature is in the first control byte (`0x60 + length`), the end of the tag is known without a terminator.
 
 | Signature | Length | First bytes |
 | --- | --- | --- |

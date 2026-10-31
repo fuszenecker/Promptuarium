@@ -46,7 +46,7 @@ public sealed class FormMemoryTests
         new FormMemory(SettingsPath).Remember("tree.prmt", forms);
 
         Assert.AreEqual(FormMemory.Signature, Element.FromBytes(File.ReadAllBytes(SettingsPath)).MetaData.AsAsciiString());
-        Assert.AreEqual("PRMT:PStNT1", FormMemory.Signature);
+        Assert.AreEqual("PRMT:PSTNT1", FormMemory.Signature);
     }
 
     [TestMethod]
