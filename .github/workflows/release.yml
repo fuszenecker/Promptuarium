@@ -48,7 +48,7 @@ jobs:
         shell: pwsh
         run: tools/PStudio/packaging/windows/build-windows-installer.ps1 -Version $env:TAG -Output installer
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pstudio-windows
           path: installer/*-setup.exe
