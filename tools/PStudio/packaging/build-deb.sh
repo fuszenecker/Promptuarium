@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Builds the Debian package of PStudio and pedit (its command line counterpart): a self-contained build of both in one
-# folder (no .NET is needed on the target, and they share the runtime), the desktop entry, the MIME type of the
-# Promptuarium containers (so that PStudio opens them), the rules of "file", and the man page of pedit.
+# Builds the Debian package of PStudio, pedit (its command line counterpart) and the archivers ppak and ppakz: a
+# self-contained build of all of them in one folder (no .NET is needed on the target, and they share the runtime), the
+# desktop entry, the MIME type of the Promptuarium containers (so that PStudio opens them), the rules of "file", and the
+# man pages of pedit, ppak and ppakz.
 #
 # Usage: tools/PStudio/packaging/build-deb.sh [--version 8.0.0] [--runtime linux-x64|linux-arm64] [--output DIR]
 
@@ -56,8 +57,8 @@ mkdir -p "${ROOT}/DEBIAN" \
   "${ROOT}/usr/share/doc/${PACKAGE}" \
   "${ROOT}/usr/share/lintian/overrides"
 
-# PStudio and pedit in the same folder: the files of the runtime are the same for both
-for project in PStudio/PStudio.csproj PEdit/PEdit.csproj; do
+# PStudio, pedit, ppak and ppakz in the same folder: the files of the runtime are the same for all of them
+for project in PStudio/PStudio.csproj PEdit/PEdit.csproj PPak/PPak.csproj PPakZ/PPakZ.csproj; do
   echo "==> Publishing ${project}"
   dotnet publish "${REPO_ROOT}/tools/${project}" \
     -c Release \
@@ -71,7 +72,7 @@ done
 # The native libraries bring their debug symbols, which the package does not need
 find "${ROOT}/usr/lib/${PACKAGE}" -name '*.pdb' -delete
 
-for command in pstudio pedit; do
+for command in pstudio pedit ppak ppakz; do
   cat > "${ROOT}/usr/bin/${command}" <<EOF
 #!/bin/sh
 exec /usr/lib/${PACKAGE}/${command} "\$@"
@@ -85,6 +86,8 @@ install -m 0644 "${SCRIPT_DIR}/pstudio.svg" "${ROOT}/usr/share/icons/hicolor/sca
 install -m 0644 "${SCRIPT_DIR}/pstudio.svg" "${ROOT}/usr/share/icons/hicolor/scalable/mimetypes/application-x-promptuarium.svg"
 install -m 0644 "${REPO_ROOT}/misc/promptuarium.magic" "${ROOT}/usr/share/${PACKAGE}/promptuarium.magic"
 gzip -9n -c "${REPO_ROOT}/tools/PEdit/packaging/pedit.1" > "${ROOT}/usr/share/man/man1/pedit.1.gz"
+gzip -9n -c "${REPO_ROOT}/tools/PPak/packaging/ppak.1" > "${ROOT}/usr/share/man/man1/ppak.1.gz"
+gzip -9n -c "${REPO_ROOT}/tools/PPakZ/packaging/ppakz.1" > "${ROOT}/usr/share/man/man1/ppakz.1.gz"
 install -m 0644 "${REPO_ROOT}/LICENSE" "${ROOT}/usr/share/doc/${PACKAGE}/copyright"
 install -m 0644 "${PACKAGING}/lintian-overrides" "${ROOT}/usr/share/lintian/overrides/${PACKAGE}"
 install -m 0755 "${PACKAGING}/postinst" "${PACKAGING}/postrm" "${ROOT}/DEBIAN/"
@@ -101,7 +104,9 @@ gzip -9n -c "${WORK_DIR}/changelog" > "${ROOT}/usr/share/doc/${PACKAGE}/changelo
 # dpkg-deb wants the usual permissions, whatever the umask of the build was
 find "${ROOT}" -type d -exec chmod 0755 {} +
 find "${ROOT}/usr" -type f -exec chmod 0644 {} +
-chmod 0755 "${ROOT}/usr/bin/pstudio" "${ROOT}/usr/bin/pedit" "${ROOT}/usr/lib/${PACKAGE}/pstudio" "${ROOT}/usr/lib/${PACKAGE}/pedit"
+for command in pstudio pedit ppak ppakz; do
+  chmod 0755 "${ROOT}/usr/bin/${command}" "${ROOT}/usr/lib/${PACKAGE}/${command}"
+done
 
 cat > "${ROOT}/DEBIAN/control" <<EOF
 Package: ${PACKAGE}
@@ -117,7 +122,7 @@ Replaces: pedit
 Conflicts: pedit
 Installed-Size: $(du -sk "${ROOT}/usr" | cut -f1)
 Homepage: https://github.com/fuszenecker/Promptuarium
-Description: Graphical editor and command line tool of Promptuarium trees
+Description: Graphical editor and command line tools of Promptuarium trees
  PStudio views and edits Promptuarium containers: a tree view with drag and
  drop, the contents in every form of the Data class (hex, text, numbers, dates,
  GUIDs), import and export, the chunks of the saved form, and nested trees.
@@ -125,6 +130,10 @@ Description: Graphical editor and command line tool of Promptuarium trees
  pedit, its command line counterpart, creates, dumps and edits the containers
  with single, non-interactive calls; with --json its output is machine-readable,
  so it can be driven by scripts and AI agents (it replaces the pedit package).
+ .
+ ppak packs a directory tree (files, directories, symbolic links, with sizes,
+ CRC-32s, permissions, owners and times) into one Promptuarium container, and
+ unpacks it; ppakz is the same with gzip-compressed contents.
  .
  The package makes PStudio the application of the Promptuarium containers
  (MIME type application/x-promptuarium, *.prmt and the "PRMT" signature), and

@@ -3,8 +3,8 @@
 ; Built by build-windows-installer.ps1, which publishes PStudio (win-x64, self-contained) and runs:
 ;   makensis -DAPP_VERSION=8.1.0 -DPUBLISH_DIR=<publish folder> -DOUT_FILE=<setup.exe> pstudio.nsi
 ;
-; It installs PStudio and pedit, its command line counterpart, for every user (64-bit Program Files), with Start Menu
-; entries (PStudio, and a command prompt for pedit), an optional desktop shortcut, the .prmt file association
+; It installs PStudio, pedit (its command line counterpart) and the archivers ppak and ppakz, for every user (64-bit
+; Program Files), with Start Menu entries (PStudio, and a command prompt for the command line tools), an optional desktop shortcut, the .prmt file association
 ; (optional) and an entry in Apps / Add or Remove Programs. Installing again (e.g. a newer
 ; version) removes the previous installation first.
 
@@ -33,6 +33,8 @@ SetCompressor /SOLID lzma
 !define APP_PUBLISHER "Fuszenecker Róbert"
 !define APP_EXE       "pstudio.exe"
 !define CLI_EXE       "pedit.exe"
+!define PPAK_EXE      "ppak.exe"
+!define PPAKZ_EXE     "ppakz.exe"
 !define APP_URL       "https://github.com/fuszenecker/Promptuarium"
 !define APP_ICON      "..\..\Assets\pstudio.ico"
 !define REG_APP       "Software\Promptuarium\PStudio"
@@ -187,9 +189,11 @@ SectionEnd
 ; Uninstaller
 
 Section "Uninstall"
-  ; A running PStudio or pedit would keep its files
+  ; A running PStudio, pedit, ppak or ppakz would keep its files
   nsExec::Exec 'taskkill /F /IM "${APP_EXE}"'
   nsExec::Exec 'taskkill /F /IM "${CLI_EXE}"'
+  nsExec::Exec 'taskkill /F /IM "${PPAK_EXE}"'
+  nsExec::Exec 'taskkill /F /IM "${PPAKZ_EXE}"'
 
   SetShellVarContext all
   Delete "$SMPROGRAMS\${APP_LONG_NAME}.lnk"

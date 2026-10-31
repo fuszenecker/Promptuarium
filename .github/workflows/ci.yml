@@ -31,6 +31,8 @@ jobs:
           dotnet build src/Promptuarium/Promptuarium.csproj --no-restore -c Release -warnaserror
           dotnet build src/Promptuarium.Serializer/Promptuarium.Serializer.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PEdit/PEdit.csproj --no-restore -c Release -warnaserror
+          dotnet build tools/PPak/PPak.csproj --no-restore -c Release -warnaserror
+          dotnet build tools/PPakZ/PPakZ.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PStudio/PStudio.csproj --no-restore -c Release -warnaserror
 
       - name: Build
@@ -39,18 +41,18 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c Release --filter "TestCategory!=Slow" --logger trx --results-directory TestResults
 
-      # ppak and ppakz pack a directory, and unpack the same directory
+      # The examples run; ppak and ppakz (tools) pack a directory, and unpack the same directory
       - name: Run the examples
         run: |
           dotnet run --project examples/GettingStarted --no-build -c Release
           dotnet run --project examples/Configuration --no-build -c Release
-          ppak() { dotnet run --project examples/PPak --no-build -c Release -- "$@"; }
+          ppak() { dotnet run --project tools/PPak --no-build -c Release -- "$@"; }
           ppak pack src "$RUNNER_TEMP/src.ppak"
           ppak verify "$RUNNER_TEMP/src.ppak"
           ppak list "$RUNNER_TEMP/src.ppak"
           ppak unpack "$RUNNER_TEMP/src.ppak" "$RUNNER_TEMP/unpacked"
           diff -r src "$RUNNER_TEMP/unpacked"
-          ppakz() { dotnet run --project examples/PPakZ --no-build -c Release -- "$@"; }
+          ppakz() { dotnet run --project tools/PPakZ --no-build -c Release -- "$@"; }
           ppakz pack src "$RUNNER_TEMP/src.ppakz"
           ppakz verify "$RUNNER_TEMP/src.ppakz"
           ppakz list "$RUNNER_TEMP/src.ppakz"

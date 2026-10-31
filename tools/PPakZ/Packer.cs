@@ -33,18 +33,19 @@ internal static class Packer
 
         if (info.LinkTarget is string target)
         {
-            entry.Add(Info(Flag.Type, Data.FromByte((byte)EntryKind.Symlink)), Info(Flag.Target, Data.FromUtf8String(target)));
+            entry.Add(Info(Flag.Type, Data.FromUShort((ushort)EntryKind.Symlink)), Info(Flag.Target, Data.FromUtf8String(target)));
         }
         else if (info is DirectoryInfo)
         {
-            entry.Add(Info(Flag.Type, Data.FromByte((byte)EntryKind.Directory)));
+            entry.Add(Info(Flag.Type, Data.FromUShort((ushort)EntryKind.Directory)));
         }
         else
         {
             (byte[] compressed, ulong size, uint crc) = Compress(info.FullName);
             entry.Add(
-                Info(Flag.Type, Data.FromByte((byte)EntryKind.File)),
+                Info(Flag.Type, Data.FromUShort((ushort)EntryKind.File)),
                 Info(Flag.Content, compressed),
+                Info(Flag.Compression, Data.FromUShort((ushort)CompressionKind.Gzip)),
                 Info(Flag.Size, Data.FromVarUInt(size)),
                 Info(Flag.Crc32, Data.FromUInt(crc)));
         }
@@ -71,7 +72,7 @@ internal static class Packer
 
         if (info is DirectoryInfo { LinkTarget: null } subdirectory)
         {
-            entry.Add(new Element(null, Data.FromByte((byte)Flag.Entries), Entries(subdirectory)));
+            entry.Add(new Element(null, Data.FromUShort((ushort)Flag.Entries), Entries(subdirectory)));
         }
 
         return entry;

@@ -1,0 +1,71 @@
+.TH PPAK 1 "" "ppak" "User Commands"
+.SH NAME
+ppak \- pack a directory tree into a Promptuarium container, and unpack it
+.SH SYNOPSIS
+.B ppak pack
+.I DIRECTORY FILE
+.br
+.B ppak unpack
+.I FILE DIRECTORY
+.RB [ \-\-strict ]
+.br
+.B ppak list
+.I FILE
+.br
+.B ppak verify
+.I FILE
+.SH DESCRIPTION
+.B ppak
+packs the contents of a directory (the files, the directories and the symbolic links, with the size and the CRC\-32
+of every file, the permissions, the owners, the groups and the times) into a single Promptuarium container, signed
+.BR PRMT:PPAK1\-LE ,
+and unpacks it. The format is specified in PPAK_FORMAT.md (see
+.BR "SEE ALSO" ).
+.PP
+Only the names and the contents of an archive are mandatory. An error in them (a wrong signature, an invalid or
+repeated name, an entry with both a content and entries, or neither) stops
+.BR ppak ,
+before anything is written. Everything else is additional information: a discrepancy in it (a size or a CRC\-32 that
+does not match the content, a type that contradicts it, a value that is not valid) is a warning, written to the
+standard error with the path of the entry, and by default the content is used as it is.
+.SH COMMANDS
+.TP
+.B pack \fIDIRECTORY FILE\fR
+Packs the contents of the directory (not the directory itself) into the file.
+.TP
+.B unpack \fIFILE DIRECTORY\fR [\fB\-\-strict\fR]
+Checks the whole archive, then unpacks it into the directory (created if it does not exist). With
+.BR \-\-strict ,
+a warning in the archive is an error, and nothing is written. Owners and groups are restored only when
+.B ppak
+runs as root on Linux.
+.TP
+.B list \fIFILE\fR
+Lists the entries, like
+.BR "ls \-l" .
+.TP
+.B verify \fIFILE\fR
+Checks the archive without unpacking it.
+.SH EXIT STATUS
+.TP
+.B 0
+Success;
+.B verify
+only if there is no warning.
+.TP
+.B 1
+An error, warnings with
+.BR "verify" ,
+or warnings with
+.BR "unpack \-\-strict" .
+.TP
+.B 2
+Wrong usage.
+.SH NOTES
+Unpack into a new or empty directory: a symbolic link that is already there would be followed.
+.SH SEE ALSO
+.BR ppakz (1),
+.BR pedit (1),
+.BR file (1)
+.br
+https://github.com/fuszenecker/Promptuarium/blob/master/tools/PPak/PPAK_FORMAT.md

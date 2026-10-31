@@ -2,13 +2,13 @@
   <Folder Name="/examples/">
     <Project Path="examples/Configuration/Configuration.csproj" />
     <Project Path="examples/GettingStarted/GettingStarted.csproj" />
-    <Project Path="examples/PPak/PPak.csproj" />
-    <Project Path="examples/PPakZ/PPakZ.csproj" />
     <Project Path="examples/PXml/PXml.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Dump/Dump.csproj" />
     <Project Path="tools/PEdit/PEdit.csproj" />
+    <Project Path="tools/PPak/PPak.csproj" />
+    <Project Path="tools/PPakZ/PPakZ.csproj" />
     <Project Path="tools/PStudio/PStudio.csproj" />
     <Project Path="tools/PStudio.Tests/PStudio.Tests.csproj" />
     <Project Path="tools/PStudio.Headless.Tests/PStudio.Headless.Tests.csproj" />

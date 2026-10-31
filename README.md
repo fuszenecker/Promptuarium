@@ -92,6 +92,8 @@ The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits 
 
 [PStudio](tools/PStudio/README.md) is the graphical editor (Avalonia, for Windows, Linux and macOS): a tree view, the contents in every form of the `Data` class (only the forms that give the content back byte for byte are offered), import and export, a chunk view, and nested trees in their own windows. It knows the layout of the serializer (the tags and the type codes by name, the forms of the values by their types), remembers the form chosen for every node of a file, and keeps its settings and the recent files.
 
+[`ppak`](tools/PPak/README.md) packs a directory tree with sizes, CRCs, permissions, owners, times and symbolic links into one signed file, and unpacks it (its format is specified in [PPAK_FORMAT.md](tools/PPak/PPAK_FORMAT.md)); [`ppakz`](tools/PPakZ/README.md) is the same in a binary form, with gzip-compressed contents. Only the names and the contents of an archive are mandatory, a discrepancy in the rest is a warning.
+
 [Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) (a separate package, experimental: using it needs the opt-in `PRMTSER000`) serializes .NET objects into trees and back, directly, without JSON, in the layout of [SERIALIZER_FORMAT.md](SERIALIZER_FORMAT.md): typed holders, `byte[]` as BLOB, comments (`[PromptuariumComment]`), layering (`Populate`), records. The files are signed `PRMT:GEN1-LE` (general objects) or `PRMT:CFG1-LE` (configurations), or with a signature of the application; a callback decides about the files of another signature.
 
 ```csharp
@@ -99,7 +101,7 @@ byte[] bytes = PromptuariumSerializer.Serialize(settings);
 Settings copy = PromptuariumSerializer.Deserialize<Settings>(bytes);
 ```
 
-The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with sizes, CRCs, permissions, owners and times into one signed file (its format is specified in [PPAK_FORMAT.md](examples/PPak/PPAK_FORMAT.md)), and [Configuration](examples/Configuration/Program.cs), which layers settings with the serializer.
+The [examples](examples/README.md) are small applications that use the library, e.g. [Configuration](examples/Configuration/Program.cs), which layers settings with the serializer, and [PXml](examples/PXml/README.md).
 
 ## Repository layout
 
@@ -108,7 +110,7 @@ The [examples](examples/README.md) are small applications that use the library, 
 | `src/Promptuarium` | the library (NuGet: Promptuarium) |
 | `src/Promptuarium.Serializer` | the serializer (NuGet: Promptuarium.Serializer) |
 | `tests/` | the tests of the library and of the serializer |
-| `tools/` | `pedit`, PStudio (with their tests) and Dump |
+| `tools/` | `pedit`, PStudio (with their tests), `ppak`, `ppakz` and Dump |
 | `examples/` | small applications that use the library |
 | `docs/` | the API reference of the library, generated |
 
@@ -127,7 +129,7 @@ dotnet test --filter "TestCategory!=Slow"
 ## Packages and releases
 
 * NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/), and [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/) (experimental), a serializer between .NET objects and trees ([README](src/Promptuarium.Serializer/README.md))
-* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet packages, the symbol packages, and PStudio with `pedit` of every version: a Windows installer (x64), a Debian package (amd64) and an RPM package (x86_64), all self-contained.
+* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet packages, the symbol packages, and PStudio with `pedit`, `ppak` and `ppakz` of every version: a Windows installer (x64), a Debian package (amd64) and an RPM package (x86_64), all self-contained.
 
 A release is created automatically for every version tag:
 

@@ -16,8 +16,8 @@ ppak verify FILE                         # checks the archive, without unpacking
 From the repository:
 
 ```sh
-dotnet run --project examples/PPak -- pack ~/notes notes.ppak
-dotnet run --project examples/PPak -- list notes.ppak
+dotnet run --project tools/PPak -- pack ~/notes notes.ppak
+dotnet run --project tools/PPak -- list notes.ppak
 file -m misc/promptuarium.magic notes.ppak      # notes.ppak: Promptuarium container, PPAK1-LE
 ```
 
@@ -92,5 +92,5 @@ The contents are held in memory, so a file can be at most about 2 GB.
 | [Unpacker.cs](Unpacker.cs) | a checked tree to a directory |
 | [UnixOwner.cs](UnixOwner.cs) | the owner and the group on Linux (`statx`, `lchown`) |
 
-[PPakZ](../PPakZ/README.md) is the same in a binary form (`PRMT:PPAKZ1`, with compressed contents); it is a different
+[PPakZ](../PPakZ/README.md) is the same in a binary form (`PRMT:PPAKZ1-LE`, with compressed contents); it is a different
 format.

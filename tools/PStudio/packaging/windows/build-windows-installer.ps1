@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    Publishes PStudio and pedit for Windows (win-x64, self-contained, no .NET needed) and builds the NSIS installer.
+    Publishes PStudio, pedit, ppak and ppakz for Windows (win-x64, self-contained, no .NET needed) and builds the NSIS installer.
 
 .DESCRIPTION
     The release workflow runs it on a Windows runner: only a build on Windows puts the icon and the version into
@@ -27,7 +27,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
-$Projects = @('tools/PStudio/PStudio.csproj', 'tools/PEdit/PEdit.csproj') | ForEach-Object { Join-Path $RepoRoot $_ }
+$Projects = @('tools/PStudio/PStudio.csproj', 'tools/PEdit/PEdit.csproj', 'tools/PPak/PPak.csproj', 'tools/PPakZ/PPakZ.csproj') | ForEach-Object { Join-Path $RepoRoot $_ }
 $Script = Join-Path $PSScriptRoot 'pstudio.nsi'
 $Publish = Join-Path $RepoRoot 'publish/pstudio-win-x64'
 $Output = if ($Output) { [IO.Path]::GetFullPath($Output) } else { Join-Path $RepoRoot 'artifacts' }
@@ -55,7 +55,8 @@ $Makensis = Find-Makensis
 
 if (Test-Path $Publish) { Remove-Item -Recurse -Force $Publish }
 
-# PStudio and pedit (its command line counterpart) in the same folder: the files of the runtime are the same for both
+# PStudio, pedit (its command line counterpart), ppak and ppakz in the same folder: the files of the runtime are the
+# same for all of them
 foreach ($project in $Projects) {
     Write-Host "==> Publishing $(Split-Path -Leaf $project) $Version (win-x64, self-contained)"
     & dotnet publish $project -c Release -r win-x64 --self-contained true `

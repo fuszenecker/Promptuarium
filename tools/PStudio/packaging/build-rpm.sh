@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Builds the RPM package of PStudio and pedit (its command line counterpart), for Fedora, RHEL, openSUSE and the like:
-# the same files as the Debian package, a self-contained build of both in one folder (no .NET is needed on the
-# target), the desktop entry, the MIME type of the Promptuarium containers, the rules of "file", and the man page.
+# Builds the RPM package of PStudio, pedit (its command line counterpart) and the archivers ppak and ppakz, for Fedora,
+# RHEL, openSUSE and the like: the same files as the Debian package, a self-contained build of all of them in one
+# folder (no .NET is needed on the target), the desktop entry, the MIME type of the Promptuarium containers, the rules
+# of "file", and the man pages.
 #
 # Usage: tools/PStudio/packaging/build-rpm.sh [--version 8.0.0] [--runtime linux-x64|linux-arm64] [--output DIR]
 
@@ -59,8 +60,8 @@ mkdir -p "${ROOT}/usr/bin" \
   "${ROOT}/usr/share/man/man1" \
   "${ROOT}/usr/share/licenses/${PACKAGE}"
 
-# PStudio and pedit in the same folder: the files of the runtime are the same for both
-for project in PStudio/PStudio.csproj PEdit/PEdit.csproj; do
+# PStudio, pedit, ppak and ppakz in the same folder: the files of the runtime are the same for all of them
+for project in PStudio/PStudio.csproj PEdit/PEdit.csproj PPak/PPak.csproj PPakZ/PPakZ.csproj; do
   echo "==> Publishing ${project}"
   dotnet publish "${REPO_ROOT}/tools/${project}" \
     -c Release \
@@ -73,7 +74,7 @@ done
 
 find "${ROOT}/usr/lib/${PACKAGE}" -name '*.pdb' -delete
 
-for command in pstudio pedit; do
+for command in pstudio pedit ppak ppakz; do
   cat > "${ROOT}/usr/bin/${command}" <<EOF
 #!/bin/sh
 exec /usr/lib/${PACKAGE}/${command} "\$@"
@@ -88,11 +89,15 @@ install -m 0644 "${SCRIPT_DIR}/pstudio.svg" "${ROOT}/usr/share/icons/hicolor/sca
 install -m 0644 "${SCRIPT_DIR}/pstudio.svg" "${ROOT}/usr/share/icons/hicolor/scalable/mimetypes/application-x-promptuarium.svg"
 install -m 0644 "${REPO_ROOT}/misc/promptuarium.magic" "${ROOT}/usr/share/${PACKAGE}/promptuarium.magic"
 gzip -9n -c "${REPO_ROOT}/tools/PEdit/packaging/pedit.1" > "${ROOT}/usr/share/man/man1/pedit.1.gz"
+gzip -9n -c "${REPO_ROOT}/tools/PPak/packaging/ppak.1" > "${ROOT}/usr/share/man/man1/ppak.1.gz"
+gzip -9n -c "${REPO_ROOT}/tools/PPakZ/packaging/ppakz.1" > "${ROOT}/usr/share/man/man1/ppakz.1.gz"
 install -m 0644 "${REPO_ROOT}/LICENSE" "${ROOT}/usr/share/licenses/${PACKAGE}/LICENSE"
 
 find "${ROOT}" -type d -exec chmod 0755 {} +
 find "${ROOT}/usr" -type f -exec chmod 0644 {} +
-chmod 0755 "${ROOT}/usr/bin/pstudio" "${ROOT}/usr/bin/pedit" "${ROOT}/usr/lib/${PACKAGE}/pstudio" "${ROOT}/usr/lib/${PACKAGE}/pedit"
+for command in pstudio pedit ppak ppakz; do
+  chmod 0755 "${ROOT}/usr/bin/${command}" "${ROOT}/usr/lib/${PACKAGE}/${command}"
+done
 
 # The scriptlets are the ones of the Debian package: the rules of the containers between markers in /etc/magic
 cat > "${WORK_DIR}/${PACKAGE}.spec" <<EOF
@@ -107,7 +112,7 @@ cat > "${WORK_DIR}/${PACKAGE}.spec" <<EOF
 Name:           ${PACKAGE}
 Version:        ${RPM_VERSION}
 Release:        1
-Summary:        Graphical editor and command line tool of Promptuarium trees
+Summary:        Graphical editor and command line tools of Promptuarium trees
 License:        MIT
 URL:            https://github.com/fuszenecker/Promptuarium
 AutoReqProv:    no
@@ -123,6 +128,10 @@ GUIDs), import and export, the chunks of the saved form, and nested trees.
 pedit, its command line counterpart, creates, dumps and edits the containers
 with single, non-interactive calls; with --json its output is machine-readable,
 so it can be driven by scripts and AI agents.
+
+ppak packs a directory tree (files, directories, symbolic links, with sizes,
+CRC-32s, permissions, owners and times) into one Promptuarium container, and
+unpacks it; ppakz is the same with gzip-compressed contents.
 
 The package makes PStudio the application of the Promptuarium containers
 (MIME type application/x-promptuarium, *.prmt and the "PRMT" signature), and
@@ -159,6 +168,8 @@ exit 0
 %license /usr/share/licenses/${PACKAGE}/LICENSE
 /usr/bin/pstudio
 /usr/bin/pedit
+/usr/bin/ppak
+/usr/bin/ppakz
 /usr/lib/${PACKAGE}
 /usr/share/${PACKAGE}
 /usr/share/applications/${PACKAGE}.desktop
@@ -166,6 +177,8 @@ exit 0
 /usr/share/icons/hicolor/scalable/apps/${PACKAGE}.svg
 /usr/share/icons/hicolor/scalable/mimetypes/application-x-promptuarium.svg
 /usr/share/man/man1/pedit.1.gz
+/usr/share/man/man1/ppak.1.gz
+/usr/share/man/man1/ppakz.1.gz
 
 %changelog
 * $(LC_ALL=C date '+%a %b %d %Y') Fuszenecker Róbert <robert.fuszenecker@gmail.com> - ${RPM_VERSION}-1

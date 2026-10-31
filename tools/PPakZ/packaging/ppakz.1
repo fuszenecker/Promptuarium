@@ -1,0 +1,75 @@
+.TH PPAKZ 1 "" "ppakz" "User Commands"
+.SH NAME
+ppakz \- pack a directory tree into a compressed Promptuarium container, and unpack it
+.SH SYNOPSIS
+.B ppakz pack
+.I DIRECTORY FILE
+.br
+.B ppakz unpack
+.I FILE DIRECTORY
+.RB [ \-\-strict ]
+.RB [ \-\-max\-size=\fIBYTES\fR ]
+.br
+.B ppakz list
+.I FILE
+.RB [ \-\-max\-size=\fIBYTES\fR ]
+.br
+.B ppakz verify
+.I FILE
+.RB [ \-\-max\-size=\fIBYTES\fR ]
+.SH DESCRIPTION
+.B ppakz
+is
+.BR ppak (1)
+in a binary form, signed
+.BR PRMT:PPAKZ1\-LE :
+the flags of the info nodes and the kinds of the entries are 16\-bit numbers from 0x100, and the content of every
+file is compressed (a gzip stream; the algorithm is stored next to the content).
+.PP
+As in
+.BR ppak ,
+only the names and the contents are mandatory. An error in them (a wrong signature, an invalid or repeated name, an
+entry with both a content and entries, or neither, an unknown compression algorithm, a content that does not
+decompress) stops
+.BR ppakz ,
+before anything is written. A discrepancy in the additional information (a size or a CRC\-32 that does not match the
+decompressed content, a type that contradicts it, a value that is not valid) is a warning, written to the standard
+error with the path of the entry, and by default the content is used as it is.
+.SH COMMANDS
+.TP
+.B pack \fIDIRECTORY FILE\fR
+Packs the contents of the directory (not the directory itself) into the file.
+.TP
+.B unpack \fIFILE DIRECTORY\fR [\fB\-\-strict\fR]
+Checks the whole archive (every content is decompressed once), then unpacks it into the directory. With
+.BR \-\-strict ,
+a warning in the archive is an error, and nothing is written.
+.TP
+.B list \fIFILE\fR
+Lists the entries, with the size and the compressed size.
+.TP
+.B verify \fIFILE\fR
+Checks the archive without unpacking it.
+.SH OPTIONS
+.TP
+.B \-\-max\-size=\fIBYTES\fR
+The limit of the decompressed contents of the archive, together (4 GiB by default). A longer archive is an error, so
+a small file can not unpack into a huge one.
+.SH EXIT STATUS
+.TP
+.B 0
+Success;
+.B verify
+only if there is no warning.
+.TP
+.B 1
+An error, warnings with
+.BR "verify" ,
+or warnings with
+.BR "unpack \-\-strict" .
+.TP
+.B 2
+Wrong usage.
+.SH SEE ALSO
+.BR ppak (1),
+.BR pedit (1)
