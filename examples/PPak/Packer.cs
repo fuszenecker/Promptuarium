@@ -44,6 +44,7 @@ internal static class Packer
             entry.Add(
                 Info(TypeFlag, Data.FromUtf8String(FileKind)),
                 Info(ContentFlag, content),
+                Info(SizeFlag, Data.FromULong((ulong)content.LongLength)),
                 Info(Crc32Flag, Data.FromUInt(System.IO.Hashing.Crc32.HashToUInt32(content))));
         }
 

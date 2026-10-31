@@ -99,7 +99,7 @@ byte[] bytes = PromptuariumSerializer.Serialize(settings);
 Settings copy = PromptuariumSerializer.Deserialize<Settings>(bytes);
 ```
 
-The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with permissions, owners, times and CRCs into one signed file, and [Configuration](examples/Configuration/Program.cs), which layers settings with the serializer.
+The [examples](examples/README.md) are small applications that use the library, e.g. [`ppak`](examples/PPak/README.md), which packs a directory tree with sizes, CRCs, permissions, owners and times into one signed file (its format is specified in [PPAK_FORMAT.md](examples/PPak/PPAK_FORMAT.md)), and [Configuration](examples/Configuration/Program.cs), which layers settings with the serializer.
 
 ## Repository layout
 

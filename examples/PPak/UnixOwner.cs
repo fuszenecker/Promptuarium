@@ -36,21 +36,41 @@ internal static class UnixOwner
         return (NameAt(getpwuid(uid)), NameAt(getgrgid(gid)));
     }
 
-    /// <summary>Sets the owner and the group (of the link itself, for a symbolic link), if the process is root.</summary>
-    /// <returns>Whether they were set</returns>
-    public static bool Set(string path, string? owner, string? group)
+    /// <summary>Whether the owners can be set: on Linux, by root.</summary>
+    public static bool CanSet => OperatingSystem.IsLinux() && geteuid() == 0;
+
+    /// <summary>Sets the owner and the group (of the link itself, for a symbolic link); see <see cref="CanSet"/>.</summary>
+    /// <returns>Null if they were set, otherwise what was wrong (an unknown user or group is left unchanged)</returns>
+    public static string? Set(string path, string? owner, string? group)
     {
-        if (!OperatingSystem.IsLinux() || geteuid() != 0)
+        if (!CanSet)
         {
-            return false;
+            return "the owners can not be set (only root can set them).";
         }
 
         // The id follows the two pointers (name and password) in struct passwd and struct group
         uint uid = owner is not null && getpwnam(owner) is var user && user != IntPtr.Zero ? (uint)Marshal.ReadInt32(user, 2 * IntPtr.Size) : uint.MaxValue;
         uint gid = group is not null && getgrnam(group) is var grp && grp != IntPtr.Zero ? (uint)Marshal.ReadInt32(grp, 2 * IntPtr.Size) : uint.MaxValue;
 
+        var problems = new List<string>();
+
+        if (owner is not null && uid == uint.MaxValue)
+        {
+            problems.Add($"unknown user \"{owner}\"");
+        }
+
+        if (group is not null && gid == uint.MaxValue)
+        {
+            problems.Add($"unknown group \"{group}\"");
+        }
+
         // -1 (uint.MaxValue) leaves an id unchanged
-        return lchown(path, uid, gid) == 0;
+        if ((uid != uint.MaxValue || gid != uint.MaxValue) && lchown(path, uid, gid) != 0)
+        {
+            problems.Add($"lchown failed (errno {Marshal.GetLastPInvokeError()})");
+        }
+
+        return problems.Count == 0 ? null : string.Join(", ", problems) + ", the owner is left unchanged.";
     }
 
     private static string? NameAt(IntPtr entry) => entry == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(entry));
