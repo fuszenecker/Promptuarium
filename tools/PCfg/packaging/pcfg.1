@@ -1,0 +1,228 @@
+.TH PCFG 1 "" "pcfg" "User Commands"
+.SH NAME
+pcfg \- show and edit Promptuarium configuration files
+.SH SYNOPSIS
+.B pcfg new
+.I FILE
+.RB [ \-\-comment
+.IR TEXT ]
+.RB [ \-\-force ]
+.br
+.B pcfg show
+.I FILE
+.RI [ KEY ]
+.RB [ \-\-flat ]
+.RB [ \-\-max\-bytes
+.IR N ]
+.br
+.B pcfg get
+.I FILE KEY
+.RB [ \-\-json ]
+.RB [ \-\-out
+.IR FILE ]
+.br
+.B pcfg set
+.I FILE KEY VALUE
+.RB [ \-\-comment
+.IR TEXT ]
+.RB [ \-\-output
+.IR FILE ]
+.br
+.B pcfg delete
+.I FILE KEY
+.RB [ \-\-output
+.IR FILE ]
+.br
+.B pcfg rename
+.I FILE KEY NEW\-NAME
+.RB [ \-\-output
+.IR FILE ]
+.br
+.B pcfg comment
+.I FILE KEY
+.RI [ TEXT ]
+.RB [ \-\-add ]
+.RB [ \-\-output
+.IR FILE ]
+.br
+.B pcfg import
+.I FILE JSON\-FILE\fR|\fB\-
+.RB [ \-\-force ]
+.br
+.B pcfg export
+.I FILE
+.RI [ KEY ]
+.RB [ \-\-output
+.IR JSON\-FILE ]
+.br
+.B pcfg check
+.I FILE
+.RB [ \-\-strict ]
+.SH DESCRIPTION
+.B pcfg
+shows and edits configuration files of Promptuarium: containers signed
+.B PRMT:CFG1\-LE
+in the layout of the serializer (SERIALIZER_FORMAT.md). It knows the tags (NAME, TYPE, ITEM, VALUE, COMMENT) and the
+type codes (NULL, BOOLEAN, OBJECT, ARRAY, FLOAT64, UTF8_STRING, BLOB), so a configuration is shown by its values, not
+by its nodes:
+.PP
+.nf
+.RS
+# Settings of the app
+Logging {
+  LogLevel {
+    # the default level
+    Default = "Information"
+  }
+}
+Hosts [
+  0 = "a.example"
+]
+Port = 8080
+Key = hex:DEADBEEF
+.RE
+.fi
+.PP
+Every command is a single, non\-interactive call. A file is checked before it is shown or edited; an invalid file is
+refused, and
+.B check
+lists every problem of it.
+.SH COMMANDS
+.TP
+.B new \fIFILE\fR
+Creates a configuration without members.
+.TP
+.B show \fIFILE\fR [\fIKEY\fR]
+Shows the configuration, or the value of the key, as a tree; the comments are the
+.B #
+lines before the value they are about. With
+.BR \-\-flat ,
+every value is a
+.I key = value
+line with its full key. A string is quoted, a BLOB is shown as
+.BI hex: ...
+(shortened to
+.B \-\-max\-bytes
+bytes, 32 by default).
+.TP
+.B get \fIFILE KEY\fR
+Prints a value as it is: a string without quotes, a BLOB as hex, a number,
+.BR true ,
+.B false
+or
+.BR null ;
+an object or an array as a tree.
+.B \-\-json
+prints the value as JSON,
+.B \-\-out
+writes the bytes of the value into a file.
+.TP
+.B set \fIFILE KEY VALUE\fR
+Sets a value. The missing objects on the way are created; an index of an array must exist or be the next one. The
+comments of an existing value are kept;
+.B \-\-comment
+replaces them.
+.TP
+.B delete \fIFILE KEY\fR
+Deletes a value (every member with the name, so that an earlier one does not come back).
+.TP
+.B rename \fIFILE KEY NEW\-NAME\fR
+Renames a member of an object.
+.TP
+.B comment \fIFILE KEY\fR [\fITEXT\fR]
+Replaces the comments of a value (of the file with the key
+.BR '' )
+with the text.
+.B \-\-add
+appends the text; without a text the comments are removed.
+.TP
+.B import \fIFILE JSON\-FILE\fR
+Creates a configuration from a JSON file (or the standard input,
+.BR \- ),
+e.g. an appsettings.json. Comments and trailing commas are allowed; the root must be an object.
+.TP
+.B export \fIFILE\fR [\fIKEY\fR]
+Writes the configuration, or a value, as JSON. A BLOB is a base64 string and the comments are left out, so the JSON
+is not a full copy of the file.
+.TP
+.B check \fIFILE\fR
+Checks the file by SERIALIZER_FORMAT.md: the signature, the tags, the type codes (a reserved one is an error), the
+holders, the values and the comments. A repeated name is a warning: the last one wins.
+.B \-\-strict
+makes a warning an error.
+.SH KEYS
+A key is the names of the members and the indexes of the elements, separated by
+.B :
+as in IConfiguration, e.g.
+.B Logging:LogLevel:Default
+or
+.BR Hosts:0 .
+A
+.B :
+or a
+.B \e
+in a name is escaped with a
+.BR \e .
+The empty key
+.B ''
+is the root.
+.SH VALUES
+.TP
+.BI string: TEXT
+A string.
+.TP
+.BI number: 1.5
+A number (FLOAT64).
+.TP
+.BR bool:true ", " bool:false
+A boolean.
+.TP
+.BR null ", " {} ", " []
+Null, an empty object, an empty array.
+.TP
+.BI hex: DEADBEEF\fR,\fP " base64:" 3q2+7w==\fR,\fP " file:" PATH
+A BLOB.
+.TP
+.BI json: JSON
+Any JSON value, e.g. an object with its members.
+.PP
+A value without a form keeps the type of the existing value (so
+.B set app.cfg Port 9090
+stays a number, and a string stays a string). A new value is a boolean
+.RB ( true ", " false ),
+a number (as in JSON, e.g. 8080), or else a string.
+.SH OPTIONS
+.TP
+.B \-\-signature \fISIG\fR
+The signature of the file (every command takes it):
+.B PRMT:CFG1\-LE
+by default, e.g.
+.B PRMT:GEN1\-LE
+for general objects.
+.TP
+.B \-\-output \fIFILE\fR
+An editing command saves the file there, not in place. A file is always written into a temporary file first.
+.TP
+.B \-\-
+The arguments after it are not options, e.g. a value that starts with
+.BR \-\- .
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Invalid command line: unknown command or option, missing argument, invalid key or value.
+.TP
+.B 2
+The file or the key does not exist.
+.TP
+.B 3
+The operation failed: invalid file (errors with
+.BR check ,
+or warnings with
+.BR "check \-\-strict" ),
+existing file, a key through a scalar, I/O error.
+.SH SEE ALSO
+.BR pedit (1),
+.BR ppak (1)

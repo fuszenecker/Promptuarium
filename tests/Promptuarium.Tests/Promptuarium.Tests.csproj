@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Promptuarium\Promptuarium.csproj" />
     <ProjectReference Include="..\..\tools\PEdit\PEdit.csproj" />
+    <ProjectReference Include="..\..\tools\PCfg\PCfg.csproj" />
   </ItemGroup>
 
 </Project>

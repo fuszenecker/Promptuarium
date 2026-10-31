@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Promptuarium\Promptuarium.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>pcfg</AssemblyName>
+    <RootNamespace>PCfg</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- The texts are formatted with the invariant culture, so the self-contained build needs no ICU -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Nullable>enable</Nullable>
+    <AnalysisLevel>preview</AnalysisLevel>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <!-- CA1303: the messages of a command line tool are not localized;
+         CA1849: the console output is written synchronously, line by line -->
+    <NoWarn>$(NoWarn);CA1303;CA1849</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Promptuarium.Tests" />
+  </ItemGroup>
+
+</Project>

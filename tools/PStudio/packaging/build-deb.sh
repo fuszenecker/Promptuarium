@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Debian package of PStudio, pedit (its command line counterpart) and the archivers ppak and ppakz: a
+# Builds the Debian package of PStudio, pedit (its command line counterpart), the configuration editor pcfg and the archivers ppak and ppakz: a
 # self-contained build of all of them in one folder (no .NET is needed on the target, and they share the runtime), the
 # desktop entry, the MIME type of the Promptuarium containers (so that PStudio opens them), the rules of "file", and the
 # man pages of pedit, ppak and ppakz.
@@ -57,8 +57,8 @@ mkdir -p "${ROOT}/DEBIAN" \
   "${ROOT}/usr/share/doc/${PACKAGE}" \
   "${ROOT}/usr/share/lintian/overrides"
 
-# PStudio, pedit, ppak and ppakz in the same folder: the files of the runtime are the same for all of them
-for project in PStudio/PStudio.csproj PEdit/PEdit.csproj PPak/PPak.csproj PPakZ/PPakZ.csproj; do
+# PStudio, pedit, pcfg, ppak and ppakz in the same folder: the files of the runtime are the same for all of them
+for project in PStudio/PStudio.csproj PEdit/PEdit.csproj PCfg/PCfg.csproj PPak/PPak.csproj PPakZ/PPakZ.csproj; do
   echo "==> Publishing ${project}"
   dotnet publish "${REPO_ROOT}/tools/${project}" \
     -c Release \
@@ -72,7 +72,7 @@ done
 # The native libraries bring their debug symbols, which the package does not need
 find "${ROOT}/usr/lib/${PACKAGE}" -name '*.pdb' -delete
 
-for command in pstudio pedit ppak ppakz; do
+for command in pstudio pedit pcfg ppak ppakz; do
   cat > "${ROOT}/usr/bin/${command}" <<EOF
 #!/bin/sh
 exec /usr/lib/${PACKAGE}/${command} "\$@"
@@ -86,6 +86,7 @@ install -m 0644 "${SCRIPT_DIR}/pstudio.svg" "${ROOT}/usr/share/icons/hicolor/sca
 install -m 0644 "${SCRIPT_DIR}/pstudio.svg" "${ROOT}/usr/share/icons/hicolor/scalable/mimetypes/application-x-promptuarium.svg"
 install -m 0644 "${REPO_ROOT}/misc/promptuarium.magic" "${ROOT}/usr/share/${PACKAGE}/promptuarium.magic"
 gzip -9n -c "${REPO_ROOT}/tools/PEdit/packaging/pedit.1" > "${ROOT}/usr/share/man/man1/pedit.1.gz"
+gzip -9n -c "${REPO_ROOT}/tools/PCfg/packaging/pcfg.1" > "${ROOT}/usr/share/man/man1/pcfg.1.gz"
 gzip -9n -c "${REPO_ROOT}/tools/PPak/packaging/ppak.1" > "${ROOT}/usr/share/man/man1/ppak.1.gz"
 gzip -9n -c "${REPO_ROOT}/tools/PPakZ/packaging/ppakz.1" > "${ROOT}/usr/share/man/man1/ppakz.1.gz"
 install -m 0644 "${REPO_ROOT}/LICENSE" "${ROOT}/usr/share/doc/${PACKAGE}/copyright"
@@ -104,7 +105,7 @@ gzip -9n -c "${WORK_DIR}/changelog" > "${ROOT}/usr/share/doc/${PACKAGE}/changelo
 # dpkg-deb wants the usual permissions, whatever the umask of the build was
 find "${ROOT}" -type d -exec chmod 0755 {} +
 find "${ROOT}/usr" -type f -exec chmod 0644 {} +
-for command in pstudio pedit ppak ppakz; do
+for command in pstudio pedit pcfg ppak ppakz; do
   chmod 0755 "${ROOT}/usr/bin/${command}" "${ROOT}/usr/lib/${PACKAGE}/${command}"
 done
 
@@ -134,6 +135,10 @@ Description: Graphical editor and command line tools of Promptuarium trees
  ppak packs a directory tree (files, directories, symbolic links, with sizes,
  CRC-32s, permissions, owners and times) into one Promptuarium container, and
  unpacks it; ppakz is the same with gzip-compressed contents.
+ .
+ pcfg shows and edits the configuration files of Promptuarium (PRMT:CFG1-LE):
+ the values by their keys (Logging:LogLevel:Default), with their types and
+ comments, as a tree or as key = value lines; it imports and exports JSON.
  .
  The package makes PStudio the application of the Promptuarium containers
  (MIME type application/x-promptuarium, *.prmt and the "PRMT" signature), and

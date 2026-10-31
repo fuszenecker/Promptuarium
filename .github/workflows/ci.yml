@@ -31,6 +31,7 @@ jobs:
           dotnet build src/Promptuarium/Promptuarium.csproj --no-restore -c Release -warnaserror
           dotnet build src/Promptuarium.Serializer/Promptuarium.Serializer.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PEdit/PEdit.csproj --no-restore -c Release -warnaserror
+          dotnet build tools/PCfg/PCfg.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PPak/PPak.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PPakZ/PPakZ.csproj --no-restore -c Release -warnaserror
           dotnet build tools/PStudio/PStudio.csproj --no-restore -c Release -warnaserror
@@ -41,7 +42,7 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c Release --filter "TestCategory!=Slow" --logger trx --results-directory TestResults
 
-      # The examples run; ppak and ppakz (tools) pack a directory, and unpack the same directory
+      # The examples run; ppak and ppakz (tools) pack a directory, and unpack the same directory; pcfg edits a configuration
       - name: Run the examples
         run: |
           dotnet run --project examples/GettingStarted --no-build -c Release
@@ -58,6 +59,13 @@ jobs:
           ppakz list "$RUNNER_TEMP/src.ppakz"
           ppakz unpack "$RUNNER_TEMP/src.ppakz" "$RUNNER_TEMP/unpackedz"
           diff -r src "$RUNNER_TEMP/unpackedz"
+          pcfg() { dotnet run --project tools/PCfg --no-build -c Release -- "$@"; }
+          echo '{ "Logging": { "LogLevel": { "Default": "Information" } }, "Hosts": [ "a" ] }' > "$RUNNER_TEMP/app.json"
+          pcfg import "$RUNNER_TEMP/app.cfg" "$RUNNER_TEMP/app.json"
+          pcfg set "$RUNNER_TEMP/app.cfg" Logging:LogLevel:Default Debug --comment "the default level"
+          pcfg check "$RUNNER_TEMP/app.cfg" --strict
+          pcfg show "$RUNNER_TEMP/app.cfg"
+          test "$(pcfg get "$RUNNER_TEMP/app.cfg" Logging:LogLevel:Default)" = Debug
           # pxml keeps the content: the sample comes back byte for byte, other files give the same tree again
           pxml() { dotnet run --project examples/PXml --no-build -c Release -- "$@"; }
           for xml in examples/PXml/sample.xml src/Promptuarium/Promptuarium.csproj tools/PStudio/Views/MainWindow.axaml; do

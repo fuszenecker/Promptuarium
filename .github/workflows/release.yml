@@ -1,7 +1,7 @@
 name: Release
 
 # A new version tag (e.g. 7.1.0, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
-# with the NuGet packages, the symbol packages, and PStudio with pedit, ppak and ppakz: the Windows installer, the Debian package and the RPM package.
+# with the NuGet packages, the symbol packages, and PStudio with pedit, pcfg, ppak and ppakz: the Windows installer, the Debian package and the RPM package.
 # It can also be started by hand for an existing tag.
 
 on:
@@ -98,7 +98,7 @@ jobs:
           path: artifacts
 
       # A pre-release (8.0.0-rc1) is 8.0.0~rc1 for Debian, so that it comes before 8.0.0
-      # One package for PStudio, pedit, ppak and ppakz
+      # One package for PStudio, pedit, pcfg, ppak and ppakz
       - name: Debian package
         run: |
           tools/PStudio/packaging/build-deb.sh --version "${TAG/-/\~}" --output deb-build
@@ -123,15 +123,15 @@ jobs:
             echo "- The NuGet packages (Promptuarium, Promptuarium.Serializer) and their symbol packages (upload all of them to nuget.org)."
 
             if [ -f "artifacts/pstudio-$TAG-win-x64-setup.exe" ]; then
-              echo "- PStudio, pedit, ppak and ppakz for Windows (x64, no .NET needed): the installer \`pstudio-$TAG-win-x64-setup.exe\` (Start Menu entries, \`.prmt\` file association, uninstall in Apps)."
+              echo "- PStudio, pedit, pcfg, ppak and ppakz for Windows (x64, no .NET needed): the installer \`pstudio-$TAG-win-x64-setup.exe\` (Start Menu entries, \`.prmt\` file association, uninstall in Apps)."
             fi
 
             if ls artifacts/pstudio_*.deb > /dev/null 2>&1; then
-              echo "- PStudio, pedit, ppak and ppakz for Debian and Ubuntu (amd64, no .NET needed, \`man pedit\`, \`man ppak\`, \`man ppakz\`): \`sudo apt install ./pstudio_*.deb\`. PStudio opens the Promptuarium containers, and the rules of the containers are added to \`/etc/magic\`, so that \`file\` recognizes them. The package replaces the former pedit package."
+              echo "- PStudio, pedit, pcfg, ppak and ppakz for Debian and Ubuntu (amd64, no .NET needed, \`man pedit\`, \`man pcfg\`, \`man ppak\`, \`man ppakz\`): \`sudo apt install ./pstudio_*.deb\`. PStudio opens the Promptuarium containers, and the rules of the containers are added to \`/etc/magic\`, so that \`file\` recognizes them. The package replaces the former pedit package."
             fi
 
             if ls artifacts/pstudio-*.rpm > /dev/null 2>&1; then
-              echo "- PStudio, pedit, ppak and ppakz for Fedora, RHEL and openSUSE (x86_64, no .NET needed, \`man pedit\`, \`man ppak\`, \`man ppakz\`): \`sudo dnf install ./pstudio-*.rpm\` (or \`sudo zypper install ./pstudio-*.rpm\`). The same as the Debian package: PStudio opens the Promptuarium containers, and \`file\` recognizes them."
+              echo "- PStudio, pedit, pcfg, ppak and ppakz for Fedora, RHEL and openSUSE (x86_64, no .NET needed, \`man pedit\`, \`man pcfg\`, \`man ppak\`, \`man ppakz\`): \`sudo dnf install ./pstudio-*.rpm\` (or \`sudo zypper install ./pstudio-*.rpm\`). The same as the Debian package: PStudio opens the Promptuarium containers, and \`file\` recognizes them."
             fi
           } > release-notes.md
 
