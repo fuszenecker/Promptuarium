@@ -12,7 +12,7 @@
     <Title>Promptuarium.Serializer</Title>
     <Description>A general serializer between .NET objects and Promptuarium trees in the PRMT:CFG1-LE layout: typed holders, byte[] as BLOB, no JSON in between; layering (Populate), records, attributes.</Description>
     <PackageTags>promptuarium serializer serialization configuration binary tree</PackageTags>
-    <PackageReleaseNotes>Unchanged since 8.1.0 (still experimental, opt-in PRMTSER000); released together with Promptuarium 8.1.3 (ppak and ppakz are tools, installed with PStudio and pedit; ppakz is PRMT:PPAKZ1-LE).</PackageReleaseNotes>
+    <PackageReleaseNotes>Unchanged since 8.1.0 (still experimental, opt-in PRMTSER000); released together with Promptuarium 8.1.4 (pcfg, the editor of the configuration files written by this serializer: PRMT:CFG1-LE, shown and edited by their keys, with types and comments, JSON import and export, checked by SERIALIZER_FORMAT.md).</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
