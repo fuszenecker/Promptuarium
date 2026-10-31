@@ -1,3 +1,0 @@
-# pedit is a self-contained, single-file .NET application: the runtime is part of the executable.
-pedit: embedded-library *
-pedit: unstripped-binary-or-object *

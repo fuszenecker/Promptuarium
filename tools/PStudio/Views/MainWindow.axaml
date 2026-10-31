@@ -5,6 +5,7 @@
         x:Class="PStudio.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
+        Icon="/Assets/pstudio.ico"
         Width="1200" Height="800"
         MinWidth="640" MinHeight="480">
 

@@ -1,7 +1,8 @@
 name: Release
 
 # A new version tag (e.g. 7.1.0, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
-# with the NuGet packages, the symbol packages and pedit. It can also be started by hand for an existing tag.
+# with the NuGet packages, the symbol packages, and PStudio with pedit: the Windows installer and the Debian package.
+# It can also be started by hand for an existing tag.
 
 on:
   push:
@@ -18,8 +19,44 @@ permissions:
   contents: write
 
 jobs:
+  # Only a build on Windows puts the icon and the version into pstudio.exe, so the installer is built on Windows
+  windows:
+    name: PStudio installer for Windows
+    runs-on: windows-latest
+
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) {
+            choco install nsis -y --no-progress
+          }
+          & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" -VERSION
+
+      - name: Build the installer
+        shell: pwsh
+        run: tools/PStudio/packaging/windows/build-windows-installer.ps1 -Version $env:TAG -Output installer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pstudio-windows
+          path: installer/*-setup.exe
+          if-no-files-found: error
+
   release:
     name: Release
+    needs: windows
     runs-on: ubuntu-latest
 
     env:
@@ -54,26 +91,17 @@ jobs:
             dotnet pack "$project" -c Release -o artifacts
           done
 
-      - name: Publish pedit
-        if: hashFiles('tools/PEdit/PEdit.csproj') != ''
-        run: |
-          dotnet publish tools/PEdit/PEdit.csproj -c Release -o publish/pedit
-          (cd publish && zip -qr "../artifacts/pedit-$TAG.zip" pedit)
-
-      - name: Publish PStudio
-        if: hashFiles('tools/PStudio/PStudio.csproj') != ''
-        run: |
-          dotnet publish tools/PStudio/PStudio.csproj -c Release -o publish/pstudio
-          (cd publish && zip -qr "../artifacts/pstudio-$TAG.zip" pstudio)
+      - name: The Windows installer of PStudio
+        uses: actions/download-artifact@v4
+        with:
+          name: pstudio-windows
+          path: artifacts
 
       # A pre-release (8.0.0-rc1) is 8.0.0~rc1 for Debian, so that it comes before 8.0.0
-      - name: Debian packages
+      # One package for PStudio and pedit
+      - name: Debian package
         run: |
-          for script in tools/PEdit/packaging/build-deb.sh tools/PStudio/packaging/build-deb.sh; do
-            if [ -f "$script" ]; then
-              "$script" --version "${TAG/-/\~}" --output deb-build
-            fi
-          done
+          tools/PStudio/packaging/build-deb.sh --version "${TAG/-/\~}" --output deb-build
           mv deb-build/*.deb artifacts/
 
       - name: Release notes
@@ -86,20 +114,12 @@ jobs:
 
             echo "- The NuGet packages (Promptuarium, Promptuarium.Serializer) and their symbol packages (upload all of them to nuget.org)."
 
-            if [ -f "artifacts/pedit-$TAG.zip" ]; then
-              echo "- pedit, the command line tool (requires .NET 10: \`dotnet pedit/pedit.dll help\`)."
-            fi
-
-            if [ -f "artifacts/pstudio-$TAG.zip" ]; then
-              echo "- PStudio, the graphical editor for Windows, Linux and macOS (requires .NET 10: \`dotnet pstudio/pstudio.dll\`)."
-            fi
-
-            if ls artifacts/pedit_*.deb > /dev/null 2>&1; then
-              echo "- pedit for Debian and Ubuntu (amd64, no .NET needed, with a man page): \`sudo apt install ./pedit_*.deb\`."
+            if [ -f "artifacts/pstudio-$TAG-win-x64-setup.exe" ]; then
+              echo "- PStudio and pedit for Windows (x64, no .NET needed): the installer \`pstudio-$TAG-win-x64-setup.exe\` (Start Menu entries, \`.prmt\` file association, uninstall in Apps)."
             fi
 
             if ls artifacts/pstudio_*.deb > /dev/null 2>&1; then
-              echo "- PStudio for Debian and Ubuntu (amd64, no .NET needed): \`sudo apt install ./pstudio_*.deb\`. It opens the Promptuarium containers, and adds their rules to \`/etc/magic\`, so that \`file\` recognizes them."
+              echo "- PStudio and pedit for Debian and Ubuntu (amd64, no .NET needed, \`man pedit\`): \`sudo apt install ./pstudio_*.deb\`. PStudio opens the Promptuarium containers, and the rules of the containers are added to \`/etc/magic\`, so that \`file\` recognizes them. The package replaces the former pedit package."
             fi
           } > release-notes.md
 

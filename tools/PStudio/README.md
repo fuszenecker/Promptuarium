@@ -10,24 +10,41 @@ dotnet run --project tools/PStudio [FILE]
 dotnet tools/PStudio/bin/Debug/net10.0/pstudio.dll [FILE]
 ```
 
-## Debian package
+## Windows installer
 
-Every [release](https://github.com/fuszenecker/Promptuarium/releases) has a Debian package (amd64; .NET is not needed, the package is self-contained):
+Every [release](https://github.com/fuszenecker/Promptuarium/releases) has a Windows installer (x64; .NET is not needed, it is self-contained): `pstudio-<version>-win-x64-setup.exe`. It installs PStudio and [`pedit`](../PEdit/README.md), its command line counterpart, for every user (in `Program Files\PStudio`), with
+
+* Start Menu entries: PStudio, and a command prompt in the folder of pedit;
+* the `.prmt` file association (optional): Explorer opens the containers with PStudio, with its icon;
+* a desktop shortcut (optional);
+* an entry in Apps (Add or Remove Programs), to uninstall it. Installing a new version removes the old one first.
+
+To build it (needs PowerShell 7 and NSIS; the result is in `artifacts/`):
 
 ```sh
-sudo apt install ./pstudio_8.0.0_amd64.deb
+tools/PStudio/packaging/windows/build-windows-installer.ps1 [-Version 8.1.0]
+```
+
+The release builds it on Windows, because only a build on Windows puts the icon and the version into `pstudio.exe`; on Linux (`apt install nsis`), the installer is the same, with the default icon of the executables.
+
+## Debian package
+
+Every [release](https://github.com/fuszenecker/Promptuarium/releases) has a Debian package (amd64; .NET is not needed, the package is self-contained) of PStudio and pedit:
+
+```sh
+sudo apt install ./pstudio_8.1.0_amd64.deb
 ```
 
 The package
 
-* installs `pstudio` (`/usr/bin/pstudio`, the application in `/usr/lib/pstudio`) with its desktop entry and icon;
+* installs `pstudio` and `pedit` (`/usr/bin/pstudio`, `/usr/bin/pedit`, the applications in `/usr/lib/pstudio`, sharing the runtime) with the desktop entry and the icon of PStudio, and the man page of pedit; it replaces the former `pedit` package;
 * registers the MIME type `application/x-promptuarium` (shared-mime-info): files with the `.prmt` extension, and files with a `PRMT` signature ([BINARY_FORMAT.md](../../BINARY_FORMAT.md), 10) whatever their name is, so file managers show them as Promptuarium containers and open them with PStudio;
 * adds the rules of [`misc/promptuarium.magic`](../../misc/promptuarium.magic) to `/etc/magic`, between `# BEGIN pstudio` and `# END pstudio`, so that `file` recognizes the containers and shows their tags (`photo.prmt: Promptuarium container, IMGZ5.6`). Removing the package removes the rules.
 
 To build the package (needs `dpkg-deb`; the result is in `artifacts/`):
 
 ```sh
-tools/PStudio/packaging/build-deb.sh [--version 8.0.0] [--runtime linux-x64|linux-arm64]
+tools/PStudio/packaging/build-deb.sh [--version 8.1.0] [--runtime linux-x64|linux-arm64]
 ```
 
 ## Features

@@ -5,6 +5,7 @@
         x:DataType="vm:MessageDialogViewModel"
         x:Name="Dialog"
         Title="{Binding Title}"
+        Icon="/Assets/pstudio.ico"
         Width="480" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

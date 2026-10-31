@@ -13,6 +13,8 @@
     <IsPackable>false</IsPackable>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- The icon of pstudio.exe (embedded only when built on Windows) and of the windows -->
+    <ApplicationIcon>Assets\pstudio.ico</ApplicationIcon>
     <!-- The texts are formatted with the invariant culture, so the self-contained build needs no ICU -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- The chosen forms are stored with the experimental serializer -->
@@ -35,6 +37,10 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="PStudio.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\pstudio.ico" />
   </ItemGroup>
 
 </Project>

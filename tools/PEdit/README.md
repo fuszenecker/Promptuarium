@@ -11,15 +11,10 @@ So it can be driven by scripts and AI agents, and it is the reference to compare
 
 ## Installing
 
-Every [release](https://github.com/fuszenecker/Promptuarium/releases) has a Debian package (amd64; self-contained, .NET is not needed), with a man page (`man pedit`):
+pedit comes with [PStudio](../PStudio/README.md), whose command line counterpart it is: every [release](https://github.com/fuszenecker/Promptuarium/releases) has
 
-```sh
-sudo apt install ./pedit_8.0.0_amd64.deb
-```
-
-To build it (needs `dpkg-deb`; the result is in `artifacts/`): `tools/PEdit/packaging/build-deb.sh [--version 8.0.0] [--runtime linux-x64|linux-arm64]`.
-
-On other systems, the `pedit-<version>.zip` of the release runs with .NET 10: `dotnet pedit/pedit.dll help`.
+* a Debian package (amd64; self-contained, .NET is not needed) with both, and the man page of pedit (`man pedit`): `sudo apt install ./pstudio_8.1.0_amd64.deb` (it replaces the former `pedit` package);
+* a Windows installer (x64; .NET is not needed): `pedit.exe` is next to `pstudio.exe`, and the Start Menu has a command prompt for it.
 
 ## Running
 
