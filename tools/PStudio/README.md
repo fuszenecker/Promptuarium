@@ -47,6 +47,23 @@ To build the package (needs `dpkg-deb`; the result is in `artifacts/`):
 tools/PStudio/packaging/build-deb.sh [--version 8.1.0] [--runtime linux-x64|linux-arm64]
 ```
 
+## RPM package
+
+Every [release](https://github.com/fuszenecker/Promptuarium/releases) has an RPM package (x86_64; self-contained) of PStudio and pedit too, for Fedora, RHEL, openSUSE and the like:
+
+```sh
+sudo dnf install ./pstudio-8.1.0-1.x86_64.rpm      # Fedora, RHEL
+sudo zypper install ./pstudio-8.1.0-1.x86_64.rpm   # openSUSE
+```
+
+It installs the same files as the Debian package, and adds the rules of the containers to `/etc/magic` in the same way (also when `file`, which brings `/etc/magic`, is installed after PStudio); removing the package removes them. A pre-release (`8.1.0-rc1`) is version `8.1.0~rc1`.
+
+To build the package (needs `rpmbuild`: `dnf install rpm-build`, or `apt install rpm`; the result is in `artifacts/`):
+
+```sh
+tools/PStudio/packaging/build-rpm.sh [--version 8.1.0] [--runtime linux-x64|linux-arm64]
+```
+
 ## Features
 
 * **Tree view**: every node shows its index and a short preview of its data and, in brackets, its metadata.

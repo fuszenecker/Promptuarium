@@ -14,6 +14,7 @@ So it can be driven by scripts and AI agents, and it is the reference to compare
 pedit comes with [PStudio](../PStudio/README.md), whose command line counterpart it is: every [release](https://github.com/fuszenecker/Promptuarium/releases) has
 
 * a Debian package (amd64; self-contained, .NET is not needed) with both, and the man page of pedit (`man pedit`): `sudo apt install ./pstudio_8.1.0_amd64.deb` (it replaces the former `pedit` package);
+* an RPM package (x86_64; self-contained) with the same: `sudo dnf install ./pstudio-8.1.0-1.x86_64.rpm` (Fedora, RHEL; on openSUSE `sudo zypper install`);
 * a Windows installer (x64; .NET is not needed): `pedit.exe` is next to `pstudio.exe`, and the Start Menu has a command prompt for it.
 
 ## Running

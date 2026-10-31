@@ -127,7 +127,7 @@ dotnet test --filter "TestCategory!=Slow"
 ## Packages and releases
 
 * NuGet: [Promptuarium](https://www.nuget.org/packages/Promptuarium/), and [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/) (experimental), a serializer between .NET objects and trees ([README](src/Promptuarium.Serializer/README.md))
-* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet packages, the symbol packages, and PStudio with `pedit` of every version: a Windows installer (x64) and a Debian package (amd64), both self-contained.
+* [GitHub releases](https://github.com/fuszenecker/Promptuarium/releases): the NuGet packages, the symbol packages, and PStudio with `pedit` of every version: a Windows installer (x64), a Debian package (amd64) and an RPM package (x86_64), all self-contained.
 
 A release is created automatically for every version tag:
 
