@@ -2,7 +2,7 @@
 
 `ppak` packs a directory tree into a single Promptuarium file, and unpacks it: the files, the directories and the
 symbolic links, with the size and the CRC-32 of every file, the permissions, the owners, the groups and the times.
-The format, **PPAK1**, is specified in [PPAK_FORMAT.md](PPAK_FORMAT.md).
+The format, **PPak1-LE** (the signature `PRMT:PPak1-LE`), is specified in [PPAK_FORMAT.md](PPAK_FORMAT.md).
 
 ## Usage
 
@@ -18,7 +18,7 @@ From the repository:
 ```sh
 dotnet run --project examples/PPak -- pack ~/notes notes.ppak
 dotnet run --project examples/PPak -- list notes.ppak
-file -m misc/promptuarium.magic notes.ppak      # notes.ppak: Promptuarium container, PPAK1
+file -m misc/promptuarium.magic notes.ppak      # notes.ppak: Promptuarium container, PPak1-LE
 ```
 
 ```text

@@ -1,6 +1,6 @@
-# ppak Format Specification (PPAK1)
+# ppak Format Specification (PPak1-LE)
 
-This document specifies **PPAK1**, the format of the archives of [`ppak`](README.md): a directory tree (files,
+This document specifies **PPak1-LE**, the format of the archives of [`ppak`](README.md): a directory tree (files,
 directories, symbolic links) with the sizes, the CRC-32s, the permissions, the owners, the groups and the times of
 its entries, in one Promptuarium container. It builds on the [Binary Format Specification](../../BINARY_FORMAT.md):
 the container defines the tree, this document defines the meaning of its nodes.
@@ -39,7 +39,8 @@ error, but it MUST be reported as a warning**.
 
 * `[d: xxx]` means data with the value `xxx`, `[m: yyy]` means metadata with the value `yyy`.
 * **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT** and **MAY** are used as in RFC 2119.
-* All multi-byte numbers are **little-endian** (as written by the `Data` class of the library).
+* All multi-byte numbers are **little-endian** (as written by the `Data` class of the library); the `-LE` suffix of the
+  signature says so, so that a big-endian variant could get a signature of its own.
 * A **flag** is the metadata of an info node: ASCII, case-sensitive (`content`, not `Content`).
 
 ## 2. Overview
@@ -49,7 +50,7 @@ name, and below it the **info** nodes of the entry, each with a flag in its meta
 entries of a directory are the children of its `entries` info node.
 
 ```text
-root                         [m: "PRMT:PPAK1"]                      the signature (section 3)
+root                         [m: "PRMT:PPak1-LE"]                   the signature (section 3)
 ├── entry                    [d: name]                              section 4
 │   ├── info                 [m: "content"]  [d: the bytes]         mandatory for a file (section 5)
 │   ├── info                 [m: "type"]     [d: "file"]            additional (section 6)
@@ -81,11 +82,12 @@ root                         [m: "PRMT:PPAK1"]                      the signatur
 The root follows the [file identification convention](../../BINARY_FORMAT.md#10-file-identification-optional-convention):
 
 * the root MUST have **no data**;
-* its metadata MUST be the 10 ASCII bytes `PRMT:PPAK1`, so every archive starts with `6A 50 52 4D 54 3A 50 50 41 4B 31`,
-  and `file` (with [`misc/promptuarium.magic`](../../misc/promptuarium.magic)) shows it as `Promptuarium container, PPAK1`;
+* its metadata MUST be the 13 ASCII bytes `PRMT:PPak1-LE` (case-sensitive), so every archive starts with
+  `6D 50 52 4D 54 3A 50 50 61 6B 31 2D 4C 45`, and `file` (with [`misc/promptuarium.magic`](../../misc/promptuarium.magic))
+  shows it as `Promptuarium container, PPak1-LE`;
 * its children are the entries of the top directory (the directory that was packed is not an entry itself).
 
-`PPAK1` changes only if the meaning of an existing component changes; new flags do not need a new version
+The `1` of `PPak1-LE` changes only if the meaning of an existing component changes; new flags do not need a new version
 (section 6.8).
 
 ## 4. Entries and names
@@ -225,7 +227,7 @@ symbolic link is not restored by `ppak` (.NET can not set it without following t
 A reader MUST skip the info nodes whose flag it does not know, **without a warning**: they are the extensions of the
 format (e.g. a hash, extended attributes, access control lists, numeric ids), and they can be added without a new
 version. An extension MUST NOT change the meaning of the components of this document; if a future version must, it
-gets a new signature (`PRMT:PPAK2`). An extension SHOULD be additional information too: an archive is still
+gets a new signature (`PRMT:PPak2-LE`). An extension SHOULD be additional information too: an archive is still
 unpacked correctly by a reader that does not know it.
 
 ## 7. Reading: errors and warnings
@@ -238,7 +240,7 @@ unpacks it.
 
 | Error | Example message of `ppak` |
 |-------|---------------------------|
-| the root has data, or its metadata is not `PRMT:PPAK1` | `Not a ppak file: the signature is not "PRMT:PPAK1".` |
+| the root has data, or its metadata is not `PRMT:PPak1-LE` | `Not a ppak file: the signature is not "PRMT:PPak1-LE".` |
 | a name that is not valid UTF-8 | `/docs/: a name that is not valid UTF-8.` |
 | an empty name, `.`, `..`, or a name with `/`, `\` or NUL | `/: invalid name "../evil".` |
 | a name repeated in a directory | `/a.txt: the name is repeated in the directory.` |
@@ -302,7 +304,7 @@ A directory with `hi.txt` (`hi`) and an empty directory `docs` with an empty fil
 components, and `size` and `crc32` for `hi.txt`:
 
 ```text
-root                    [m: "PRMT:PPAK1"]
+root                    [m: "PRMT:PPak1-LE"]
 ├── entry               [d: "hi.txt"]
 │   ├── info            [m: "content"]  [d: "hi"]
 │   ├── info            [m: "size"]     [d: 02 00 00 00 00 00 00 00]   2 bytes
@@ -325,31 +327,31 @@ root                    [m: "PRMT:PPAK1"]
 
 ## 11. Test vector
 
-The archive of section 10, 82 bytes (the chunks as `pedit chunks` shows them, [BINARY_FORMAT.md](../../BINARY_FORMAT.md)):
+The archive of section 10, 85 bytes (the chunks as `pedit chunks` shows them, [BINARY_FORMAT.md](../../BINARY_FORMAT.md)):
 
 ```text
-6A 50 52 4D 54 3A 50 50 41 4B 31   Down, metadata, 10:   the signature "PRMT:PPAK1" (root)
-46 68 69 2E 74 78 74               Down, data, 6:        entry "hi.txt"
-42 68 69                           Down, data, 2:        info: "hi"
-27 63 6F 6E 74 65 6E 74            Append, metadata, 7:    "content"
-C8 02 00 00 00 00 00 00 00         New, data, 8:         info: 2
-24 73 69 7A 65                     Append, metadata, 4:    "size"
-C4 AC 2A 93 D8                     New, data, 4:         info: 0xD8932AAC
-25 63 72 63 33 32                  Append, metadata, 5:    "crc32"
-84 64 6F 63 73                     Up, data, 4:          entry "docs"
-67 65 6E 74 72 69 65 73            Down, metadata, 7:    info "entries"
-45 65 6D 70 74 79                  Down, data, 5:        entry "empty"
-67 63 6F 6E 74 65 6E 74            Down, metadata, 7:    info "content" (no data: an empty file)
-00                                 terminator
+6D 50 52 4D 54 3A 50 50 61 6B 31 2D 4C 45   Down, metadata, 13:   the signature "PRMT:PPak1-LE" (root)
+46 68 69 2E 74 78 74                        Down, data, 6:        entry "hi.txt"
+42 68 69                                    Down, data, 2:        info: "hi"
+27 63 6F 6E 74 65 6E 74                     Append, metadata, 7:    "content"
+C8 02 00 00 00 00 00 00 00                  New, data, 8:         info: 2
+24 73 69 7A 65                              Append, metadata, 4:    "size"
+C4 AC 2A 93 D8                              New, data, 4:         info: 0xD8932AAC
+25 63 72 63 33 32                           Append, metadata, 5:    "crc32"
+84 64 6F 63 73                              Up, data, 4:          entry "docs"
+67 65 6E 74 72 69 65 73                     Down, metadata, 7:    info "entries"
+45 65 6D 70 74 79                           Down, data, 5:        entry "empty"
+67 63 6F 6E 74 65 6E 74                     Down, metadata, 7:    info "content" (no data: an empty file)
+00                                          terminator
 ```
 
 ```text
-00000000: 6a50 524d 543a 5050 414b 3146 6869 2e74  jPRMT:PPAK1Fhi.t
-00000010: 7874 4268 6927 636f 6e74 656e 74c8 0200  xtBhi'content...
-00000020: 0000 0000 0000 2473 697a 65c4 ac2a 93d8  ......$size..*..
-00000030: 2563 7263 3332 8464 6f63 7367 656e 7472  %crc32.docsgentr
-00000040: 6965 7345 656d 7074 7967 636f 6e74 656e  iesEemptygconten
-00000050: 7400                                     t.
+00000000: 6d50 524d 543a 5050 616b 312d 4c45 4668  mPRMT:PPak1-LEFh
+00000010: 692e 7478 7442 6869 2763 6f6e 7465 6e74  i.txtBhi'content
+00000020: c802 0000 0000 0000 0024 7369 7a65 c4ac  .........$size..
+00000030: 2a93 d825 6372 6333 3284 646f 6373 6765  *..%crc32.docsge
+00000040: 6e74 7269 6573 4565 6d70 7479 6763 6f6e  ntriesEemptygcon
+00000050: 7465 6e74 00                             tent.
 ```
 
 `ppak verify` says `OK`, and `ppak unpack` creates `hi.txt` and `docs/empty`.

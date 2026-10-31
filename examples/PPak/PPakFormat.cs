@@ -7,7 +7,7 @@ namespace PPak;
 /// The layout of a ppak file (PPAK_FORMAT.md). Every level of the directory tree is two levels of the Promptuarium tree:
 ///
 /// <code>
-/// root                      metadata: the signature "PRMT:PPAK1"
+/// root                      metadata: the signature "PRMT:PPak1-LE"
 /// ├── entry                 data: the name of the file, directory or symbolic link
 /// │   ├── info              metadata: a flag ("content", "entries", "crc32", ...), data: its value
 /// │   ├── ...
@@ -21,8 +21,9 @@ namespace PPak;
 /// </summary>
 internal static class PPakFormat
 {
-    /// <summary>The signature of the root (BINARY_FORMAT.md, 10.3): "file" shows it as "Promptuarium container, PPAK1".</summary>
-    public const string Signature = "PRMT:PPAK1";
+    /// <summary>The signature of the root (BINARY_FORMAT.md, 10.3): "file" shows it as "Promptuarium container, PPak1-LE".
+    /// "-LE": the numbers are little-endian.</summary>
+    public const string Signature = "PRMT:PPak1-LE";
 
     /// <summary>Mandatory for a file: its content (any bytes).</summary>
     public const string ContentFlag = "content";
