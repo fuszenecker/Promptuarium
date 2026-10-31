@@ -76,10 +76,10 @@ internal static class Commands
           pedit new    FILE [--signature VALUE] [--force]
           pedit dump   FILE [--path PATH] [--max-bytes N] [--json]
           pedit chunks FILE [--json]
-          pedit add    FILE PARENT-PATH [--index N] [--data VALUE] [--metadata VALUE] [--output FILE] [--json]
-          pedit set    FILE PATH [--data VALUE] [--metadata VALUE] [--output FILE] [--json]
+          pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
+          pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
           pedit delete FILE PATH [--output FILE] [--json]
-          pedit get    FILE PATH data|metadata [--format hex|base64|utf8] [--out FILE]
+          pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
           pedit help
 
         Commands:
@@ -87,9 +87,9 @@ internal static class Commands
           dump    Lists the nodes (pre-order), with their paths and contents.
           chunks  Lists the chunks of the file, decoded directly from the specification.
           add     Adds a new node to PARENT-PATH (at the end, or at --index), prints its path.
-          set     Sets the data and/or the metadata of a node.
+          set     Sets the metadata and/or the data of a node.
           delete  Deletes a node with its subtree (not the root).
-          get     Prints the data or the metadata of a node (or writes the raw bytes to --out).
+          get     Prints the metadata or the data of a node (or writes the raw bytes to --out).
 
         Paths:   '/' is the root, '/0/2' is the third child of the first child of the root.
         VALUE:   hex:4152 | utf8:TEXT | ascii:TEXT | base64:QVI= | file:PATH | empty
@@ -232,8 +232,8 @@ internal static class Commands
                     writer.WriteString("path", path.ToString());
                     writer.WriteNumber("depth", depth);
                     writer.WriteNumber("children", node.Children.Count);
-                    WriteContent(writer, "data", node.Data, maxBytes);
                     WriteContent(writer, "metadata", node.MetaData, maxBytes);
+                    WriteContent(writer, "data", node.Data, maxBytes);
                     writer.WriteEndObject();
                 }
                 else
@@ -378,7 +378,7 @@ internal static class Commands
 
         if (data == null && metaData == null)
         {
-            throw new PEditException(ExitCodes.Usage, "Nothing to set: give --data and/or --metadata.");
+            throw new PEditException(ExitCodes.Usage, "Nothing to set: give --metadata and/or --data.");
         }
 
         string file = command.Positional(0);
@@ -421,7 +421,7 @@ internal static class Commands
 
     private static async Task GetAsync(Arguments command, TextWriter output)
     {
-        command.Expect(3, "get FILE PATH data|metadata");
+        command.Expect(3, "get FILE PATH metadata|data");
         Element root = await LoadAsync(command.Positional(0)).ConfigureAwait(false);
         Element node = NodePath.Parse(command.Positional(1)).Resolve(root);
 
@@ -429,7 +429,7 @@ internal static class Commands
         {
             "data" => node.Data,
             "metadata" => node.MetaData,
-            string other => throw new PEditException(ExitCodes.Usage, $"'{other}' is neither 'data' nor 'metadata'."),
+            string other => throw new PEditException(ExitCodes.Usage, $"'{other}' is neither 'metadata' nor 'data'."),
         };
 
         byte[] bytes = content.ToArray();
@@ -530,16 +530,17 @@ internal static class Commands
             return node.Children.Count > 0 ? "(no content)" : "(empty)";
         }
 
+        // The metadata first: it is short, mostly a tag, and tells what the data is
         var parts = new List<string>();
-
-        if (hasData)
-        {
-            parts.Add(DescribeContent("data", node.Data.ToArray(), maxBytes));
-        }
 
         if (hasMetaData)
         {
             parts.Add(DescribeContent("metadata", node.MetaData.ToArray(), maxBytes));
+        }
+
+        if (hasData)
+        {
+            parts.Add(DescribeContent("data", node.Data.ToArray(), maxBytes));
         }
 
         return string.Join("  ", parts);

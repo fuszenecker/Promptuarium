@@ -3,7 +3,7 @@
 This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs), with comments, are stored in a Promptuarium container.
 [Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) writes and reads it, mapping .NET objects to it and back (the mapping is described in its README).
 The same layout is used for general objects (`PRMT:GEN1-LE`), for configurations (`PRMT:CFG1-LE`, e.g. the content of an `appsettings.json`) and for the files of applications that give them a signature of their own; only the signature differs.
-It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the data and metadata of its nodes.
+It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the metadata and the data of its nodes.
 
 **Contents**
 

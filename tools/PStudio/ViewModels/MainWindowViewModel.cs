@@ -102,8 +102,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         settings.Saved += OnSettingsSaved;
         RefreshRecentFiles();
 
-        Data = viewModelFactory.CreateContentEditor("Data");
         MetaData = viewModelFactory.CreateContentEditor("MetaData");
+        Data = viewModelFactory.CreateContentEditor("Data");
         Data.ContentChanged += (_, content) => StoreContent(content, data: true);
         MetaData.ContentChanged += (_, content) => StoreContent(content, data: false);
         Data.FormChosen += (_, form) => editedNode?.DataForm = form;
@@ -127,11 +127,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>Whether there are recent files.</summary>
     public bool HasRecentFiles => RecentFiles.Count > 0;
 
-    /// <summary>The editor of the data of the selected node.</summary>
-    public ContentEditorViewModel Data { get; }
-
     /// <summary>The editor of the metadata of the selected node.</summary>
     public ContentEditorViewModel MetaData { get; }
+
+    /// <summary>The editor of the data of the selected node.</summary>
+    public ContentEditorViewModel Data { get; }
 
     /// <summary>The chunks of the tree, as it would be saved.</summary>
     public ObservableCollection<ChunkRowViewModel> Chunks { get; } = [];
@@ -164,7 +164,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
 
             Element element = node.Element;
-            string summary = $"{Count(element.Children.Count, "child", "children")}  ·  data {Count(element.Data.Length, "byte", "bytes")}  ·  metadata {Count(element.MetaData.Length, "byte", "bytes")}";
+            string summary = $"{Count(element.Children.Count, "child", "children")}  ·  metadata {Count(element.MetaData.Length, "byte", "bytes")}  ·  data {Count(element.Data.Length, "byte", "bytes")}";
 
             // See BINARY_FORMAT.md, 10: a root without data, with a short metadata, identifies the file
             if (node.IsRoot && element.Data.IsEmpty && element.MetaData.Length is > 0 and <= ElementBuilder.MaxSignatureLength)
@@ -730,9 +730,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     // Applies the edited texts of the content editors; false if one of them is invalid
     private bool CommitEdits()
     {
-        bool data = Data.ApplyPending();
         bool metaData = MetaData.ApplyPending();
-        return data && metaData;
+        bool data = Data.ApplyPending();
+        return metaData && data;
     }
 
     private void StoreContent(ReadOnlyMemory<byte> content, bool data)

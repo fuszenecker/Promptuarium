@@ -24,9 +24,9 @@ pedit \- create, dump and edit Promptuarium trees
 .I FILE PARENT\-PATH
 .RB [ \-\-index
 .IR N ]
-.RB [ \-\-data
-.IR VALUE ]
 .RB [ \-\-metadata
+.IR VALUE ]
+.RB [ \-\-data
 .IR VALUE ]
 .RB [ \-\-output
 .IR FILE ]
@@ -34,9 +34,9 @@ pedit \- create, dump and edit Promptuarium trees
 .br
 .B pedit set
 .I FILE PATH
-.RB [ \-\-data
-.IR VALUE ]
 .RB [ \-\-metadata
+.IR VALUE ]
+.RB [ \-\-data
 .IR VALUE ]
 .RB [ \-\-output
 .IR FILE ]
@@ -50,7 +50,7 @@ pedit \- create, dump and edit Promptuarium trees
 .br
 .B pedit get
 .I FILE PATH
-.BR data | metadata
+.BR metadata | data
 .RB [ \-\-format
 .BR hex | base64 | utf8 ]
 .RB [ \-\-out
@@ -96,13 +96,13 @@ at the end or at
 and prints its path.
 .TP
 .B set
-Sets the data and/or the metadata of a node.
+Sets the metadata and/or the data of a node.
 .TP
 .B delete
 Deletes a node with its subtree (not the root).
 .TP
 .B get
-Prints the data or the metadata of a node, or writes the raw bytes into
+Prints the metadata or the data of a node, or writes the raw bytes into
 .BR \-\-out .
 .PP
 The editing commands save the file in place, or into

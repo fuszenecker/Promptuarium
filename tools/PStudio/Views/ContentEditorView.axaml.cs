@@ -3,7 +3,7 @@ using Avalonia.Controls;
 namespace PStudio.Views;
 
 /// <summary>
-/// The editor of a content (the data or the metadata of a node).
+/// The editor of a content (the metadata or the data of a node).
 /// </summary>
 public partial class ContentEditorView : UserControl
 {

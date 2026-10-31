@@ -98,18 +98,18 @@ public class Statistics
     {
         return
             $"Nodes: .......................... {Nodes}{Environment.NewLine}" +
-            $"NodesWithData: .................. {NodesWithData}{Environment.NewLine}" +
             $"NodesWithMetaData: .............. {NodesWithMetaData}{Environment.NewLine}" +
+            $"NodesWithData: .................. {NodesWithData}{Environment.NewLine}" +
             $"NodesWithDataAndMetaData: ....... {NodesWithDataAndMetaData}{Environment.NewLine}" +
             $"NodesWithoutDataAndMetaData: .... {NodesWithoutDataAndMetaData}{Environment.NewLine}" +
             $"NodesWithoutChildren: ........... {NodesWithoutChildren}{Environment.NewLine}" +
             $"Depth: .......................... {Depth}{Environment.NewLine}" +
             $"MaxChildren: .................... {MaxChildren}{Environment.NewLine}" +
             $"MinChildren: .................... {MinChildren}{Environment.NewLine}" +
-            $"LongestData: .................... {LongestData}{Environment.NewLine}" +
             $"LongestMetaData: ................ {LongestMetaData}{Environment.NewLine}" +
-            $"ShortestData: ................... {ShortestData}{Environment.NewLine}" +
-            $"ShortestMetaData: ............... {ShortestMetaData}{Environment.NewLine}";
+            $"LongestData: .................... {LongestData}{Environment.NewLine}" +
+            $"ShortestMetaData: ............... {ShortestMetaData}{Environment.NewLine}" +
+            $"ShortestData: ................... {ShortestData}{Environment.NewLine}";
     }
 }
 

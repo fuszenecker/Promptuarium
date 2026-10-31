@@ -10,6 +10,6 @@ public interface IViewModelFactory
     /// <summary>Creates the view model of an editor window.</summary>
     MainWindowViewModel CreateEditor();
 
-    /// <summary>Creates the editor of a content (the data or the metadata).</summary>
+    /// <summary>Creates the editor of a content (the metadata or the data).</summary>
     ContentEditorViewModel CreateContentEditor(string title);
 }

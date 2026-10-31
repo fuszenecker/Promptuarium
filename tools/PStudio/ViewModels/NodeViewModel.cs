@@ -65,9 +65,10 @@ public sealed partial class NodeViewModel : ViewModelBase
                 return $"{name}  (empty)";
             }
 
-            string data = Element.Data.IsEmpty ? string.Empty : $"  {ContentFormat.Preview(Element.Data.Span)}";
+            // The metadata first: it is short, mostly a tag, and tells what the data is
             string metaData = Element.MetaData.IsEmpty ? string.Empty : $"  [{ContentFormat.Preview(Element.MetaData.Span)}]";
-            return name + data + metaData;
+            string data = Element.Data.IsEmpty ? string.Empty : $"  {ContentFormat.Preview(Element.Data.Span)}";
+            return name + metaData + data;
         }
     }
 

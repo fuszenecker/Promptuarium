@@ -138,7 +138,7 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual("changed", node.Data.AsAsciiString());
         CollectionAssert.AreEqual(new byte[] { 1, 2 }, node.MetaData.ToArray());
         Assert.IsTrue(sut.IsModified);
-        Assert.AreEqual("#0  \"changed\"  [0102]", sut.Root.Children[0].Header);
+        Assert.AreEqual("#0  [0102]  \"changed\"", sut.Root.Children[0].Header);
     }
 
     [TestMethod]

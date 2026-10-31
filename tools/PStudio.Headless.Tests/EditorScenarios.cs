@@ -28,7 +28,7 @@ public sealed class EditorScenarios
 
         Assert.AreEqual("tree.prmt - Promptuarium Studio", editor.Window.Title);
         Assert.AreEqual(
-            "root  [\"PRMT\"] | #0  \"hello\"  [0102] | #1  00FF",
+            "root  [\"PRMT\"] | #0  [0102]  \"hello\" | #1  00FF",
             string.Join(" | ", editor.Find<TreeViewItem>().Select(item => ((NodeViewModel)item.DataContext!).Header)));
 
         // Selecting in the tree view selects in the view model
@@ -37,11 +37,11 @@ public sealed class EditorScenarios
         Editor.Pump();
 
         Assert.AreSame(editor.ViewModel.Root.Children[0], editor.ViewModel.SelectedNode);
-        Assert.AreEqual("hello | 01 02", string.Join(" | ", Editors(editor).Select(box => box.Text)));
+        Assert.AreEqual("01 02 | hello", string.Join(" | ", Editors(editor).Select(box => box.Text)));
         editor.Screenshot("node");
 
         // Typing into the data editor and applying with Ctrl+Enter
-        TextBox data = Editors(editor)[0];
+        TextBox data = Editors(editor)[1];
         data.Focus();
         data.Text = "hello, world";
         data.SelectionStart = data.SelectionEnd = data.Text.Length;
@@ -228,9 +228,9 @@ public sealed class EditorScenarios
 
         editor.ViewModel.SelectedNode = editor.ViewModel.Root.Children[0].Children[0];
         Editor.Pump();
-        Assert.AreEqual("FLOAT64 | TYPE", string.Join(" | ", Editors(editor).Select(box => box.Text)));
+        Assert.AreEqual("TYPE | FLOAT64", string.Join(" | ", Editors(editor).Select(box => box.Text)));
 
-        Editors(editor)[0].Text = "DOUBLE";
+        Editors(editor)[1].Text = "DOUBLE";
         Assert.IsFalse(editor.ViewModel.Data.ApplyPending());
         Editor.Pump();
 
@@ -238,7 +238,7 @@ public sealed class EditorScenarios
         editor.Screenshot("wrong-type-code");
 
         // The tooltip of the message lists every type code
-        TextBlock info = editor.Find<ContentEditorView>().First().GetVisualDescendantsOf<TextBlock>().Single(block => block.Text == editor.ViewModel.Data.Info);
+        TextBlock info = editor.Find<ContentEditorView>().Last().GetVisualDescendantsOf<TextBlock>().Single(block => block.Text == editor.ViewModel.Data.Info);
         StringAssert.Contains((string?)ToolTip.GetTip(info), "UINT128  (0x54), reserved", StringComparison.Ordinal);
         ToolTip.SetIsOpen(info, true);
         Editor.Pump();
@@ -252,10 +252,10 @@ public sealed class EditorScenarios
         editor.ViewModel.AddChildCommand.Execute(null);
         Editor.Pump();
 
-        ComboBox forms = editor.Find<ContentEditorView>().Last().GetVisualDescendantsOf<ComboBox>().Single();
+        ComboBox forms = editor.Find<ContentEditorView>().First().GetVisualDescendantsOf<ComboBox>().Single();
         forms.SelectedItem = forms.Items.OfType<PStudio.Models.FormOption>().Single(option => option.Form == PStudio.Models.ContentForm.SerializerTag);
         Editor.Pump();
-        TextBox metaData = Editors(editor)[1];
+        TextBox metaData = Editors(editor)[0];
         metaData.Text = "NAME";
         Editor.Pump();
         Assert.IsTrue(editor.ViewModel.MetaData.ApplyPending(), editor.ViewModel.MetaData.Info);
@@ -271,9 +271,9 @@ public sealed class EditorScenarios
     [TestMethod]
     public Task TypedForms_CanBeChosenAndEdited() => Scenario.Run(editor =>
     {
-        ComboBox forms = editor.Find<ContentEditorView>().First().GetVisualDescendantsOf<ComboBox>().Single();
+        ComboBox forms = editor.Find<ContentEditorView>().Last().GetVisualDescendantsOf<ComboBox>().Single();
         forms.SelectedItem = forms.Items.OfType<PStudio.Models.FormOption>().Single(option => option.Form == PStudio.Models.ContentForm.Double);
-        TextBox data = Editors(editor)[0];
+        TextBox data = Editors(editor)[1];
         data.Text = "2.5";
         editor.ViewModel.Data.ApplyPending();
         Editor.Pump();
@@ -371,6 +371,7 @@ public sealed class EditorScenarios
             child.Element.Data.AsAsciiString() + (child.Children.Count > 0 ? $"({Shape(child)})" : string.Empty)));
     }
 
+    // The text boxes of the content editors, in the order of the window: the metadata, then the data
     private static TextBox[] Editors(Editor editor)
     {
         return editor.Find<ContentEditorView>().Select(view => view.GetVisualDescendantsOf<TextBox>().Single(box => box.AcceptsReturn)).ToArray();

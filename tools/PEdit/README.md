@@ -35,10 +35,10 @@ dotnet tools/PEdit/bin/Debug/net10.0/pedit.dll help
 pedit new    FILE [--signature VALUE] [--force]
 pedit dump   FILE [--path PATH] [--max-bytes N] [--json]
 pedit chunks FILE [--json]
-pedit add    FILE PARENT-PATH [--index N] [--data VALUE] [--metadata VALUE] [--output FILE] [--json]
-pedit set    FILE PATH [--data VALUE] [--metadata VALUE] [--output FILE] [--json]
+pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
+pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
 pedit delete FILE PATH [--output FILE] [--json]
-pedit get    FILE PATH data|metadata [--format hex|base64|utf8] [--out FILE]
+pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
 pedit help
 ```
 
@@ -47,10 +47,10 @@ pedit help
 | `new`    | Creates a file with an empty root. With `--signature`, the root is a signed root (see BINARY_FORMAT.md, section 10). Refuses to overwrite an existing file without `--force`. |
 | `dump`   | Lists the nodes in pre-order, with their paths and contents. `--path` dumps a subtree only; `--max-bytes` shortens the contents (default 32 bytes in the text form, no limit in JSON). |
 | `chunks` | Lists the chunks of the file as they are in the stream: offset, control byte, direction, content type, size type, length, depth, kind, payload. It also reports the number of bytes consumed (up to and including the terminator) and the trailing bytes. |
-| `add`    | Adds a new node to `PARENT-PATH`, at the end or at `--index` (0 = first child). Without `--data` and `--metadata` the new node is an empty node. Prints the path of the new node. |
-| `set`    | Sets the data and/or the metadata of a node. `empty` clears a content. |
+| `add`    | Adds a new node to `PARENT-PATH`, at the end or at `--index` (0 = first child). Without `--metadata` and `--data` the new node is an empty node. Prints the path of the new node. |
+| `set`    | Sets the metadata and/or the data of a node. `empty` clears a content. |
 | `delete` | Deletes a node with its subtree. The root can not be deleted. |
-| `get`    | Prints the data or the metadata of a node as hex (default), base64 or UTF-8, or writes the raw bytes into `--out FILE`. |
+| `get`    | Prints the metadata or the data of a node as hex (default), base64 or UTF-8, or writes the raw bytes into `--out FILE`. |
 
 The editing commands (`add`, `set`, `delete`) save the file in place, or into `--output FILE`. The file is written into a temporary file first and replaced only when the save succeeded.
 
@@ -86,10 +86,10 @@ Text output is meant for people. For scripts and agents, use `--json`:
 ```json
 {
   "nodes": [
-    { "path": "/", "depth": 0, "children": 1, "data": null, "metadata": null },
+    { "path": "/", "depth": 0, "children": 1, "metadata": null, "data": null },
     { "path": "/0", "depth": 1, "children": 0,
-      "data": { "length": 1, "hex": "41", "truncated": false, "utf8": "A" },
-      "metadata": null }
+      "metadata": null,
+      "data": { "length": 1, "hex": "41", "truncated": false, "utf8": "A" } }
   ]
 }
 ```
@@ -133,7 +133,7 @@ pedit set tree.prm / --data ascii:R
 pedit add tree.prm / --data ascii:X          # added /0
 pedit add tree.prm /0                        # added /0/0   (no content yet)
 pedit add tree.prm /0/0 --data ascii:d       # added /0/0/0
-pedit add tree.prm / --data ascii:Y --metadata ascii:m   # added /1
+pedit add tree.prm / --metadata ascii:m --data ascii:Y   # added /1
 
 xxd -p tree.prm                              # 41524158404164808159216d00
 pedit chunks tree.prm

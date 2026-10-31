@@ -14,7 +14,7 @@ using PStudio.Services;
 namespace PStudio.ViewModels;
 
 /// <summary>
-/// Shows and edits one content (the data or the metadata of a node) in a chosen form; only the forms that can show the
+/// Shows and edits one content (the metadata or the data of a node) in a chosen form; only the forms that can show the
 /// content are offered. The edited text is stored by Apply; Clear and Import store the new content immediately.
 /// </summary>
 public sealed partial class ContentEditorViewModel : ViewModelBase
@@ -84,7 +84,7 @@ public sealed partial class ContentEditorViewModel : ViewModelBase
     /// <summary>The forms offered: the ones that can show the content (every form for an empty content).</summary>
     public ObservableCollection<FormOption> Forms { get; } = [];
 
-    /// <summary>The title (Data or MetaData).</summary>
+    /// <summary>The title (MetaData or Data).</summary>
     public string Title { get; }
 
     /// <summary>The form of the text.</summary>

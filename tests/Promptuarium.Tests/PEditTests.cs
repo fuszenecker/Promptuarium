@@ -138,6 +138,20 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task DumpShowsTheMetadataFirst()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+            await Ok("add", file, "/", "--metadata", "hex:00", "--data", "ascii:rate").ConfigureAwait(false);
+
+            string dump = await Ok("dump", file).ConfigureAwait(false);
+            using var json = JsonDocument.Parse(await Ok("dump", file, "--json").ConfigureAwait(false));
+            JsonElement node = json.RootElement.GetProperty("nodes")[1];
+
+            StringAssert.Contains(dump, "/0  metadata(1)=00 \".\"  data(4)=72617465 \"rate\"", StringComparison.Ordinal);
+            CollectionAssert.AreEqual(new[] { "path", "depth", "children", "metadata", "data" }, node.EnumerateObject().Select(property => property.Name).ToArray());
+        }
+
+        [TestMethod]
         public async Task DumpAsJson()
         {
             await Ok("new", file).ConfigureAwait(false);

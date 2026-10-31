@@ -55,13 +55,13 @@ public sealed class NodeViewModelTests
         second.SetData(Data.FromAsciiString("text"));
         second.SetMetaData(new byte[] { 1, 2 });
 
-        Assert.AreEqual("#1  \"text\"  [0102]", second.Header);
+        Assert.AreEqual("#1  [0102]  \"text\"", second.Header);
         CollectionAssert.AreEqual(new[] { "Header", "Header" }, changed);
 
         // Moving the first child changes the index of the second
         changed.Clear();
         root.Detach(root.Children[0]);
-        Assert.AreEqual("#0  \"text\"  [0102]", second.Header);
+        Assert.AreEqual("#0  [0102]  \"text\"", second.Header);
         CollectionAssert.Contains(changed, "Header");
     }
 
