@@ -28,6 +28,8 @@ pedit \- create, dump and edit Promptuarium trees
 .IR VALUE ]
 .RB [ \-\-data
 .IR VALUE ]
+.RB [ \-\-tree
+.IR FILE | \- ]
 .RB [ \-\-output
 .IR FILE ]
 .RB [ \-\-yaml | \-\-json ]
@@ -38,6 +40,8 @@ pedit \- create, dump and edit Promptuarium trees
 .IR VALUE ]
 .RB [ \-\-data
 .IR VALUE ]
+.RB [ \-\-tree
+.IR FILE | \- ]
 .RB [ \-\-output
 .IR FILE ]
 .RB [ \-\-yaml | \-\-json ]
@@ -80,7 +84,7 @@ recognizes the file. An existing file is overwritten only with
 .BR \-\-force .
 .TP
 .B dump
-Lists the nodes in pre\-order, with their paths and contents.
+Shows the tree: the nodes with their paths and contents, the children under their parents.
 .B \-\-path
 dumps a subtree only,
 .B \-\-max\-bytes
@@ -95,10 +99,14 @@ Adds a new node to
 .IR PARENT\-PATH ,
 at the end or at
 .BR \-\-index ,
-and prints its path.
+and prints its path. With
+.BR \-\-tree ,
+the new node is a whole subtree.
 .TP
 .B set
-Sets the metadata and/or the data of a node.
+Sets the metadata and/or the data of a node. With
+.BR \-\-tree ,
+it replaces the node, with its children, with a subtree.
 .TP
 .B delete
 Deletes a node with its subtree (not the root).
@@ -106,6 +114,14 @@ Deletes a node with its subtree (not the root).
 .B get
 Prints the metadata or the data of a node, or writes the raw bytes into
 .BR \-\-out .
+.PP
+.B \-\-tree \fIFILE\fR|\fB\-
+reads a subtree in the form of
+.B dump \-\-yaml
+or
+.BR "dump \-\-json" .
+Metadata, data and children are optional; a content has hex or utf8, and if it has both, they must be the same bytes.
+The path and the length are ignored, a content with truncated: true is refused.
 .PP
 The editing commands save the file in place, or into
 .BR \-\-output ;

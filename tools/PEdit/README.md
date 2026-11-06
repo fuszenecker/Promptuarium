@@ -31,8 +31,8 @@ dotnet tools/PEdit/bin/Debug/net10.0/pedit.dll help
 pedit new    FILE [--signature VALUE] [--force]
 pedit dump   FILE [--path PATH] [--max-bytes N] [--yaml|--json]
 pedit chunks FILE [--yaml|--json]
-pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
-pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
+pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--tree FILE|-] [--output FILE] [--yaml|--json]
+pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--tree FILE|-] [--output FILE] [--yaml|--json]
 pedit delete FILE PATH [--output FILE] [--yaml|--json]
 pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
 pedit help
@@ -41,12 +41,33 @@ pedit help
 | Command  | What it does |
 |----------|--------------|
 | `new`    | Creates a file with an empty root. With `--signature`, the root is a signed root (see BINARY_FORMAT.md, section 10). Refuses to overwrite an existing file without `--force`. |
-| `dump`   | Lists the nodes in pre-order, with their paths and contents. `--path` dumps a subtree only; `--max-bytes` shortens the contents (default 32 bytes in the text form, no limit in YAML and JSON). |
+| `dump`   | Shows the tree: the nodes with their paths and contents, the children under their parents. `--path` dumps a subtree only; `--max-bytes` shortens the contents (default 32 bytes in the text form, no limit in YAML and JSON). |
 | `chunks` | Lists the chunks of the file as they are in the stream: offset, control byte, direction, content type, size type, length, depth, kind, payload. It also reports the number of bytes consumed (up to and including the terminator) and the trailing bytes. |
-| `add`    | Adds a new node to `PARENT-PATH`, at the end or at `--index` (0 = first child). Without `--metadata` and `--data` the new node is an empty node. Prints the path of the new node. |
-| `set`    | Sets the metadata and/or the data of a node. `empty` clears a content. |
+| `add`    | Adds a new node to `PARENT-PATH`, at the end or at `--index` (0 = first child). Without `--metadata` and `--data` the new node is an empty node. With `--tree`, the new node is a whole subtree. Prints the path of the new node. |
+| `set`    | Sets the metadata and/or the data of a node. `empty` clears a content. With `--tree`, it replaces the node, with its children, with a subtree. |
 | `delete` | Deletes a node with its subtree. The root can not be deleted. |
 | `get`    | Prints the metadata or the data of a node as hex (default), base64 or UTF-8, or writes the raw bytes into `--out FILE`. |
+
+### Subtrees
+
+`--tree FILE` (or `-`, the standard input) gives `add` and `set` a subtree, in the form of `dump --yaml` or `dump --json`, so a dump can be edited and written back:
+
+```sh
+pedit dump tree.prm --path /0 --yaml > part.yaml
+pedit set tree.prm /0 --tree part.yaml
+```
+
+A hand-written subtree needs less:
+
+```yaml
+data: {utf8: "a"}
+children:
+  - metadata: {hex: "00"}
+    data: {utf8: "hello"}
+  - data: {hex: "FF00"}
+```
+
+`metadata`, `data` and `children` are optional. A content has `hex` or `utf8`; if it has both, they must be the same bytes, so an edited `utf8` is not lost next to the old `hex`. `path` and `length` are ignored, a content with `truncated: true` is refused. `--tree` can not be used together with `--metadata` and `--data`.
 
 The editing commands (`add`, `set`, `delete`) save the file in place, or into `--output FILE`. The file is written into a temporary file first and replaced only when the save succeeded.
 
@@ -69,37 +90,40 @@ The container stores bytes, so a value states how the bytes are given:
 
 ## Output
 
-Text output is meant for people. For scripts and agents, use `--yaml` (or `--json`, with the same structure; the examples below are JSON). In YAML every string is quoted, so a hex text such as `"4152"` stays a string:
-
-```yaml
-nodes:
-  - path: "/"
-    depth: 0
-    children: 1
-    metadata: null
-    data: null
-```
-
-The JSON form:
+Text output is meant for people. For scripts and agents, use `--yaml` or `--json`: they have the same structure. In YAML every string is quoted, so a hex text such as `"4152"` stays a string.
 
 `add`, `set`, `delete` and `new`:
 
-```json
-{ "added": "/1" }
+```yaml
+added: "/1"
 ```
 
-`dump --json` returns a flat list in pre-order (no nesting, so arbitrarily deep trees are fine). A content is `null` if it is empty; `utf8` is `null` if the bytes are not valid UTF-8:
+`dump --yaml` returns the tree: the `children` of a node are nested in it. What is empty is left out: `metadata` and `data` if the content is empty, `children` if the node has none. `utf8` is `null` if the bytes are not valid UTF-8, `truncated: true` tells that `--max-bytes` shortened `hex` and `utf8` (`length` is always the whole length):
+
+```yaml
+path: "/"
+children:
+  - path: "/0"
+    data: {length: 1, hex: "41", utf8: "A"}
+    children:
+      - path: "/0/0"
+        metadata: {length: 2, hex: "FF00", utf8: null}
+  - path: "/1"
+    data: {length: 4, hex: "4142", truncated: true, utf8: "AB"}
+```
+
+The same with `--json`:
 
 ```json
 {
-  "nodes": [
-    { "path": "/", "depth": 0, "children": 1, "metadata": null, "data": null },
-    { "path": "/0", "depth": 1, "children": 0,
-      "metadata": null,
-      "data": { "length": 1, "hex": "41", "truncated": false, "utf8": "A" } }
+  "path": "/",
+  "children": [
+    { "path": "/0", "data": { "length": 1, "hex": "41", "utf8": "A" } }
   ]
 }
 ```
+
+A very deep tree is written too, but other readers have limits of their own (e.g. 64 levels by default in `System.Text.Json`).
 
 `chunks --json`:
 

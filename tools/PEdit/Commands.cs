@@ -76,29 +76,31 @@ internal static class Commands
           pedit new    FILE [--signature VALUE] [--force]
           pedit dump   FILE [--path PATH] [--max-bytes N] [--yaml|--json]
           pedit chunks FILE [--yaml|--json]
-          pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
-          pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
+          pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--tree FILE|-] [--output FILE] [--yaml|--json]
+          pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--tree FILE|-] [--output FILE] [--yaml|--json]
           pedit delete FILE PATH [--output FILE] [--yaml|--json]
           pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
           pedit help
 
         Commands:
           new     Creates a file with an empty root (or a signed root, see BINARY_FORMAT.md, section 10).
-          dump    Lists the nodes (pre-order), with their paths and contents.
+          dump    Shows the tree: the nodes with their paths and contents, the children under their parents.
           chunks  Lists the chunks of the file, decoded directly from the specification.
           add     Adds a new node to PARENT-PATH (at the end, or at --index), prints its path.
-          set     Sets the metadata and/or the data of a node.
+          set     Sets the metadata and/or the data of a node, or replaces it with its subtree (--tree).
           delete  Deletes a node with its subtree (not the root).
           get     Prints the metadata or the data of a node (or writes the raw bytes to --out).
 
         Paths:   '/' is the root, '/0/2' is the third child of the first child of the root.
         VALUE:   hex:4152 | utf8:TEXT | ascii:TEXT | base64:QVI= | file:PATH | empty
+        --tree:  a subtree in the form of dump --yaml or dump --json, from a file or the standard input (-); with add,
+                 it is the new node, with set, it replaces the node. A content has hex or utf8.
         Editing commands save the file in place, or into --output FILE.
 
         Exit codes: 0 success, 1 invalid command line, 2 file or node not found, 3 operation failed.
         """;
 
-    private static readonly HashSet<string> ValueOptions = new() { "--signature", "--path", "--max-bytes", "--index", "--data", "--metadata", "--output", "--format", "--out" };
+    private static readonly HashSet<string> ValueOptions = new() { "--signature", "--path", "--max-bytes", "--index", "--data", "--metadata", "--output", "--format", "--out", "--tree" };
     private static readonly HashSet<string> FlagOptions = new() { "--yaml", "--json", "--force" };
     private static readonly JsonWriterOptions JsonOptions = new() { Indented = true };
 
@@ -106,7 +108,7 @@ internal static class Commands
     /// Runs a command.
     /// </summary>
     /// <returns>The exit code</returns>
-    public static async Task<int> RunAsync(string[] args, TextWriter output, TextWriter error)
+    public static async Task<int> RunAsync(string[] args, TextWriter output, TextWriter error, TextReader? input = null)
     {
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(output);
@@ -137,10 +139,10 @@ internal static class Commands
                 case "chunks":
                     return Chunks(command, output, error);
                 case "add":
-                    await AddAsync(command, output).ConfigureAwait(false);
+                    await AddAsync(command, input ?? TextReader.Null, output).ConfigureAwait(false);
                     break;
                 case "set":
-                    await SetAsync(command, output).ConfigureAwait(false);
+                    await SetAsync(command, input ?? TextReader.Null, output).ConfigureAwait(false);
                     break;
                 case "delete":
                     await DeleteAsync(command, output).ConfigureAwait(false);
@@ -207,56 +209,76 @@ internal static class Commands
         NodePath start = NodePath.Parse(command.Value("--path") ?? "/");
         Element first = start.Resolve(root);
         int? maxBytes = command.IntValue("--max-bytes");
-        bool json = IsStructured(command);
+
+        if (IsStructured(command))
+        {
+            output.WriteLine(Structured(command, TreeReport(first, start, maxBytes)));
+            return;
+        }
 
         // Pre-order, without recursion
         var nodes = new Stack<(Element Node, NodePath Path, int Depth)>();
         nodes.Push((first, start, 0));
 
-        using var buffer = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(buffer, JsonOptions))
+        while (nodes.Count > 0)
         {
-            if (json)
+            (Element node, NodePath path, int depth) = nodes.Pop();
+            output.WriteLine($"{new string(' ', depth * 2)}{path}  {Describe(node, maxBytes ?? 32)}");
+
+            for (int index = node.Children.Count - 1; index >= 0; index--)
             {
-                writer.WriteStartObject();
-                writer.WriteStartArray("nodes");
+                nodes.Push((node.Children[index], path.Child(index), depth + 1));
             }
+        }
+    }
 
-            while (nodes.Count > 0)
+    /// <summary>The subtree as a JSON tree: the children of a node are nested in it. Without recursion: a tree can be very deep.</summary>
+    private static string TreeReport(Element first, NodePath start, int? maxBytes)
+    {
+        using var buffer = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true, MaxDepth = int.MaxValue }))
+        {
+            var open = new Stack<(Element Node, NodePath Path, int Next)>();
+            WriteNodeStart(writer, first, start, maxBytes);
+            open.Push((first, start, 0));
+
+            while (open.Count > 0)
             {
-                (Element node, NodePath path, int depth) = nodes.Pop();
+                (Element node, NodePath path, int next) = open.Pop();
 
-                if (json)
+                if (next < node.Children.Count)
                 {
-                    writer.WriteStartObject();
-                    writer.WriteString("path", path.ToString());
-                    writer.WriteNumber("depth", depth);
-                    writer.WriteNumber("children", node.Children.Count);
-                    WriteContent(writer, "metadata", node.MetaData, maxBytes);
-                    WriteContent(writer, "data", node.Data, maxBytes);
-                    writer.WriteEndObject();
-                }
-                else
-                {
-                    output.WriteLine($"{new string(' ', depth * 2)}{path}  {Describe(node, maxBytes ?? 32)}");
+                    Element child = node.Children[next];
+                    NodePath childPath = path.Child(next);
+                    open.Push((node, path, next + 1));
+                    WriteNodeStart(writer, child, childPath, maxBytes);
+                    open.Push((child, childPath, 0));
+                    continue;
                 }
 
-                for (int index = node.Children.Count - 1; index >= 0; index--)
+                if (node.Children.Count > 0)
                 {
-                    nodes.Push((node.Children[index], path.Child(index), depth + 1));
+                    writer.WriteEndArray();
                 }
-            }
 
-            if (json)
-            {
-                writer.WriteEndArray();
                 writer.WriteEndObject();
             }
         }
 
-        if (json)
+        return Encoding.UTF8.GetString(buffer.ToArray());
+    }
+
+    private static void WriteNodeStart(Utf8JsonWriter writer, Element node, NodePath path, int? maxBytes)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("path", path.ToString());
+        WriteContent(writer, "metadata", node.MetaData, maxBytes);
+        WriteContent(writer, "data", node.Data, maxBytes);
+
+        if (node.Children.Count > 0)
         {
-            output.WriteLine(Structured(command, Encoding.UTF8.GetString(buffer.ToArray())));
+            writer.WriteStartArray("children");
         }
     }
 
@@ -348,7 +370,7 @@ internal static class Commands
         return ExitCodes.Success;
     }
 
-    private static async Task AddAsync(Arguments command, TextWriter output)
+    private static async Task AddAsync(Arguments command, TextReader input, TextWriter output)
     {
         command.Expect(2, "add FILE PARENT-PATH");
         string file = command.Positional(0);
@@ -356,7 +378,8 @@ internal static class Commands
         NodePath parentPath = NodePath.Parse(command.Positional(1));
         Element parent = parentPath.Resolve(root);
 
-        var node = new Element(ToContent(command.Value("--data")), ToContent(command.Value("--metadata")));
+        Element node = await ReadTreeAsync(command, input).ConfigureAwait(false)
+            ?? new Element(ToContent(command.Value("--data")), ToContent(command.Value("--metadata")));
         int index = command.IntValue("--index") ?? parent.Children.Count;
 
         if (index > parent.Children.Count)
@@ -370,21 +393,28 @@ internal static class Commands
         Report(command, output, "added", parentPath.Child(index));
     }
 
-    private static async Task SetAsync(Arguments command, TextWriter output)
+    private static async Task SetAsync(Arguments command, TextReader input, TextWriter output)
     {
         command.Expect(2, "set FILE PATH");
         string? data = command.Value("--data");
         string? metaData = command.Value("--metadata");
 
-        if (data == null && metaData == null)
+        Element? tree = await ReadTreeAsync(command, input).ConfigureAwait(false);
+
+        if (data == null && metaData == null && tree == null)
         {
-            throw new PEditException(ExitCodes.Usage, "Nothing to set: give --metadata and/or --data.");
+            throw new PEditException(ExitCodes.Usage, "Nothing to set: give --metadata and/or --data, or --tree.");
         }
 
         string file = command.Positional(0);
         Element root = await LoadAsync(file).ConfigureAwait(false);
         NodePath path = NodePath.Parse(command.Positional(1));
         Element node = path.Resolve(root);
+
+        if (tree != null)
+        {
+            Replace(node, tree);
+        }
 
         if (data != null)
         {
@@ -398,6 +428,51 @@ internal static class Commands
 
         await SaveAsync(root, command.Value("--output") ?? file).ConfigureAwait(false);
         Report(command, output, "set", path);
+    }
+
+    /// <summary>The subtree of --tree, or null without the option.</summary>
+    private static async Task<Element?> ReadTreeAsync(Arguments command, TextReader input)
+    {
+        string? source = command.Value("--tree");
+
+        if (source is null)
+        {
+            return null;
+        }
+
+        if (command.Value("--data") != null || command.Value("--metadata") != null)
+        {
+            throw new PEditException(ExitCodes.Usage, "Use either --tree or --metadata and --data.");
+        }
+
+        try
+        {
+            return source == "-"
+                ? TreeInput.Read(await input.ReadToEndAsync().ConfigureAwait(false), "the standard input")
+                : TreeInput.Read(await File.ReadAllTextAsync(source).ConfigureAwait(false), source);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new PEditException(ExitCodes.NotFound, $"Can not read {source}: {ex.Message}");
+        }
+    }
+
+    /// <summary>Gives the node the content and the children of the tree; the root of a file stays the root.</summary>
+    private static void Replace(Element node, Element tree)
+    {
+        node.Data = tree.Data;
+        node.MetaData = tree.MetaData;
+
+        foreach (Element child in node.Children.ToList())
+        {
+            node.Remove(child);
+        }
+
+        foreach (Element child in tree.Children.ToList())
+        {
+            // Moved, with its subtree: Remove would take the subtree apart
+            node.Add(child);
+        }
     }
 
     private static async Task DeleteAsync(Arguments command, TextWriter output)
@@ -576,7 +651,6 @@ internal static class Commands
     {
         if (content.IsEmpty)
         {
-            writer.WriteNull(name);
             return;
         }
 
@@ -586,7 +660,11 @@ internal static class Commands
         writer.WriteStartObject(name);
         writer.WriteNumber("length", bytes.Length);
         writer.WriteString("hex", Convert.ToHexString(shown));
-        writer.WriteBoolean("truncated", shown.Length < bytes.Length);
+
+        if (shown.Length < bytes.Length)
+        {
+            writer.WriteBoolean("truncated", true);
+        }
 
         // The text form only if the content is valid UTF-8
         try

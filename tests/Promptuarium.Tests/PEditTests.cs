@@ -145,10 +145,10 @@ namespace PromptuariumTests
 
             string dump = await Ok("dump", file).ConfigureAwait(false);
             using var json = JsonDocument.Parse(await Ok("dump", file, "--json").ConfigureAwait(false));
-            JsonElement node = json.RootElement.GetProperty("nodes")[1];
+            JsonElement node = json.RootElement.GetProperty("children")[0];
 
             StringAssert.Contains(dump, "/0  metadata(1)=00 \".\"  data(4)=72617465 \"rate\"", StringComparison.Ordinal);
-            CollectionAssert.AreEqual(new[] { "path", "depth", "children", "metadata", "data" }, node.EnumerateObject().Select(property => property.Name).ToArray());
+            CollectionAssert.AreEqual(new[] { "path", "metadata", "data" }, node.EnumerateObject().Select(property => property.Name).ToArray());
         }
 
         [TestMethod]
@@ -160,29 +160,154 @@ namespace PromptuariumTests
             await Ok("add", file, "/").ConfigureAwait(false);
 
             using var json = JsonDocument.Parse(await Ok("dump", file, "--json").ConfigureAwait(false));
-            JsonElement[] nodes = json.RootElement.GetProperty("nodes").EnumerateArray().ToArray();
+            JsonElement root = json.RootElement;
+            JsonElement[] children = root.GetProperty("children").EnumerateArray().ToArray();
+            JsonElement grandchild = children[0].GetProperty("children")[0];
 
-            CollectionAssert.AreEqual(new[] { "/", "/0", "/0/0", "/1" }, nodes.Select(n => n.GetProperty("path").GetString()).ToArray());
-            Assert.AreEqual(JsonValueKind.Null, nodes[0].GetProperty("data").ValueKind);
-            Assert.AreEqual("A", nodes[1].GetProperty("data").GetProperty("utf8").GetString());
-            Assert.AreEqual("FF00", nodes[2].GetProperty("metadata").GetProperty("hex").GetString());
-            Assert.AreEqual(JsonValueKind.Null, nodes[2].GetProperty("metadata").GetProperty("utf8").ValueKind);
-            Assert.AreEqual(2, nodes[2].GetProperty("depth").GetInt32());
-            Assert.AreEqual(0, nodes[3].GetProperty("children").GetInt32());
+            Assert.AreEqual("/", root.GetProperty("path").GetString());
+            Assert.IsFalse(root.TryGetProperty("data", out _));
+            CollectionAssert.AreEqual(new[] { "/0", "/1" }, children.Select(n => n.GetProperty("path").GetString()).ToArray());
+            Assert.AreEqual("A", children[0].GetProperty("data").GetProperty("utf8").GetString());
+            Assert.AreEqual("/0/0", grandchild.GetProperty("path").GetString());
+            Assert.AreEqual("FF00", grandchild.GetProperty("metadata").GetProperty("hex").GetString());
+            Assert.AreEqual(JsonValueKind.Null, grandchild.GetProperty("metadata").GetProperty("utf8").ValueKind);
+            Assert.IsFalse(children[1].TryGetProperty("children", out _));
         }
 
         [TestMethod]
-        public async Task DumpOfASubtree()
+        public async Task DumpTellsOnlyAShortenedContent()
         {
             await Ok("new", file).ConfigureAwait(false);
-            await Ok("add", file, "/", "--data", "ascii:A").ConfigureAwait(false);
-            await Ok("add", file, "/0", "--data", "ascii:B").ConfigureAwait(false);
-            await Ok("add", file, "/", "--data", "ascii:C").ConfigureAwait(false);
+            await Ok("add", file, "/", "--data", "ascii:ABCD").ConfigureAwait(false);
 
-            string dump = await Ok("dump", file, "--path", "/0").ConfigureAwait(false);
+            using var whole = JsonDocument.Parse(await Ok("dump", file, "--json").ConfigureAwait(false));
+            using var shortened = JsonDocument.Parse(await Ok("dump", file, "--json", "--max-bytes", "2").ConfigureAwait(false));
+            JsonElement data = shortened.RootElement.GetProperty("children")[0].GetProperty("data");
 
-            StringAssert.Contains(dump, "/0/0");
-            Assert.IsFalse(dump.Contains("/1", StringComparison.Ordinal));
+            Assert.IsFalse(whole.RootElement.GetProperty("children")[0].GetProperty("data").TryGetProperty("truncated", out _));
+            Assert.IsTrue(data.GetProperty("truncated").GetBoolean());
+            Assert.AreEqual(4, data.GetProperty("length").GetInt32());
+            Assert.AreEqual("4142", data.GetProperty("hex").GetString());
+        }
+
+        [TestMethod]
+        public async Task DumpOfADeepTree()
+        {
+            // Deeper than the default limits of the JSON writer and reader
+            Element root = new ElementBuilder().Build();
+            Element last = root;
+
+            for (int depth = 0; depth < 1100; depth++)
+            {
+                var child = new ElementBuilder().Build();
+                last.Add(child);
+                last = child;
+            }
+
+            await root.SaveAsync(file).ConfigureAwait(false);
+
+            string yaml = Path.Combine(directory, "deep.yaml");
+            StringAssert.Contains(await Ok("dump", file, "--json").ConfigureAwait(false), "children");
+            await File.WriteAllTextAsync(yaml, await Ok("dump", file, "--yaml").ConfigureAwait(false)).ConfigureAwait(false);
+
+            byte[] before = await File.ReadAllBytesAsync(file).ConfigureAwait(false);
+            await Ok("set", file, "/", "--tree", yaml).ConfigureAwait(false);
+            CollectionAssert.AreEqual(before, await File.ReadAllBytesAsync(file).ConfigureAwait(false));
+        }
+
+        [TestMethod]
+        [DataRow("--yaml", "part.yaml")]
+        [DataRow("--json", "part.json")]
+        public async Task ADumpCanBeWrittenBack(string format, string name)
+        {
+            string part = Path.Combine(directory, name);
+            string copy = Path.Combine(directory, "copy.prm");
+            await Ok("new", file).ConfigureAwait(false);
+            await Ok("add", file, "/", "--metadata", "hex:00FF", "--data", "utf8:árvíz").ConfigureAwait(false);
+            await Ok("add", file, "/0", "--data", "hex:FF00").ConfigureAwait(false);
+            await Ok("add", file, "/0").ConfigureAwait(false);
+            await Ok("add", file, "/", "--data", "utf8:a\u0000\n\"b").ConfigureAwait(false);
+
+            await File.WriteAllTextAsync(part, await Ok("dump", file, format).ConfigureAwait(false)).ConfigureAwait(false);
+            await Ok("new", copy).ConfigureAwait(false);
+            await Ok("set", copy, "/", "--tree", part).ConfigureAwait(false);
+
+            CollectionAssert.AreEqual(await File.ReadAllBytesAsync(file).ConfigureAwait(false), await File.ReadAllBytesAsync(copy).ConfigureAwait(false));
+        }
+
+        [TestMethod]
+        public async Task SetReplacesASubtree()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+            await Ok("add", file, "/", "--data", "ascii:old").ConfigureAwait(false);
+            await Ok("add", file, "/0", "--data", "ascii:gone").ConfigureAwait(false);
+            await Ok("add", file, "/", "--data", "ascii:next").ConfigureAwait(false);
+            string part = Path.Combine(directory, "part.yaml");
+            await File.WriteAllTextAsync(part, """
+                # a comment
+                data: {utf8: "a"}
+                children:
+                  - metadata: {hex: "00"}
+                    data: {utf8: "hello"}
+                  - data: {hex: "FF00"}
+                """).ConfigureAwait(false);
+
+            Assert.AreEqual("set /0", (await Ok("set", file, "/0", "--tree", part).ConfigureAwait(false)).Trim());
+
+            Element root = await Element.LoadAsync(file).ConfigureAwait(false);
+            Assert.AreEqual(2, root.Children.Count);
+            Assert.AreEqual(2, root.Children[0].Children.Count);
+            Assert.AreEqual("hello", System.Text.Encoding.UTF8.GetString(root.Children[0].Children[0].Data.Span));
+            Assert.AreEqual("next", System.Text.Encoding.UTF8.GetString(root.Children[1].Data.Span));
+        }
+
+        [TestMethod]
+        public async Task AddTakesASubtreeFromTheStandardInput()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+            using var input = new StringReader("""{ "data": { "utf8": "a" }, "children": [ { "data": { "hex": "41" } } ] }""");
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            int exitCode = await Commands.RunAsync(["add", file, "/", "--tree", "-"], output, error, input).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Success, exitCode, error.ToString());
+            Assert.AreEqual(1, (await Element.LoadAsync(file).ConfigureAwait(false)).Children[0].Children.Count);
+        }
+
+        [TestMethod]
+        [DataRow("data: {hex: \"41\", truncated: true}\n", "truncated")]
+        [DataRow("data: {hex: \"41\", utf8: \"B\"}\n", "differ")]
+        [DataRow("data: {hex: \"XY\"}\n", "invalid")]
+        [DataRow("data: {length: 1}\n", "neither")]
+        [DataRow("data: text\n", "mapping with hex")]
+        [DataRow("unknown: 1\n", "a node is a mapping")]
+        [DataRow("- a\n", "a node is a mapping")]
+        [DataRow("children: [1]\n", "a node is a mapping")]
+        [DataRow("data: {hex: \"41\"\n", "not valid")]
+        [DataRow("data: {utf8: a}\n---\ndata: {utf8: b}\n", "more than one")]
+        [DataRow("", "a node is a mapping")]
+        public async Task TreeRefusesAnInvalidSubtree(string text, string message)
+        {
+            await Ok("new", file).ConfigureAwait(false);
+            byte[] before = await File.ReadAllBytesAsync(file).ConfigureAwait(false);
+            string part = Path.Combine(directory, "bad.yaml");
+            await File.WriteAllTextAsync(part, text).ConfigureAwait(false);
+
+            (int exitCode, _, string error) = await Run("set", file, "/", "--tree", part).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Failed, exitCode);
+            StringAssert.Contains(error, message);
+            CollectionAssert.AreEqual(before, await File.ReadAllBytesAsync(file).ConfigureAwait(false));
+        }
+
+        [TestMethod]
+        public async Task TreeIsNotMixedWithContents()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Usage, (await Run("set", file, "/", "--tree", "x", "--data", "empty").ConfigureAwait(false)).ExitCode);
+            Assert.AreEqual(ExitCodes.NotFound, (await Run("set", file, "/", "--tree", Path.Combine(directory, "missing.yaml")).ConfigureAwait(false)).ExitCode);
         }
 
         [TestMethod]
@@ -194,11 +319,15 @@ namespace PromptuariumTests
 
             string yaml = (await Ok("dump", file, "--yaml").ConfigureAwait(false)).ReplaceLineEndings("\n");
 
-            StringAssert.Contains(yaml, "- path: \"/0\"\n");
-            StringAssert.Contains(yaml, "depth: 1\n");
-            StringAssert.Contains(yaml, "metadata: null\n");
-            StringAssert.Contains(yaml, "hex: \"4152\"\n");
-            StringAssert.Contains(yaml, "truncated: false\n");
+            Assert.AreEqual(
+                """
+                path: "/"
+                children:
+                  - path: "/0"
+                    data: {length: 2, hex: "4152", utf8: "AR"}
+
+                """.ReplaceLineEndings("\n"),
+                yaml);
             Assert.AreEqual(ExitCodes.Usage, (await Run("dump", file, "--yaml", "--json").ConfigureAwait(false)).ExitCode);
         }
 

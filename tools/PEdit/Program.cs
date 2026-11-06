@@ -7,6 +7,6 @@ internal static class Program
 {
     private static Task<int> Main(string[] args)
     {
-        return Commands.RunAsync(args, Console.Out, Console.Error);
+        return Commands.RunAsync(args, Console.Out, Console.Error, Console.In);
     }
 }
