@@ -186,6 +186,33 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task DumpAndReportsAsYaml()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+
+            Assert.AreEqual("added: \"/0\"", (await Ok("add", file, "/", "--data", "hex:4152", "--yaml").ConfigureAwait(false)).Trim());
+
+            string yaml = (await Ok("dump", file, "--yaml").ConfigureAwait(false)).ReplaceLineEndings("\n");
+
+            StringAssert.Contains(yaml, "- path: \"/0\"\n");
+            StringAssert.Contains(yaml, "depth: 1\n");
+            StringAssert.Contains(yaml, "metadata: null\n");
+            StringAssert.Contains(yaml, "hex: \"4152\"\n");
+            StringAssert.Contains(yaml, "truncated: false\n");
+            Assert.AreEqual(ExitCodes.Usage, (await Run("dump", file, "--yaml", "--json").ConfigureAwait(false)).ExitCode);
+        }
+
+        [TestMethod]
+        public async Task ChunksAsYaml()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+            string yaml = (await Ok("chunks", file, "--yaml").ConfigureAwait(false)).ReplaceLineEndings("\n");
+
+            StringAssert.StartsWith(yaml, "chunks:\n");
+            StringAssert.Contains(yaml, "trailing: 0\n");
+        }
+
+        [TestMethod]
         public async Task ChunksAsJson()
         {
             await File.WriteAllBytesAsync(file, new byte[] { 0x41, 0x52, 0x40, 0x60, 0x80, 0xA0, 0x00, 0x42 }).ConfigureAwait(false);

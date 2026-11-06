@@ -74,13 +74,13 @@ internal static class Commands
         Usage:
           pcfg new     FILE [--comment TEXT] [--force]
           pcfg show    FILE [KEY] [--flat] [--max-bytes N]
-          pcfg get     FILE KEY [--json] [--out FILE]
+          pcfg get     FILE KEY [--yaml|--json] [--out FILE]
           pcfg set     FILE KEY VALUE [--comment TEXT] [--output FILE]
           pcfg delete  FILE KEY [--output FILE]
           pcfg rename  FILE KEY NEW-NAME [--output FILE]
           pcfg comment FILE KEY [TEXT] [--add] [--output FILE]
-          pcfg import  FILE JSON-FILE|- [--force]
-          pcfg export  FILE [KEY] [--output JSON-FILE]
+          pcfg import  FILE SOURCE|- [--json] [--force]
+          pcfg export  FILE [KEY] [--json] [--output FILE]
           pcfg check   FILE [--strict]
           pcfg help
 
@@ -92,13 +92,15 @@ internal static class Commands
           delete   Deletes a value (every member with the name).
           rename   Renames a member of an object.
           comment  Replaces the comments of a value (or of the file, KEY ''); --add appends, no TEXT removes them.
-          import   Creates a configuration from a JSON file (e.g. appsettings.json; comments are allowed).
-          export   Writes the configuration as JSON (a BLOB as base64, without the comments).
+          import   Creates a configuration from a YAML file, with its comments; from JSON if the file is a .json
+                   (e.g. appsettings.json; comments are allowed) or with --json.
+          export   Writes the configuration as YAML (a BLOB as !!binary, with the comments); as JSON (a BLOB as base64,
+                   without the comments) with --json or into a .json file.
           check    Checks the file by SERIALIZER_FORMAT.md and lists every problem.
 
         KEY:     names and indexes separated by ':', e.g. Logging:LogLevel:Default or Hosts:0 ('' is the root);
                  a ':' or a '\' in a name is escaped with '\'.
-        VALUE:   string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | json:JSON
+        VALUE:   string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON
                  Without a form, an existing value keeps its type; a new one is true/false, a number, or a string.
         --signature SIG  The signature of the file (default PRMT:CFG1-LE), e.g. PRMT:GEN1-LE. Every command takes it.
         Editing commands save the file in place, or into --output FILE.
@@ -107,7 +109,7 @@ internal static class Commands
         """;
 
     private static readonly HashSet<string> ValueOptions = new() { "--signature", "--max-bytes", "--output", "--out", "--comment" };
-    private static readonly HashSet<string> FlagOptions = new() { "--json", "--force", "--flat", "--add", "--strict" };
+    private static readonly HashSet<string> FlagOptions = new() { "--yaml", "--json", "--force", "--flat", "--add", "--strict" };
 
     /// <summary>
     /// Runs a command.
@@ -236,7 +238,16 @@ internal static class Commands
             return;
         }
 
-        if (command.Flag("--json"))
+        if (command.Flag("--yaml") && command.Flag("--json"))
+        {
+            throw new PCfgException(ExitCodes.Usage, "Use either --yaml or --json.");
+        }
+
+        if (command.Flag("--yaml"))
+        {
+            output.WriteLine(Renderer.Yaml(holder));
+        }
+        else if (command.Flag("--json"))
         {
             output.WriteLine(Renderer.Json(holder));
         }
@@ -367,16 +378,16 @@ internal static class Commands
 
     private static async Task ImportAsync(Arguments command, TextReader input, TextWriter output)
     {
-        command.Expect(2, 2, "import FILE JSON-FILE|-");
+        command.Expect(2, 2, "import FILE SOURCE|-");
         string file = command.Positional(0);
         string source = command.Positional(1);
         EnsureNew(file, command);
 
-        string json;
+        string text;
 
         try
         {
-            json = source == "-" ? await input.ReadToEndAsync().ConfigureAwait(false) : await File.ReadAllTextAsync(source).ConfigureAwait(false);
+            text = source == "-" ? await input.ReadToEndAsync().ConfigureAwait(false) : await File.ReadAllTextAsync(source).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -384,7 +395,18 @@ internal static class Commands
         }
 
         Element root = NewRoot(command);
-        root.Add(ValueParser.RootFromJson(json, source == "-" ? "the standard input" : source));
+        string name = source == "-" ? "the standard input" : source;
+
+        if (IsJson(command, source))
+        {
+            root.Add(ValueParser.RootFromJson(text, name));
+        }
+        else
+        {
+            (Element[] members, IReadOnlyList<string> comments) = YamlReader.ReadRoot(text, name);
+            root.Add(members);
+            CfgLayout.SetComments(root, comments);
+        }
 
         await SaveAsync(root, file).ConfigureAwait(false);
         output.WriteLine($"imported {file}");
@@ -395,24 +417,28 @@ internal static class Commands
         command.Expect(1, 2, "export FILE [KEY]");
         Element root = await LoadAsync(command).ConfigureAwait(false);
         Element holder = Find(root, command.Count > 1 ? ConfigKey.Parse(command.Positional(1)) : ConfigKey.Root);
-        string json = Renderer.Json(holder);
         string? outFile = command.Value("--output");
+        string text = IsJson(command, outFile) ? Renderer.Json(holder) : Renderer.Yaml(holder);
 
         if (outFile is null)
         {
-            output.WriteLine(json);
+            output.WriteLine(text);
             return;
         }
 
         try
         {
-            await File.WriteAllTextAsync(outFile, json + "\n").ConfigureAwait(false);
+            await File.WriteAllTextAsync(outFile, text + "\n").ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             throw new PCfgException(ExitCodes.Failed, $"Can not write {outFile}: {ex.Message}");
         }
     }
+
+    /// <summary>YAML is the default of import and export: JSON is asked for, or the file is a .json.</summary>
+    private static bool IsJson(Arguments command, string? file) =>
+        command.Flag("--json") || string.Equals(Path.GetExtension(file), ".json", StringComparison.OrdinalIgnoreCase);
 
     private static async Task<int> CheckAsync(Arguments command, TextWriter output, TextWriter error)
     {

@@ -10,13 +10,13 @@ using Promptuarium;
 namespace PCfg;
 
 /// <summary>
-/// Turns the values of the command line and the values of a JSON document into the content of a holder (a TYPE node
+/// Turns the values of the command line and the values of a YAML or JSON document into the content of a holder (a TYPE node
 /// first, then the VALUE node, the members or the elements).
 /// </summary>
 internal static partial class ValueParser
 {
     /// <summary>The accepted forms, for the help text.</summary>
-    public const string Forms = "string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | json:JSON";
+    public const string Forms = "string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON";
 
     private static readonly JsonDocumentOptions JsonOptions = new()
     {
@@ -64,6 +64,8 @@ internal static partial class ValueParser
                     return CfgLayout.BlobContent(Convert.FromBase64String(value));
                 case "file":
                     return CfgLayout.BlobContent(File.ReadAllBytes(value));
+                case "yaml":
+                    return YamlReader.Read(value, "the value").Content;
                 case "json":
                     return FromJson(value, "the value");
             }

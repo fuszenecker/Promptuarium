@@ -14,11 +14,11 @@ pedit \- create, dump and edit Promptuarium trees
 .IR PATH ]
 .RB [ \-\-max\-bytes
 .IR N ]
-.RB [ \-\-json ]
+.RB [ \-\-yaml | \-\-json ]
 .br
 .B pedit chunks
 .I FILE
-.RB [ \-\-json ]
+.RB [ \-\-yaml | \-\-json ]
 .br
 .B pedit add
 .I FILE PARENT\-PATH
@@ -30,7 +30,7 @@ pedit \- create, dump and edit Promptuarium trees
 .IR VALUE ]
 .RB [ \-\-output
 .IR FILE ]
-.RB [ \-\-json ]
+.RB [ \-\-yaml | \-\-json ]
 .br
 .B pedit set
 .I FILE PATH
@@ -40,13 +40,13 @@ pedit \- create, dump and edit Promptuarium trees
 .IR VALUE ]
 .RB [ \-\-output
 .IR FILE ]
-.RB [ \-\-json ]
+.RB [ \-\-yaml | \-\-json ]
 .br
 .B pedit delete
 .I FILE PATH
 .RB [ \-\-output
 .IR FILE ]
-.RB [ \-\-json ]
+.RB [ \-\-yaml | \-\-json ]
 .br
 .B pedit get
 .I FILE PATH
@@ -61,6 +61,8 @@ pedit \- create, dump and edit Promptuarium trees
 .B pedit
 creates, dumps and edits Promptuarium trees. Every command is a single, non\-interactive call;
 with
+.B \-\-yaml
+or
 .B \-\-json
 the output is machine\-readable, and the exit code tells the result.
 .B chunks

@@ -129,7 +129,8 @@ Description: Graphical editor and command line tools of Promptuarium trees
  GUIDs), import and export, the chunks of the saved form, and nested trees.
  .
  pedit, its command line counterpart, creates, dumps and edits the containers
- with single, non-interactive calls; with --json its output is machine-readable,
+ with single, non-interactive calls; with --yaml or --json its output is
+ machine-readable,
  so it can be driven by scripts and AI agents (it replaces the pedit package).
  .
  ppak packs a directory tree (files, directories, symbolic links, with sizes,
@@ -138,7 +139,8 @@ Description: Graphical editor and command line tools of Promptuarium trees
  .
  pcfg shows and edits the configuration files of Promptuarium (PRMT:CFG1-LE):
  the values by their keys (Logging:LogLevel:Default), with their types and
- comments, as a tree or as key = value lines; it imports and exports JSON.
+ comments, as a tree or as key = value lines; it imports and exports YAML
+ and JSON.
  .
  The package makes PStudio the application of the Promptuarium containers
  (MIME type application/x-promptuarium, *.prmt and the "PRMT" signature), and

@@ -62,7 +62,7 @@ internal sealed class PEditException : Exception
 }
 
 /// <summary>
-/// The commands of pedit. Every command is a single, non-interactive call; with --json the output is machine-readable.
+/// The commands of pedit. Every command is a single, non-interactive call; with --yaml or --json the output is machine-readable.
 /// </summary>
 internal static class Commands
 {
@@ -74,11 +74,11 @@ internal static class Commands
 
         Usage:
           pedit new    FILE [--signature VALUE] [--force]
-          pedit dump   FILE [--path PATH] [--max-bytes N] [--json]
-          pedit chunks FILE [--json]
-          pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
-          pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
-          pedit delete FILE PATH [--output FILE] [--json]
+          pedit dump   FILE [--path PATH] [--max-bytes N] [--yaml|--json]
+          pedit chunks FILE [--yaml|--json]
+          pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
+          pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
+          pedit delete FILE PATH [--output FILE] [--yaml|--json]
           pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
           pedit help
 
@@ -99,7 +99,7 @@ internal static class Commands
         """;
 
     private static readonly HashSet<string> ValueOptions = new() { "--signature", "--path", "--max-bytes", "--index", "--data", "--metadata", "--output", "--format", "--out" };
-    private static readonly HashSet<string> FlagOptions = new() { "--json", "--force" };
+    private static readonly HashSet<string> FlagOptions = new() { "--yaml", "--json", "--force" };
     private static readonly JsonWriterOptions JsonOptions = new() { Indented = true };
 
     /// <summary>
@@ -207,7 +207,7 @@ internal static class Commands
         NodePath start = NodePath.Parse(command.Value("--path") ?? "/");
         Element first = start.Resolve(root);
         int? maxBytes = command.IntValue("--max-bytes");
-        bool json = command.Flag("--json");
+        bool json = IsStructured(command);
 
         // Pre-order, without recursion
         var nodes = new Stack<(Element Node, NodePath Path, int Depth)>();
@@ -256,7 +256,7 @@ internal static class Commands
 
         if (json)
         {
-            output.WriteLine(Encoding.UTF8.GetString(buffer.ToArray()));
+            output.WriteLine(Structured(command, Encoding.UTF8.GetString(buffer.ToArray())));
         }
     }
 
@@ -285,7 +285,7 @@ internal static class Commands
             throw new PEditException(ExitCodes.NotFound, $"{file} does not exist.");
         }
 
-        if (command.Flag("--json"))
+        if (IsStructured(command))
         {
             using var buffer = new MemoryStream();
             using (var writer = new Utf8JsonWriter(buffer, JsonOptions))
@@ -324,7 +324,7 @@ internal static class Commands
                 writer.WriteEndObject();
             }
 
-            output.WriteLine(Encoding.UTF8.GetString(buffer.ToArray()));
+            output.WriteLine(Structured(command, Encoding.UTF8.GetString(buffer.ToArray())));
         }
         else
         {
@@ -508,11 +508,25 @@ internal static class Commands
         return value != null ? ContentValue.Parse(value) : null;
     }
 
+    /// <summary>True if the output is machine-readable: --yaml or --json.</summary>
+    private static bool IsStructured(Arguments command)
+    {
+        if (command.Flag("--yaml") && command.Flag("--json"))
+        {
+            throw new PEditException(ExitCodes.Usage, "Use either --yaml or --json.");
+        }
+
+        return command.Flag("--yaml") || command.Flag("--json");
+    }
+
+    /// <summary>A report, written as JSON, in the asked format.</summary>
+    private static string Structured(Arguments command, string json) => command.Flag("--yaml") ? YamlOutput.FromJson(json) : json;
+
     private static void Report(Arguments command, TextWriter output, string action, NodePath path)
     {
-        if (command.Flag("--json"))
+        if (IsStructured(command))
         {
-            output.WriteLine($$"""{ "{{action}}": "{{path}}" }""");
+            output.WriteLine(Structured(command, $$"""{ "{{action}}": "{{path}}" }"""));
         }
         else
         {

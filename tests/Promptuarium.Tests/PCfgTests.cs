@@ -162,7 +162,165 @@ namespace PromptuariumTests
             Assert.AreEqual(ExitCodes.Failed, (await Run("rename", file, "key1", "key2").ConfigureAwait(false)).ExitCode);
             Assert.AreEqual(
                 """{"key1":"value1","key2":1.5,"key3":true,"key4":["value42"],"section":{"key51":"value51"},"data":"3q2+7w=="}""",
-                string.Concat((await Ok("export", file).ConfigureAwait(false)).Where(c => !char.IsWhiteSpace(c))));
+                string.Concat((await Ok("export", file, "--json").ConfigureAwait(false)).Where(c => !char.IsWhiteSpace(c))));
+        }
+
+        [TestMethod]
+        public async Task ExportIsYamlByDefault()
+        {
+            await Ok("import", file, json).ConfigureAwait(false);
+            await Ok("set", file, "data", "base64:3q2+7w==").ConfigureAwait(false);
+            await Ok("comment", file, "key1", "the first\nkey").ConfigureAwait(false);
+
+            Assert.AreEqual(
+                """
+                # the first
+                # key
+                key1: value1
+                key2: 1.5
+                key3: true
+                key4:
+                  - value41
+                  - value42
+                key5:
+                  key51: value51
+                key6: null
+                data: !!binary 3q2+7w==
+
+                """.ReplaceLineEndings("\n"),
+                (await Ok("export", file).ConfigureAwait(false)).ReplaceLineEndings("\n"));
+        }
+
+        [TestMethod]
+        public async Task ExportToAJsonFileIsJson()
+        {
+            await Ok("import", file, json).ConfigureAwait(false);
+            string target = Path.Combine(directory, "out.json");
+            await Ok("export", file, "key5", "--output", target).ConfigureAwait(false);
+
+            Assert.AreEqual("""{"key51":"value51"}""", string.Concat((await File.ReadAllTextAsync(target).ConfigureAwait(false)).Where(c => !char.IsWhiteSpace(c))));
+        }
+
+        [TestMethod]
+        public async Task YamlKeepsTheFileByteForByte()
+        {
+            await Ok("new", file, "--comment", "the file").ConfigureAwait(false);
+
+            foreach (string[] value in new[]
+            {
+                new[] { "text", "string:plain text" },
+                new[] { "looksLikeANumber", "string:0123" },
+                new[] { "hexText", "string:0x10" },
+                new[] { "word", "string:no" },
+                new[] { "nullText", "string:null" },
+                new[] { "tilde", "string:~" },
+                new[] { "empty", "string:" },
+                new[] { "special", "string:a: b # c\n\"d\"\t\u0001 árvíz 😀" },
+                new[] { "number", "number:-1.5e300" },
+                new[] { "yes", "bool:false" },
+                new[] { "nothing", "null" },
+                new[] { "blob", "hex:00FF" },
+                new[] { "emptyBlob", "hex:" },
+                new[] { "emptyObject", "{}" },
+                new[] { "emptyArray", "[]" },
+                new[] { "123", "string:numeric name" },
+                new[] { "nested:list", "yaml:[1, [two], {three: 3}]" },
+            })
+            {
+                await Ok("set", file, value[0], value[1]).ConfigureAwait(false);
+            }
+
+            await Ok("comment", file, "number", "about the number").ConfigureAwait(false);
+            await Ok("comment", file, "nested", "about nested").ConfigureAwait(false);
+            await Ok("comment", file, "nested:list", "the first member").ConfigureAwait(false);
+            await Ok("comment", file, "nested:list:0", "the first item").ConfigureAwait(false);
+            await Ok("comment", file, "nested:list:2", "the object").ConfigureAwait(false);
+            await Ok("comment", file, "nested:list:2:three", "the first key of an item").ConfigureAwait(false);
+
+            string yaml = Path.Combine(directory, "app.yaml");
+            string copy = Path.Combine(directory, "copy.cfg");
+            await Ok("export", file, "--output", yaml).ConfigureAwait(false);
+            await Ok("import", copy, yaml).ConfigureAwait(false);
+
+            CollectionAssert.AreEqual(await File.ReadAllBytesAsync(file).ConfigureAwait(false), await File.ReadAllBytesAsync(copy).ConfigureAwait(false));
+        }
+
+        [TestMethod]
+        public async Task ImportReadsTheCoreSchemaAndTheComments()
+        {
+            string yaml = Path.Combine(directory, "app.yml");
+            await File.WriteAllTextAsync(yaml, """
+                # the document
+                ---
+                # before a
+                # on two lines
+                a: 1 # after a
+
+                # before b
+                b: # after the key
+                  # before c
+                  c: 0x10
+                d: [yes, ~, 0o17, TRUE, .5, "1", !!str 2, !!float 3]
+                e: |
+                  block
+                # before f
+                f:
+                """).ConfigureAwait(false);
+
+            await Ok("import", file, yaml).ConfigureAwait(false);
+            string shown = await Ok("show", file).ConfigureAwait(false);
+
+            StringAssert.Contains(shown, "# the document");
+            StringAssert.Contains(shown, "# before a\n# on two lines\n# after a\na = 1".ReplaceLineEndings());
+            StringAssert.Contains(shown, "# before b\n# after the key\nb {\n  # before c\n  c = 16".ReplaceLineEndings());
+            StringAssert.Contains(shown, "# before f\nf = null".ReplaceLineEndings());
+            Assert.AreEqual(
+                """["yes",null,15,true,0.5,"1","2",3]""",
+                string.Concat((await Ok("get", file, "d", "--json").ConfigureAwait(false)).Where(c => !char.IsWhiteSpace(c))));
+            Assert.AreEqual("block\n", (await Ok("get", file, "e").ConfigureAwait(false)).ReplaceLineEndings("\n")[..^1]);
+            Assert.AreEqual(ExitCodes.Success, (await Run("check", file, "--strict").ConfigureAwait(false)).ExitCode);
+        }
+
+        [TestMethod]
+        [DataRow("a: 1\n  b: 2\n", "not valid YAML")]
+        [DataRow("- a\n", "is not an object")]
+        [DataRow("a: 1\n---\nb: 2\n", "more than one document")]
+        [DataRow("a: &x 1\nb: *x\n", "aliases")]
+        [DataRow("? [k]\n: v\n", "not a scalar")]
+        [DataRow("a: .inf\n", "not a finite double")]
+        [DataRow("a: 1e999\n", "not a finite double")]
+        [DataRow("a: !custom b\n", "not supported")]
+        [DataRow("a: !!binary '*'\n", "can not be read")]
+        [DataRow("# only a comment\n", "no document")]
+        [DataRow("", "no document")]
+        public async Task ImportRefusesWhatIsNotAConfiguration(string text, string message)
+        {
+            string yaml = Path.Combine(directory, "bad.yaml");
+            await File.WriteAllTextAsync(yaml, text).ConfigureAwait(false);
+
+            (int exitCode, _, string error) = await Run("import", file, yaml).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Failed, exitCode);
+            StringAssert.Contains(error, message);
+            Assert.IsFalse(File.Exists(file));
+        }
+
+        [TestMethod]
+        public async Task ImportRefusesATooDeepDocument()
+        {
+            string yaml = Path.Combine(directory, "deep.yaml");
+            await File.WriteAllTextAsync(yaml, "a: " + new string('[', 300) + new string(']', 300)).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Failed, (await Run("import", file, yaml).ConfigureAwait(false)).ExitCode);
+        }
+
+        [TestMethod]
+        public async Task GetPrintsYaml()
+        {
+            await Ok("import", file, json).ConfigureAwait(false);
+
+            Assert.AreEqual("key51: value51", (await Ok("get", file, "key5", "--yaml").ConfigureAwait(false)).Trim());
+            Assert.AreEqual(ExitCodes.Usage, (await Run("get", file, "key5", "--yaml", "--json").ConfigureAwait(false)).ExitCode);
         }
 
         [TestMethod]

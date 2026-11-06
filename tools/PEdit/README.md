@@ -3,7 +3,7 @@
 `pedit` creates, dumps and edits Promptuarium trees from the command line. It is the command line interface of the reference implementation:
 
 * every operation is a **single, non-interactive call**;
-* with `--json`, the output is **machine-readable**;
+* with `--yaml` or `--json`, the output is **machine-readable**;
 * the **exit code** tells the result;
 * `chunks` decodes a file **directly from the specification** ([BINARY_FORMAT.md](../../BINARY_FORMAT.md)), independently of the library.
 
@@ -29,11 +29,11 @@ dotnet tools/PEdit/bin/Debug/net10.0/pedit.dll help
 
 ```text
 pedit new    FILE [--signature VALUE] [--force]
-pedit dump   FILE [--path PATH] [--max-bytes N] [--json]
-pedit chunks FILE [--json]
-pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
-pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--json]
-pedit delete FILE PATH [--output FILE] [--json]
+pedit dump   FILE [--path PATH] [--max-bytes N] [--yaml|--json]
+pedit chunks FILE [--yaml|--json]
+pedit add    FILE PARENT-PATH [--index N] [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
+pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--output FILE] [--yaml|--json]
+pedit delete FILE PATH [--output FILE] [--yaml|--json]
 pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
 pedit help
 ```
@@ -41,7 +41,7 @@ pedit help
 | Command  | What it does |
 |----------|--------------|
 | `new`    | Creates a file with an empty root. With `--signature`, the root is a signed root (see BINARY_FORMAT.md, section 10). Refuses to overwrite an existing file without `--force`. |
-| `dump`   | Lists the nodes in pre-order, with their paths and contents. `--path` dumps a subtree only; `--max-bytes` shortens the contents (default 32 bytes in the text form, no limit in JSON). |
+| `dump`   | Lists the nodes in pre-order, with their paths and contents. `--path` dumps a subtree only; `--max-bytes` shortens the contents (default 32 bytes in the text form, no limit in YAML and JSON). |
 | `chunks` | Lists the chunks of the file as they are in the stream: offset, control byte, direction, content type, size type, length, depth, kind, payload. It also reports the number of bytes consumed (up to and including the terminator) and the trailing bytes. |
 | `add`    | Adds a new node to `PARENT-PATH`, at the end or at `--index` (0 = first child). Without `--metadata` and `--data` the new node is an empty node. Prints the path of the new node. |
 | `set`    | Sets the metadata and/or the data of a node. `empty` clears a content. |
@@ -69,7 +69,18 @@ The container stores bytes, so a value states how the bytes are given:
 
 ## Output
 
-Text output is meant for people. For scripts and agents, use `--json`:
+Text output is meant for people. For scripts and agents, use `--yaml` (or `--json`, with the same structure; the examples below are JSON). In YAML every string is quoted, so a hex text such as `"4152"` stays a string:
+
+```yaml
+nodes:
+  - path: "/"
+    depth: 0
+    children: 1
+    metadata: null
+    data: null
+```
+
+The JSON form:
 
 `add`, `set`, `delete` and `new`:
 

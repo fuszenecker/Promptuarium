@@ -17,7 +17,7 @@ pcfg \- show and edit Promptuarium configuration files
 .br
 .B pcfg get
 .I FILE KEY
-.RB [ \-\-json ]
+.RB [ \-\-yaml | \-\-json ]
 .RB [ \-\-out
 .IR FILE ]
 .br
@@ -46,14 +46,16 @@ pcfg \- show and edit Promptuarium configuration files
 .IR FILE ]
 .br
 .B pcfg import
-.I FILE JSON\-FILE\fR|\fB\-
+.I FILE SOURCE\fR|\fB\-
+.RB [ \-\-json ]
 .RB [ \-\-force ]
 .br
 .B pcfg export
 .I FILE
 .RI [ KEY ]
+.RB [ \-\-json ]
 .RB [ \-\-output
-.IR JSON\-FILE ]
+.IR FILE ]
 .br
 .B pcfg check
 .I FILE
@@ -112,8 +114,10 @@ Prints a value as it is: a string without quotes, a BLOB as hex, a number,
 or
 .BR null ;
 an object or an array as a tree.
+.B \-\-yaml
+prints the value as YAML,
 .B \-\-json
-prints the value as JSON,
+as JSON,
 .B \-\-out
 writes the bytes of the value into a file.
 .TP
@@ -136,14 +140,23 @@ with the text.
 .B \-\-add
 appends the text; without a text the comments are removed.
 .TP
-.B import \fIFILE JSON\-FILE\fR
-Creates a configuration from a JSON file (or the standard input,
+.B import \fIFILE SOURCE\fR
+Creates a configuration from a YAML file (or the standard input,
 .BR \- ),
-e.g. an appsettings.json. Comments and trailing commas are allowed; the root must be an object.
+with its comments; the root must be a mapping. A .json file, or any source with
+.BR \-\-json ,
+is read as JSON, e.g. an appsettings.json: comments and trailing commas are allowed there, but they are not kept.
+A plain scalar follows the core schema of YAML 1.2, so yes and no are strings;
+.B !!binary
+is a BLOB. More documents, aliases, keys that are not scalars, other tags, .inf and .nan are refused.
 .TP
 .B export \fIFILE\fR [\fIKEY\fR]
-Writes the configuration, or a value, as JSON. A BLOB is a base64 string and the comments are left out, so the JSON
-is not a full copy of the file.
+Writes the configuration, or a value, as YAML: a BLOB is
+.BR !!binary ,
+a comment is a # line before its value, and the comments of the file come before a \-\-\- line. With
+.BR \-\-json ,
+or into a .json file, it writes JSON: a BLOB is a base64 string and the comments are left out, so the JSON is not a
+full copy of the file.
 .TP
 .B check \fIFILE\fR
 Checks the file by SERIALIZER_FORMAT.md: the signature, the tags, the type codes (a reserved one is an error), the
@@ -182,6 +195,9 @@ Null, an empty object, an empty array.
 .TP
 .BI hex: DEADBEEF\fR,\fP " base64:" 3q2+7w==\fR,\fP " file:" PATH
 A BLOB.
+.TP
+.BI yaml: YAML
+Any YAML value, e.g. an object with its members.
 .TP
 .BI json: JSON
 Any JSON value, e.g. an object with its members.

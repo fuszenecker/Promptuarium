@@ -7,14 +7,18 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Promptuarium;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 
 namespace PCfg;
 
 /// <summary>
-/// Shows a configuration (of a valid file) for people, as a tree or as flat key = value lines, and exports it as JSON.
+/// Shows a configuration (of a valid file) for people, as a tree or as flat key = value lines, and exports it as YAML or JSON.
 /// </summary>
 internal static partial class Renderer
 {
+    private const string BinaryTag = "tag:yaml.org,2002:binary";
+
     private static readonly JsonWriterOptions JsonOptions = new()
     {
         Indented = true,
@@ -94,6 +98,27 @@ internal static partial class Renderer
 
     /// <summary>A number as it is read back: the shortest text of the double.</summary>
     public static string Number(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// The value as YAML: a BLOB is !!binary, a comment is a # line before its value. The comments of the value itself
+    /// come before a "---" line, as those of the file: <see cref="YamlReader"/> reads all of them back.
+    /// </summary>
+    public static string Yaml(Element holder)
+    {
+        using var text = new StringWriter(CultureInfo.InvariantCulture);
+
+        // No folding: a long text stays on its line
+        var emitter = new Emitter(text, new EmitterSettings(2, int.MaxValue, false, 1024, indentSequences: true, newLine: "\n"));
+
+        emitter.Emit(new StreamStart());
+        bool commented = EmitComments(holder, emitter);
+        emitter.Emit(new DocumentStart(null, null, isImplicit: !commented));
+        EmitValue(holder, emitter);
+        emitter.Emit(new DocumentEnd(isImplicit: true));
+        emitter.Emit(new StreamEnd());
+
+        return text.ToString().TrimEnd('\n');
+    }
 
     /// <summary>The value as JSON; a BLOB is a base64 string, the comments are left out.</summary>
     public static string Json(Element holder)
@@ -194,10 +219,7 @@ internal static partial class Renderer
             case CfgLayout.Object:
                 writer.WriteStartObject();
 
-                // The last one of a repeated name wins
-                var members = CfgLayout.Members(holder).ToList();
-
-                foreach (Element member in members.Where((member, index) => !members.Skip(index + 1).Any(later => CfgLayout.NameOf(later) == CfgLayout.NameOf(member))))
+                foreach (Element member in DistinctMembers(holder))
                 {
                     writer.WritePropertyName(CfgLayout.NameOf(member));
                     WriteJson(member, writer);
@@ -232,6 +254,81 @@ internal static partial class Renderer
                 break;
         }
     }
+
+    /// <summary>The members of an object: the last one of a repeated name wins.</summary>
+    private static System.Collections.Generic.IEnumerable<Element> DistinctMembers(Element holder)
+    {
+        var members = CfgLayout.Members(holder).ToList();
+        return members.Where((member, index) => !members.Skip(index + 1).Any(later => CfgLayout.NameOf(later) == CfgLayout.NameOf(member)));
+    }
+
+    private static void EmitValue(Element holder, Emitter emitter)
+    {
+        Element? value = CfgLayout.ValueOf(holder);
+
+        switch (CfgLayout.TypeOf(holder))
+        {
+            case CfgLayout.Object:
+                emitter.Emit(new MappingStart(AnchorName.Empty, TagName.Empty, true, MappingStyle.Block));
+
+                foreach (Element member in DistinctMembers(holder))
+                {
+                    EmitComments(member, emitter);
+                    EmitText(CfgLayout.NameOf(member), emitter);
+                    EmitValue(member, emitter);
+                }
+
+                emitter.Emit(new MappingEnd());
+                break;
+            case CfgLayout.Array:
+                emitter.Emit(new SequenceStart(AnchorName.Empty, TagName.Empty, true, SequenceStyle.Block));
+
+                foreach (Element item in CfgLayout.Items(holder))
+                {
+                    EmitComments(item, emitter);
+                    EmitValue(item, emitter);
+                }
+
+                emitter.Emit(new SequenceEnd());
+                break;
+            case CfgLayout.Utf8String:
+                EmitText(Encoding.UTF8.GetString(value!.Data.Span), emitter);
+                break;
+            case CfgLayout.Blob:
+                emitter.Emit(new Scalar(AnchorName.Empty, new TagName(BinaryTag), Convert.ToBase64String(value!.Data.Span), ScalarStyle.Plain, false, false));
+                break;
+            default:
+                emitter.Emit(new Scalar(AnchorName.Empty, TagName.Empty, Scalar(holder, int.MaxValue), ScalarStyle.Plain, true, false));
+                break;
+        }
+    }
+
+    /// <summary>A text: quoted if a reader could take it for something else than a string.</summary>
+    private static void EmitText(string text, Emitter emitter)
+    {
+        bool quoted = text.Length == 0 || "0123456789+-.~".Contains(text[0], StringComparison.Ordinal) || YamlKeywords().IsMatch(text);
+        emitter.Emit(new Scalar(AnchorName.Empty, TagName.Empty, text, quoted ? ScalarStyle.DoubleQuoted : ScalarStyle.Any, !quoted, quoted));
+    }
+
+    private static bool EmitComments(Element holder, Emitter emitter)
+    {
+        bool any = false;
+
+        foreach (string comment in CfgLayout.Comments(holder))
+        {
+            foreach (string line in comment.Split('\n'))
+            {
+                emitter.Emit(new Comment(line.TrimEnd('\r'), false));
+                any = true;
+            }
+        }
+
+        return any;
+    }
+
+    // The words of YAML 1.1 too: other readers still take them for booleans
+    [GeneratedRegex("^(null|true|false|yes|no|on|off|y|n)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex YamlKeywords();
 
     [GeneratedRegex(@"^[A-Za-z0-9_$@./+-]+$", RegexOptions.CultureInvariant)]
     private static partial Regex PlainName();
