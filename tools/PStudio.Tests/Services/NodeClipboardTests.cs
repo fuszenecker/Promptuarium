@@ -1,3 +1,4 @@
+using PStudio.Models;
 using PStudio.Services;
 using Promptuarium;
 
@@ -28,5 +29,29 @@ public sealed class NodeClipboardTests
         Assert.IsNull(first.Parent);
         Assert.AreEqual("a", first.Data.AsAsciiString());
         Assert.AreEqual("b", first[0].Data.AsAsciiString());
+    }
+
+    [TestMethod]
+    public void PasteForms_GivesCopiesOfTheForms_OrNone()
+    {
+        var clipboard = new NodeClipboard();
+        Assert.IsTrue(clipboard.PasteForms().IsEmpty);
+
+        var forms = new FileForms();
+        forms.Data["/"] = ContentForm.Hex;
+        forms.MetaData["/0"] = ContentForm.Base64;
+        clipboard.Copy(new Element(), forms);
+        forms.Data["/"] = ContentForm.Utf8;
+
+        FileForms first = clipboard.PasteForms();
+        first.Data.Clear();
+        FileForms second = clipboard.PasteForms();
+
+        Assert.AreEqual(ContentForm.Hex, second.Data["/"]);
+        Assert.AreEqual(ContentForm.Base64, second.MetaData["/0"]);
+
+        // A node copied without forms has none
+        clipboard.Copy(new Element());
+        Assert.IsTrue(clipboard.PasteForms().IsEmpty);
     }
 }

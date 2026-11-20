@@ -499,7 +499,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void Copy()
     {
         CommitEdits();
-        clipboard.Copy(SelectedNode!.Element);
+        clipboard.Copy(SelectedNode!.Element, FormsOf(SelectedNode));
         NotifyPasteCommands();
         ShowStatus($"Copied {SelectedNode.Path}", error: false);
     }
@@ -508,7 +508,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void Cut()
     {
         CommitEdits();
-        clipboard.Copy(SelectedNode!.Element);
+        clipboard.Copy(SelectedNode!.Element, FormsOf(SelectedNode));
         NotifyPasteCommands();
         Delete();
     }
@@ -517,7 +517,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void PasteAsChild()
     {
         NodeViewModel parent = SelectedNode!;
-        var pasted = new NodeViewModel(clipboard.Paste()!);
+        NodeViewModel pasted = PastedNode();
 
         parent.Insert(parent.Children.Count, pasted);
         Changed(pasted, $"Pasted {pasted.Path}");
@@ -527,10 +527,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void PasteAfter()
     {
         NodeViewModel node = SelectedNode!;
-        var pasted = new NodeViewModel(clipboard.Paste()!);
+        NodeViewModel pasted = PastedNode();
 
         node.Parent!.Insert(node.Index + 1, pasted);
         Changed(pasted, $"Pasted {pasted.Path}");
+    }
+
+    // The node of the clipboard, with the forms chosen for its contents when it was copied
+    private NodeViewModel PastedNode()
+    {
+        var pasted = new NodeViewModel(clipboard.Paste()!);
+        ApplyForms(pasted, clipboard.PasteForms());
+        return pasted;
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -794,17 +802,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        FileForms forms = formMemory.Recall(path);
-
-        foreach ((string nodePath, ContentForm form) in forms.Data)
-        {
-            FindNode(nodePath)?.DataForm = form;
-        }
-
-        foreach ((string nodePath, ContentForm form) in forms.MetaData)
-        {
-            FindNode(nodePath)?.MetaDataForm = form;
-        }
+        ApplyForms(Root, formMemory.Recall(path));
     }
 
     // The forms are remembered by the paths of the nodes, so only when the tree is the same as the file: after saving,
@@ -816,36 +814,56 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        formMemory.Remember(FileName, FormsOf(Root));
+    }
+
+    // The forms chosen for the contents of the node and its descendants, by the paths relative to the node ("/", "/0/2")
+    private static FileForms FormsOf(NodeViewModel top)
+    {
         var forms = new FileForms();
-        var stack = new Stack<NodeViewModel>([Root]);
+        var stack = new Stack<(NodeViewModel Node, string Path)>([(top, "/")]);
 
         while (stack.Count > 0)
         {
-            NodeViewModel node = stack.Pop();
+            (NodeViewModel node, string path) = stack.Pop();
 
             if (node.DataForm is { } dataForm)
             {
-                forms.Data[node.Path] = dataForm;
+                forms.Data[path] = dataForm;
             }
 
             if (node.MetaDataForm is { } metaDataForm)
             {
-                forms.MetaData[node.Path] = metaDataForm;
+                forms.MetaData[path] = metaDataForm;
             }
 
-            foreach (NodeViewModel child in node.Children)
+            for (int i = 0; i < node.Children.Count; i++)
             {
-                stack.Push(child);
+                stack.Push((node.Children[i], path == "/" ? $"/{i}" : $"{path}/{i}"));
             }
         }
 
-        formMemory.Remember(FileName, forms);
+        return forms;
     }
 
-    // A node by its path ("/", "/0/2"), or null
-    private NodeViewModel? FindNode(string path)
+    // Gives the forms (by the paths relative to the node) to the node and its descendants; a path that is not there is ignored
+    private static void ApplyForms(NodeViewModel top, FileForms forms)
     {
-        NodeViewModel? node = Root;
+        foreach ((string nodePath, ContentForm form) in forms.Data)
+        {
+            FindNode(top, nodePath)?.DataForm = form;
+        }
+
+        foreach ((string nodePath, ContentForm form) in forms.MetaData)
+        {
+            FindNode(top, nodePath)?.MetaDataForm = form;
+        }
+    }
+
+    // A node by its path relative to the node ("/", "/0/2"), or null
+    private static NodeViewModel? FindNode(NodeViewModel top, string path)
+    {
+        NodeViewModel? node = top;
 
         foreach (string part in path.Split('/', StringSplitOptions.RemoveEmptyEntries))
         {

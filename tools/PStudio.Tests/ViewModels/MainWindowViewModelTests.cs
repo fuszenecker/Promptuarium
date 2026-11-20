@@ -122,6 +122,57 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public void CopyAndPaste_KeepTheChosenForms_OfTheNodeAndItsDescendants()
+    {
+        MainWindowViewModel sut = CreateWithChildren("a", "b");
+        NodeViewModel copied = sut.Root.Children[0];
+        sut.SelectedNode = copied;
+        sut.AddChildCommand.Execute(null);
+        Choose(sut.MetaData, ContentForm.Base64);
+
+        sut.SelectedNode = copied;
+        Choose(sut.Data, ContentForm.Hex);
+        sut.CopyCommand.Execute(null);
+
+        // A later choice in the original does not change the copy
+        Choose(sut.Data, ContentForm.Utf8);
+
+        sut.SelectedNode = sut.Root.Children[1];
+        sut.PasteAsChildCommand.Execute(null);
+
+        NodeViewModel pasted = sut.SelectedNode!;
+        Assert.AreEqual("/1/0", pasted.Path);
+        Assert.AreEqual(ContentForm.Hex, pasted.DataForm);
+        Assert.AreEqual(ContentForm.Hex, sut.Data.Form);
+        Assert.IsNull(pasted.MetaDataForm);
+        Assert.AreEqual(ContentForm.Base64, pasted.Children[0].MetaDataForm);
+        Assert.IsNull(pasted.Children[0].DataForm);
+
+        // Every paste gets the forms, also in another window (the clipboard is shared)
+        MainWindowViewModel other = Create();
+        other.SelectedNode = other.Root;
+        other.PasteAsChildCommand.Execute(null);
+
+        Assert.AreEqual(ContentForm.Hex, other.SelectedNode!.DataForm);
+        Assert.AreEqual(ContentForm.Base64, other.SelectedNode.Children[0].MetaDataForm);
+    }
+
+    [TestMethod]
+    public void CutAndPaste_KeepTheChosenForms()
+    {
+        MainWindowViewModel sut = CreateWithChildren("a", "b");
+        sut.SelectedNode = sut.Root.Children[0];
+        Choose(sut.Data, ContentForm.Hex);
+
+        sut.CutCommand.Execute(null);
+        sut.PasteAfterCommand.Execute(null);
+
+        Assert.AreEqual("/1", sut.SelectedNode!.Path);
+        Assert.AreEqual(ContentForm.Hex, sut.SelectedNode.DataForm);
+        Assert.AreEqual(ContentForm.Hex, sut.Data.Form);
+    }
+
+    [TestMethod]
     public void ContentEdits_AreStoredInTheSelectedNode()
     {
         MainWindowViewModel sut = CreateWithChildren("a");
