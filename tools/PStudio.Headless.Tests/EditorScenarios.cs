@@ -76,14 +76,75 @@ public sealed class EditorScenarios
         Assert.AreEqual("/1", moved.Path);
         Assert.AreSame(moved, editor.ViewModel.SelectedNode);
         Assert.AreSame(moved, treeView.SelectedItem);
+        AssertFocused(editor, moved);
 
-        // Shift+Right indents it under its previous sibling
+        // Shift+Down moves it back, Shift+Up up again
+        editor.Window.KeyPress(Key.Down, RawInputModifiers.Shift, PhysicalKey.ArrowDown, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/2", moved.Path);
+        Assert.AreSame(moved, treeView.SelectedItem);
+        AssertFocused(editor, moved);
+
+        editor.Window.KeyPress(Key.Up, RawInputModifiers.Shift, PhysicalKey.ArrowUp, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/1", moved.Path);
+        Assert.AreSame(moved, treeView.SelectedItem);
+        AssertFocused(editor, moved);
+
+        // The plain arrows only move the selection, not the node
+        editor.Window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/1", moved.Path);
+        Assert.AreEqual("/0", editor.ViewModel.SelectedNode!.Path);
+
+        editor.Window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/1", moved.Path);
+        Assert.AreSame(moved, editor.ViewModel.SelectedNode);
+
+        // Shift+Right indents it under its previous sibling, Shift+Left outdents it back after it
         editor.Window.KeyPress(Key.Right, RawInputModifiers.Shift, PhysicalKey.ArrowRight, null);
         Editor.Pump();
 
         Assert.AreEqual("/0/0", moved.Path);
         Assert.AreSame(moved, treeView.SelectedItem);
+        AssertFocused(editor, moved);
         Assert.AreEqual(4, editor.Find<TreeViewItem>().Count());
+
+        editor.Window.KeyPress(Key.Left, RawInputModifiers.Shift, PhysicalKey.ArrowLeft, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/1", moved.Path);
+        Assert.AreSame(moved, treeView.SelectedItem);
+        AssertFocused(editor, moved);
+
+        editor.Window.KeyPress(Key.Right, RawInputModifiers.Shift, PhysicalKey.ArrowRight, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/0/0", moved.Path);
+        Assert.AreSame(moved, treeView.SelectedItem);
+        AssertFocused(editor, moved);
+
+        // A command of the menu gives the focus back to the tree view
+        editor.Find<MenuItem>().First().Focus();
+        Editor.Pump();
+        editor.ViewModel.OutdentCommand.Execute(null);
+        Editor.Pump();
+
+        Assert.AreEqual("/1", moved.Path);
+        AssertFocused(editor, moved);
+
+        // ... so the next key goes to the tree view, not to the menu
+        editor.Window.KeyPress(Key.Right, RawInputModifiers.Shift, PhysicalKey.ArrowRight, null);
+        Editor.Pump();
+
+        Assert.AreEqual("/0/0", moved.Path);
+        Assert.IsFalse(editor.Find<MenuItem>().Any(item => item.IsSubMenuOpen));
+        AssertFocused(editor, moved);
 
         editor.Window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
         Editor.Pump();
@@ -381,6 +442,14 @@ public sealed class EditorScenarios
     {
         Button button = dialog.GetVisualDescendantsOf<Button>().Single(candidate => (string?)candidate.Content == caption);
         button.Command!.Execute(button.CommandParameter);
+    }
+
+    // The keyboard focus is on the tree view item of the node (not on the menu, not on the window)
+    private static void AssertFocused(Editor editor, NodeViewModel node)
+    {
+        object? focused = editor.Window.FocusManager?.GetFocusedElement();
+        Assert.IsInstanceOfType<TreeViewItem>(focused, focused?.ToString() ?? "nothing is focused");
+        Assert.AreSame(node, ((TreeViewItem)focused).DataContext);
     }
 }
 

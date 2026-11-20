@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PStudio.Models;
 using PStudio.ViewModels;
@@ -112,7 +113,34 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainWindowViewModel.IsChunkPanelVisible))
         {
             ShowChunkPanel(viewModel.IsChunkPanelVisible);
+            return;
         }
+
+        // NodePath is refreshed after every change of the tree too (a node moved, indented, added), not only after a new selection
+        if (e.PropertyName is nameof(MainWindowViewModel.SelectedNode) or nameof(MainWindowViewModel.NodePath))
+        {
+            FocusSelectedNode();
+        }
+    }
+
+    // The keyboard focus follows the selection of the tree view, so that the next key goes to the selected node
+    // (and not to the menu, where the focus falls when the focused container of a moved node is removed).
+    // It is never taken from an editor or from the chunk panel.
+    private void FocusSelectedNode()
+    {
+        if (!Tree.IsKeyboardFocusWithin && FocusManager?.GetFocusedElement() is Visual focused && MainGrid.IsVisualAncestorOf(focused))
+        {
+            return;
+        }
+
+        // The container of a moved or a new node is created by the next layout pass
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (viewModel?.SelectedNode is { } node && Tree.TreeContainerFromItem(node) is TreeViewItem item && !item.IsFocused)
+            {
+                item.Focus(NavigationMethod.Directional);
+            }
+        }, DispatcherPriority.Loaded);
     }
 
     // The hidden chunk panel gives its row back to the editor (and gets its height back when it is shown again)
