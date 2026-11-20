@@ -463,6 +463,86 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public async Task ChosenForms_OfANestedTree_AreRememberedWithTheHostFile_AndRecalledWhenItOpensAgain()
+    {
+        var inner = new Element(null, null, new Element(Data.FromAsciiString("x"), null));
+        var tree = new Element(null, null, new Element(inner.ToBytes(), null));
+        files.LoadAsync("/data/tree.prmt").Returns(_ => Element.FromBytes(tree.ToBytes()));
+
+        MainWindowViewModel host = Create();
+        await host.OpenFileAsync("/data/tree.prmt");
+        MainWindowViewModel nested = Create();
+        nested.OpenNested(host, host.Root.Children[0]);
+
+        nested.SelectedNode = nested.Root.Children[0];
+        Choose(nested.Data, ContentForm.Hex);
+
+        // Closed without changes: the forms go to the node of the host, and with the host into the memory
+        Assert.IsTrue(await nested.ConfirmCloseAsync());
+        Assert.AreEqual(ContentForm.Hex, host.Root.Children[0].NestedForms!.Data["/0"]);
+        Assert.IsTrue(await host.ConfirmCloseAsync());
+        Assert.AreEqual(ContentForm.Hex, formMemory.Recall("/data/tree.prmt").Nested["/0"].Data["/0"]);
+
+        // The next session: the nested tree of the same node gets its forms back
+        MainWindowViewModel again = Create();
+        await again.OpenFileAsync("/data/tree.prmt");
+        MainWindowViewModel reopened = Create();
+        reopened.OpenNested(again, again.Root.Children[0]);
+        reopened.SelectedNode = reopened.Root.Children[0];
+
+        Assert.AreEqual(ContentForm.Hex, reopened.Root.Children[0].DataForm);
+        Assert.AreEqual(ContentForm.Hex, reopened.Data.Form);
+    }
+
+    [TestMethod]
+    public async Task ChosenForms_OfANestedTree_AreStoredWhenItIsSaved_AlsoTwoLevelsDeep()
+    {
+        var innermost = new Element(null, null, new Element(Data.FromAsciiString("y"), null));
+        var inner = new Element(null, null, new Element(innermost.ToBytes(), null));
+        files.LoadAsync("/data/tree.prmt").Returns(_ => new Element(inner.ToBytes(), null));
+
+        MainWindowViewModel host = Create();
+        await host.OpenFileAsync("/data/tree.prmt");
+        MainWindowViewModel nested = Create();
+        nested.OpenNested(host, host.Root);
+        MainWindowViewModel deeper = Create();
+        deeper.OpenNested(nested, nested.Root.Children[0]);
+
+        deeper.SelectedNode = deeper.Root.Children[0];
+        Choose(deeper.Data, ContentForm.Base64);
+        deeper.AddChildCommand.Execute(null);
+        await deeper.SaveCommand.ExecuteAsync(null);
+        await nested.SaveCommand.ExecuteAsync(null);
+        await host.SaveCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(ContentForm.Base64, formMemory.Recall("/data/tree.prmt").Nested["/"].Nested["/0"].Data["/0"]);
+
+        // Reset Types forgets the forms of the nested trees too
+        host.ResetTypesCommand.Execute(null);
+
+        Assert.IsNull(host.Root.NestedForms);
+        Assert.IsTrue(formMemory.Recall("/data/tree.prmt").IsEmpty);
+    }
+
+    [TestMethod]
+    public void CopyAndPaste_KeepTheForms_OfTheNestedTree()
+    {
+        MainWindowViewModel sut = CreateWithChildren("a");
+        var forms = new FileForms();
+        forms.Data["/0"] = ContentForm.Hex;
+        sut.Root.Children[0].NestedForms = forms;
+
+        sut.SelectedNode = sut.Root.Children[0];
+        sut.CopyCommand.Execute(null);
+        sut.PasteAfterCommand.Execute(null);
+
+        NodeViewModel pasted = sut.SelectedNode!;
+        Assert.AreEqual("/1", pasted.Path);
+        Assert.AreEqual(ContentForm.Hex, pasted.NestedForms!.Data["/0"]);
+        Assert.AreNotSame(forms, pasted.NestedForms);
+    }
+
+    [TestMethod]
     public void NestedTree_OfInvalidData_IsRefused()
     {
         MainWindowViewModel host = Create();

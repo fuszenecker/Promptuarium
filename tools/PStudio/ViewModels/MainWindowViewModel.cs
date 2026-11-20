@@ -348,6 +348,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             NodeViewModel node = stack.Pop();
             node.DataForm = null;
             node.MetaDataForm = null;
+            node.NestedForms = null;
 
             foreach (NodeViewModel child in node.Children)
             {
@@ -675,6 +676,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             hostEditor.StoreNestedTree(hostNode, Root.Element.ToBytes());
             IsModified = false;
+            RememberForms();
             ShowStatus($"Stored in the data of {hostNode.Path} of {hostEditor.DocumentName}", error: false);
             return true;
         }
@@ -794,22 +796,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return node is null ? null : node.MetaDataForm ?? Services.SerializerLayout.MetaDataForm(node.Element, node.Parent?.Element);
     }
 
-    // The forms chosen in an earlier session; a path that is not in the tree any more is ignored
+    // The forms chosen in an earlier session (a nested tree gets them from its node); a path that is not in the tree any more is ignored
     private void RecallForms(string? path)
     {
-        if (path is null)
+        if (hostNode?.NestedForms is { } nestedForms)
         {
-            return;
+            ApplyForms(Root, nestedForms);
         }
-
-        ApplyForms(Root, formMemory.Recall(path));
+        else if (path is not null)
+        {
+            ApplyForms(Root, formMemory.Recall(path));
+        }
     }
 
     // The forms are remembered by the paths of the nodes, so only when the tree is the same as the file: after saving,
-    // or when the window closes or opens another tree without changes. A nested tree has no file.
+    // or when the window closes or opens another tree without changes. A nested tree has no file: its forms are given to
+    // its node, and remembered with the file of the host (by the path of the node), when the host remembers its forms.
     private void RememberForms()
     {
-        if (FileName is null || IsNested)
+        if (hostNode is not null)
+        {
+            FileForms nestedForms = FormsOf(Root);
+            hostNode.NestedForms = nestedForms.IsEmpty ? null : nestedForms;
+            return;
+        }
+
+        if (FileName is null)
         {
             return;
         }
@@ -837,6 +849,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 forms.MetaData[path] = metaDataForm;
             }
 
+            if (node.NestedForms is { IsEmpty: false } nestedForms)
+            {
+                forms.Nested[path] = nestedForms.Clone();
+            }
+
             for (int i = 0; i < node.Children.Count; i++)
             {
                 stack.Push((node.Children[i], path == "/" ? $"/{i}" : $"{path}/{i}"));
@@ -857,6 +874,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         foreach ((string nodePath, ContentForm form) in forms.MetaData)
         {
             FindNode(top, nodePath)?.MetaDataForm = form;
+        }
+
+        foreach ((string nodePath, FileForms nestedForms) in forms.Nested)
+        {
+            FindNode(top, nodePath)?.NestedForms = nestedForms.Clone();
         }
     }
 

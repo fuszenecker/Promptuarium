@@ -41,6 +41,12 @@ public sealed partial class NodeViewModel : ViewModelBase
     /// <summary>The form the user chose for the metadata, if any.</summary>
     public ContentForm? MetaDataForm { get; set; }
 
+    /// <summary>
+    /// The forms the user chose in the nested tree of the data, if any: given to a nested editor when it opens, and
+    /// stored by it (when it saves, or closes without changes).
+    /// </summary>
+    public FileForms? NestedForms { get; set; }
+
     /// <summary>The children.</summary>
     public ObservableCollection<NodeViewModel> Children { get; }
 

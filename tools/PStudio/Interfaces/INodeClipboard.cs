@@ -14,7 +14,7 @@ public interface INodeClipboard
 
     /// <summary>
     /// Stores a copy of the node, and of the forms of its contents, by the paths relative to the node ("/" is the node
-    /// itself, "/0/2" the third child of its first child).
+    /// itself, "/0/2" the third child of its first child), with the forms of the nested trees in their data.
     /// </summary>
     void Copy(Element node, FileForms? forms = null);
 

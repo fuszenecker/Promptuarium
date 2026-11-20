@@ -1,4 +1,5 @@
 using Promptuarium;
+using Promptuarium.Serializer;
 using PStudio.Models;
 using PStudio.Services;
 
@@ -35,6 +36,60 @@ public sealed class FormMemoryTests
         Assert.AreEqual(ContentForm.Utf8, recalled.Data["/"]);
         Assert.AreEqual(ContentForm.Guid, recalled.MetaData["/0"]);
         Assert.IsTrue(new FormMemory(SettingsPath).Recall("other.prmt").IsEmpty);
+    }
+
+    [TestMethod]
+    public void TheForms_OfNestedTrees_AreRecalledByANewMemory()
+    {
+        var deeper = new FileForms();
+        deeper.MetaData["/1"] = ContentForm.Base64;
+        var nested = new FileForms();
+        nested.Data["/0"] = ContentForm.Hex;
+        nested.Nested["/0"] = deeper;
+        var forms = new FileForms();
+        forms.Nested["/2"] = nested;
+        Assert.IsFalse(forms.IsEmpty);
+
+        new FormMemory(SettingsPath).Remember("tree.prmt", forms);
+        FileForms recalled = new FormMemory(SettingsPath).Recall("tree.prmt");
+
+        Assert.AreEqual(ContentForm.Hex, recalled.Nested["/2"].Data["/0"]);
+        Assert.AreEqual(ContentForm.Base64, recalled.Nested["/2"].Nested["/0"].MetaData["/1"]);
+        Assert.AreEqual(0, recalled.Data.Count);
+    }
+
+    [TestMethod]
+    public void Clone_IsDeep()
+    {
+        var nested = new FileForms();
+        nested.Data["/0"] = ContentForm.Hex;
+        var forms = new FileForms();
+        forms.Data["/"] = ContentForm.Utf8;
+        forms.MetaData["/0"] = ContentForm.Guid;
+        forms.Nested["/1"] = nested;
+
+        FileForms copy = forms.Clone();
+        nested.Data["/0"] = ContentForm.Base64;
+        forms.Data.Clear();
+
+        Assert.AreEqual(ContentForm.Utf8, copy.Data["/"]);
+        Assert.AreEqual(ContentForm.Guid, copy.MetaData["/0"]);
+        Assert.AreEqual(ContentForm.Hex, copy.Nested["/1"].Data["/0"]);
+    }
+
+    [TestMethod]
+    public void AFileOfAnEarlierVersion_WithoutNestedTrees_IsStillRead()
+    {
+        var old = new OldMemory();
+        old.Files[Path.GetFullPath("tree.prmt")] = new OldFileForms();
+        old.Files[Path.GetFullPath("tree.prmt")].Data["/0"] = ContentForm.Int32;
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        File.WriteAllBytes(SettingsPath, PromptuariumSerializer.Serialize(old, new PromptuariumSerializerOptions { Signature = FormMemory.Signature }));
+
+        FileForms recalled = new FormMemory(SettingsPath).Recall("tree.prmt");
+
+        Assert.AreEqual(ContentForm.Int32, recalled.Data["/0"]);
+        Assert.AreEqual(0, recalled.Nested.Count);
     }
 
     [TestMethod]
@@ -86,5 +141,20 @@ public sealed class FormMemoryTests
         var recalled = new FormMemory(SettingsPath);
         Assert.IsTrue(recalled.Recall("tree0.prmt").IsEmpty);
         Assert.IsFalse(recalled.Recall($"tree{FormMemory.MaxFiles}.prmt").IsEmpty);
+    }
+
+    // The file as 8.2.1 and earlier wrote it
+    private sealed class OldMemory
+    {
+        public Dictionary<string, OldFileForms> Files { get; } = new(StringComparer.Ordinal);
+    }
+
+    private sealed class OldFileForms
+    {
+        public DateTime LastUsed { get; set; }
+
+        public Dictionary<string, ContentForm> Data { get; } = new(StringComparer.Ordinal);
+
+        public Dictionary<string, ContentForm> MetaData { get; } = new(StringComparer.Ordinal);
     }
 }
