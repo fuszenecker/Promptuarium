@@ -61,8 +61,8 @@ public sealed class EditorScenarios
         Assert.IsTrue(treeView.IsKeyboardFocusWithin, editor.Window.FocusManager?.GetFocusedElement()?.ToString() ?? "nothing is focused");
 
         editor.Window.KeyPress(Key.Insert, RawInputModifiers.None, PhysicalKey.Insert, null);
-        editor.Window.KeyPress(Key.Insert, RawInputModifiers.Control, PhysicalKey.Insert, null);
-        editor.Window.KeyPress(Key.Insert, RawInputModifiers.Control, PhysicalKey.Insert, null);
+        editor.Window.KeyPress(Key.Insert, RawInputModifiers.Shift, PhysicalKey.Insert, null);
+        editor.Window.KeyPress(Key.Insert, RawInputModifiers.Shift, PhysicalKey.Insert, null);
         Editor.Pump();
 
         Assert.AreEqual(3, editor.ViewModel.Root.Element.Children.Count, editor.ViewModel.StatusText);

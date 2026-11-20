@@ -45,7 +45,7 @@
       </MenuItem>
       <MenuItem Header="_Node">
         <MenuItem Header="Add _Child" Command="{Binding AddChildCommand}" InputGesture="Insert" />
-        <MenuItem Header="Add _Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Ctrl+Insert" />
+        <MenuItem Header="Add _Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Shift+Insert" />
         <MenuItem Header="_Delete" Command="{Binding DeleteCommand}" InputGesture="Delete" />
         <Separator />
         <MenuItem Header="Move _Up" Command="{Binding MoveUpCommand}" InputGesture="Shift+Up" />
@@ -75,7 +75,7 @@
                   SelectedItem="{Binding SelectedNode}">
           <TreeView.KeyBindings>
             <KeyBinding Gesture="Insert" Command="{Binding AddChildCommand}" />
-            <KeyBinding Gesture="Ctrl+Insert" Command="{Binding AddSiblingCommand}" />
+            <KeyBinding Gesture="Shift+Insert" Command="{Binding AddSiblingCommand}" />
             <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
             <KeyBinding Gesture="Shift+Up" Command="{Binding MoveUpCommand}" />
             <KeyBinding Gesture="Shift+Down" Command="{Binding MoveDownCommand}" />
@@ -89,7 +89,7 @@
           <TreeView.ContextMenu>
             <ContextMenu>
               <MenuItem Header="Add Child" Command="{Binding AddChildCommand}" InputGesture="Insert" />
-              <MenuItem Header="Add Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Ctrl+Insert" />
+              <MenuItem Header="Add Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Shift+Insert" />
               <Separator />
               <MenuItem Header="Cut" Command="{Binding CutCommand}" InputGesture="Ctrl+X" />
               <MenuItem Header="Copy" Command="{Binding CopyCommand}" InputGesture="Ctrl+C" />
