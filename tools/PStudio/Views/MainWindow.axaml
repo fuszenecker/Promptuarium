@@ -48,10 +48,10 @@
         <MenuItem Header="Add _Sibling" Command="{Binding AddSiblingCommand}" InputGesture="Ctrl+Insert" />
         <MenuItem Header="_Delete" Command="{Binding DeleteCommand}" InputGesture="Delete" />
         <Separator />
-        <MenuItem Header="Move _Up" Command="{Binding MoveUpCommand}" InputGesture="Alt+Up" />
-        <MenuItem Header="Move Do_wn" Command="{Binding MoveDownCommand}" InputGesture="Alt+Down" />
-        <MenuItem Header="_Indent" Command="{Binding IndentCommand}" InputGesture="Alt+Right" />
-        <MenuItem Header="_Outdent" Command="{Binding OutdentCommand}" InputGesture="Alt+Left" />
+        <MenuItem Header="Move _Up" Command="{Binding MoveUpCommand}" InputGesture="Shift+Up" />
+        <MenuItem Header="Move Do_wn" Command="{Binding MoveDownCommand}" InputGesture="Shift+Down" />
+        <MenuItem Header="_Indent" Command="{Binding IndentCommand}" InputGesture="Shift+Right" />
+        <MenuItem Header="_Outdent" Command="{Binding OutdentCommand}" InputGesture="Shift+Left" />
         <Separator />
         <MenuItem Header="Open Data as _Nested Tree…" Command="{Binding OpenNestedCommand}" />
       </MenuItem>
@@ -77,10 +77,10 @@
             <KeyBinding Gesture="Insert" Command="{Binding AddChildCommand}" />
             <KeyBinding Gesture="Ctrl+Insert" Command="{Binding AddSiblingCommand}" />
             <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
-            <KeyBinding Gesture="Alt+Up" Command="{Binding MoveUpCommand}" />
-            <KeyBinding Gesture="Alt+Down" Command="{Binding MoveDownCommand}" />
-            <KeyBinding Gesture="Alt+Right" Command="{Binding IndentCommand}" />
-            <KeyBinding Gesture="Alt+Left" Command="{Binding OutdentCommand}" />
+            <KeyBinding Gesture="Shift+Up" Command="{Binding MoveUpCommand}" />
+            <KeyBinding Gesture="Shift+Down" Command="{Binding MoveDownCommand}" />
+            <KeyBinding Gesture="Shift+Right" Command="{Binding IndentCommand}" />
+            <KeyBinding Gesture="Shift+Left" Command="{Binding OutdentCommand}" />
             <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}" />
             <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}" />
             <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteAsChildCommand}" />
@@ -96,10 +96,10 @@
               <MenuItem Header="Paste as Child" Command="{Binding PasteAsChildCommand}" InputGesture="Ctrl+V" />
               <MenuItem Header="Paste After" Command="{Binding PasteAfterCommand}" InputGesture="Ctrl+Shift+V" />
               <Separator />
-              <MenuItem Header="Move Up" Command="{Binding MoveUpCommand}" InputGesture="Alt+Up" />
-              <MenuItem Header="Move Down" Command="{Binding MoveDownCommand}" InputGesture="Alt+Down" />
-              <MenuItem Header="Indent" Command="{Binding IndentCommand}" InputGesture="Alt+Right" />
-              <MenuItem Header="Outdent" Command="{Binding OutdentCommand}" InputGesture="Alt+Left" />
+              <MenuItem Header="Move Up" Command="{Binding MoveUpCommand}" InputGesture="Shift+Up" />
+              <MenuItem Header="Move Down" Command="{Binding MoveDownCommand}" InputGesture="Shift+Down" />
+              <MenuItem Header="Indent" Command="{Binding IndentCommand}" InputGesture="Shift+Right" />
+              <MenuItem Header="Outdent" Command="{Binding OutdentCommand}" InputGesture="Shift+Left" />
               <Separator />
               <MenuItem Header="Open Data as Nested Tree…" Command="{Binding OpenNestedCommand}" />
               <Separator />

@@ -88,8 +88,8 @@ tools/PStudio/packaging/build-rpm.sh [--version 8.1.0] [--runtime linux-x64|linu
 | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S | New, Open, Save, Save As |
 | Insert, Ctrl+Insert | Add a child, add a sibling |
 | Delete | Delete the node |
-| Alt+Up, Alt+Down | Move up, move down |
-| Alt+Right, Alt+Left | Indent, outdent |
+| Shift+Up, Shift+Down | Move up, move down |
+| Shift+Right, Shift+Left | Indent, outdent |
 | Ctrl+X, Ctrl+C | Cut, copy the node |
 | Ctrl+V, Ctrl+Shift+V | Paste as the last child, paste after the node |
 | Ctrl+Enter, Escape (in a content) | Apply, revert the edit |

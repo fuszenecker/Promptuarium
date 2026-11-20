@@ -68,17 +68,17 @@ public sealed class EditorScenarios
         Assert.AreEqual(3, editor.ViewModel.Root.Element.Children.Count, editor.ViewModel.StatusText);
         Assert.AreEqual("/2", editor.ViewModel.SelectedNode!.Path);
 
-        // Alt+Up moves the node, and the tree view keeps it selected
+        // Shift+Up moves the node, and the tree view keeps it selected
         NodeViewModel moved = editor.ViewModel.SelectedNode;
-        editor.Window.KeyPress(Key.Up, RawInputModifiers.Alt, PhysicalKey.ArrowUp, null);
+        editor.Window.KeyPress(Key.Up, RawInputModifiers.Shift, PhysicalKey.ArrowUp, null);
         Editor.Pump();
 
         Assert.AreEqual("/1", moved.Path);
         Assert.AreSame(moved, editor.ViewModel.SelectedNode);
         Assert.AreSame(moved, treeView.SelectedItem);
 
-        // Alt+Right indents it under its previous sibling
-        editor.Window.KeyPress(Key.Right, RawInputModifiers.Alt, PhysicalKey.ArrowRight, null);
+        // Shift+Right indents it under its previous sibling
+        editor.Window.KeyPress(Key.Right, RawInputModifiers.Shift, PhysicalKey.ArrowRight, null);
         Editor.Pump();
 
         Assert.AreEqual("/0/0", moved.Path);
