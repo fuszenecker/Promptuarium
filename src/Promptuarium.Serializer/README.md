@@ -122,7 +122,7 @@ The comment of a property wins over the comment of its type.
 | `[PromptuariumName("sample-rate")]` | the property is stored under another name |
 | `[PromptuariumIgnore]` | the property is neither written nor read |
 | `[PromptuariumComment("In Hz")]` | a comment written with the value (a COMMENT node, [section 5.1](../../SERIALIZER_FORMAT.md#51-comments)): on a property, in its member; on a class or a struct, in its objects (in the root for the root object), unless the property has one; readers ignore it |
-| `[PromptuariumType(PromptuariumType.Float64)]` | **experimental** (`PRMTSER001`): the type the property is stored as; see below |
+| `[PromptuariumType(PromptuariumType.Float64)]` | **experimental** (`PRMTSER001`): the type the property is stored as; `Utf8String` stores the text of an `IParsable` type, also on a class or a struct; see below |
 
 `PromptuariumSerializerOptions`:
 
@@ -138,9 +138,9 @@ The comment of a property wins over the comment of its type.
 
 `PromptuariumType` lists every type code of the specification, the reserved ones (`Int64`, `Float32`, …) too, and
 `[PromptuariumType(...)]` states the type a property is stored as. Writing rejects a value that does not map to it,
-reading rejects a file that has another type (`NULL` is always allowed). For now it can only confirm the type a value
-maps to anyway, and a reserved type is rejected (`NotSupportedException`); it is where e.g. `Int64` instead of
-`Float64` will be chosen once the format supports it. Both types are marked `[Experimental("PRMTSER001")]`, so using
+reading rejects a file that has another type (`NULL` is always allowed). Apart from `Utf8String` (below), it can only
+confirm the type a value maps to anyway, and a reserved type is rejected (`NotSupportedException`); it is where e.g.
+`Int64` instead of `Float64` will be chosen once the format supports it. Both types are marked `[Experimental("PRMTSER001")]`, so using
 them needs an opt-in:
 
 ```csharp
@@ -151,6 +151,36 @@ public sealed class Counter
     public long Value { get; set; }
 }
 ```
+
+#### Text: `Utf8String` on a type that is not a text of its own
+
+`[PromptuariumType(PromptuariumType.Utf8String)]` on a property of a type that is not stored as `UTF8_STRING` anyway
+(e.g. an `IPAddress`, a `BigInteger`, an `int`) stores the text of the value:
+
+* written with `IFormattable.ToString(null, CultureInfo.InvariantCulture)`, or `ToString()`;
+* read with `IParsable<T>.TryParse(text, CultureInfo.InvariantCulture, out ...)`; a text that does not parse is
+  rejected (`InvalidDataException`);
+* the type must implement `IParsable<T>` (`NotSupportedException` otherwise, both when writing and when reading);
+* the text must give back an equal value (`Equals`), or the value is rejected when written (`NotSupportedException`),
+  so a lossy text is never stored; records and the .NET types have such an `Equals`.
+
+On a class or a struct, every value of the type is stored as its text: as a member, and in collections and
+dictionaries too (such a value can not be the root). Only `Utf8String` can be declared on a type.
+
+```csharp
+#pragma warning disable PRMTSER001
+public sealed class Server
+{
+    [PromptuariumType(PromptuariumType.Utf8String)]
+    public IPAddress Address { get; set; } = IPAddress.Loopback;   // "127.0.0.1"
+}
+
+[PromptuariumType(PromptuariumType.Utf8String)]
+public readonly record struct Rgb(byte R, byte G, byte B) : IParsable<Rgb> { /* "#RRGGBB" */ }
+```
+
+For the types that are stored as `UTF8_STRING` anyway (`string`, `char`, enums, the dates, `TimeSpan`, `Guid`) and
+for `object`, `Utf8String` only confirms the type, as before. The file is not different: an ordinary `UTF8_STRING`.
 
 ## Writing
 

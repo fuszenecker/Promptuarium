@@ -111,7 +111,8 @@ public static partial class PromptuariumSerializer
 
     // ---------------------------------------------------------------- holders
 
-    private static object? ReadHolder(Element holder, Type type, object? existing, int depth, PromptuariumSerializerOptions options)
+    // text: the conversion of a property declared as Utf8String (ShapeMember.Text)
+    private static object? ReadHolder(Element holder, Type type, object? existing, int depth, PromptuariumSerializerOptions options, TextConversion? text = null)
     {
         if (depth > options.MaxDepth)
         {
@@ -179,7 +180,8 @@ public static partial class PromptuariumSerializer
                 return FitNumber(number, target);
 
             case CfgFormat.Utf8String:
-                return FitText(DecodeUtf8(ScalarValue(content)), target);
+                string decoded = DecodeUtf8(ScalarValue(content));
+                return text is not null ? text.Parse(decoded) : FitText(decoded, target);
 
             case CfgFormat.Blob:
                 return Fit(ScalarValue(content).ToArray(), target);
@@ -315,7 +317,7 @@ public static partial class PromptuariumSerializer
     // A member of an object: its value, of the type declared with PromptuariumTypeAttribute if there is one
     private static object? ReadMember(Element member, ShapeMember property, Type type, object? existing, int depth, PromptuariumSerializerOptions options)
     {
-        object? value = ReadHolder(member, type, existing, depth + 1, options);
+        object? value = ReadHolder(member, type, existing, depth + 1, options, property.Text);
         byte stored = member.Children[0].Data.Span[0];
 
         if (property.DeclaredType is { } declared && stored != CfgFormat.Null && stored != declared)
@@ -431,7 +433,8 @@ public static partial class PromptuariumSerializer
 
     private static bool IsScalar(Type type)
     {
-        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || ScalarText.Handles(type);
+        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || ScalarText.Handles(type)
+            || TextConversion.ForType(type) is not null;
     }
 
     private static bool AcceptsNull(Type type) => !type.IsValueType || Nullable.GetUnderlyingType(type) is not null;
@@ -513,6 +516,12 @@ public static partial class PromptuariumSerializer
         if (target == typeof(string) || target == typeof(object))
         {
             return text;
+        }
+
+        // A type declared as Utf8String on the type itself
+        if (TextConversion.ForType(target) is { } conversion)
+        {
+            return conversion.Parse(text);
         }
 
         if (ScalarText.Handles(target))

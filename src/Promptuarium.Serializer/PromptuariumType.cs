@@ -79,14 +79,25 @@ public enum PromptuariumType : byte
 /// not map to it; reading requires the file to have this type (or NULL) for the property.
 /// </summary>
 /// <remarks>
-/// Experimental: today it can only state the type the value maps to anyway (an <c>int</c> is a
+/// <para>
+/// Experimental. <see cref="PromptuariumType.Utf8String"/> on a property whose type is not a text of its own (e.g. an
+/// <c>IPAddress</c>, a <c>BigInteger</c>, an <c>int</c>) stores its text: written with
+/// <see cref="IFormattable.ToString(string?, IFormatProvider?)"/> (invariant culture) or <see cref="object.ToString"/>,
+/// read with <see cref="IParsable{TSelf}.TryParse(string?, IFormatProvider?, out TSelf)"/> (invariant culture); the
+/// type must implement <see cref="IParsable{TSelf}"/>, and the text must give back an equal value. On a class or a
+/// struct (only <see cref="PromptuariumType.Utf8String"/>), every value of the type is stored so, in collections and
+/// dictionaries too; such a value can not be the root.
+/// </para>
+/// <para>
+/// Otherwise it can only state the type the value maps to anyway (an <c>int</c> is a
 /// <see cref="PromptuariumType.Float64"/>), and the reserved types are rejected. It is the place where e.g.
 /// <see cref="PromptuariumType.Int64"/> instead of <see cref="PromptuariumType.Float64"/> will be chosen once the
 /// format supports it.
+/// </para>
 /// </remarks>
 /// <param name="type">The type code the property is stored as.</param>
 [Experimental(DiagnosticId)]
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct)]
 public sealed class PromptuariumTypeAttribute(PromptuariumType type) : Attribute
 {
     /// <summary>The diagnostic that a use of the experimental type control reports.</summary>

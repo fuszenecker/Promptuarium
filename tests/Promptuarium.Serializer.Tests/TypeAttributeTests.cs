@@ -1,6 +1,10 @@
 // The type control is experimental: a caller opts in like this
 #pragma warning disable PRMTSER001
 
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Net;
+using System.Numerics;
 using Promptuarium;
 using Promptuarium.Serializer;
 
@@ -89,5 +93,205 @@ public sealed class TypeAttributeTests
 
         Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Declared>(untyped));
         Assert.AreEqual(2.5, PromptuariumSerializer.Deserialize<Declared>(declared).Anything);
+    }
+
+    // ---------------------------------------------------------------- Utf8String: the text of IParsable types
+
+    public sealed class Host
+    {
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public IPAddress? Address { get; set; }
+
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public BigInteger Big { get; set; }
+
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public int Port { get; set; }
+
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public int? Spare { get; set; }
+    }
+
+    /// <summary>Declared as text on the type: stored so everywhere.</summary>
+    [PromptuariumType(PromptuariumType.Utf8String)]
+    public readonly record struct Rgb(byte R, byte G, byte B) : IParsable<Rgb>
+    {
+        public override string ToString() => $"#{R:X2}{G:X2}{B:X2}";
+
+        public static Rgb Parse(string s, IFormatProvider? provider) => TryParse(s, provider, out Rgb result) ? result : throw new FormatException();
+
+        public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out Rgb result)
+        {
+            result = default;
+
+            if (s is not { Length: 7 } || s[0] != '#' || !uint.TryParse(s.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint value))
+            {
+                return false;
+            }
+
+            result = new Rgb((byte)(value >> 16), (byte)(value >> 8), (byte)value);
+            return true;
+        }
+    }
+
+    public sealed class Palette
+    {
+        public Rgb Background { get; set; }
+
+        public Rgb? Accent { get; set; }
+
+        public List<Rgb> Colors { get; set; } = [];
+
+        public Dictionary<string, Rgb> Named { get; set; } = [];
+    }
+
+    /// <summary>Its text loses the second part, so it does not give back the same value.</summary>
+    public sealed record Lossy(int First, int Second) : IParsable<Lossy>
+    {
+        public override string ToString() => First.ToString(CultureInfo.InvariantCulture);
+
+        public static Lossy Parse(string s, IFormatProvider? provider) => new(int.Parse(s, provider), 0);
+
+        public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Lossy result)
+        {
+            result = int.TryParse(s, provider, out int first) ? new Lossy(first, 0) : null;
+            return result is not null;
+        }
+    }
+
+    public sealed class WithLossy
+    {
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public Lossy? Value { get; set; }
+    }
+
+    public sealed class NotParsable
+    {
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public List<string> Names { get; set; } = [];
+    }
+
+    [PromptuariumType(PromptuariumType.Float64)]
+    public sealed class DeclaredAsNumber
+    {
+        public int Value { get; set; }
+    }
+
+    public sealed class HoldsDeclaredAsNumber
+    {
+        public DeclaredAsNumber Inner { get; set; } = new();
+    }
+
+    private static string StoredText(Element root, string name)
+    {
+        Element holder = root.Children.Single(child => child.Data.AsUtf8String() == name);
+
+        Assert.AreEqual(0x80, holder.Children[0].Data.Span[0], "the type of " + name);
+        return holder.Children[1].Data.AsUtf8String();
+    }
+
+    [TestMethod]
+    public void Utf8String_OnAParsableProperty_StoresItsText()
+    {
+        var host = new Host { Address = IPAddress.Parse("192.168.0.1"), Big = BigInteger.Pow(10, 30), Port = 8443 };
+
+        Element root = PromptuariumSerializer.ToElement(host);
+
+        Assert.AreEqual("192.168.0.1", StoredText(root, "Address"));
+        Assert.AreEqual("1000000000000000000000000000000", StoredText(root, "Big"));
+        Assert.AreEqual("8443", StoredText(root, "Port"));
+        Assert.AreEqual(0x00, root.Children.Single(child => child.Data.AsUtf8String() == "Spare").Children[0].Data.Span[0]);
+    }
+
+    [TestMethod]
+    [DataRow("192.168.0.1")]
+    [DataRow("2001:db8::1")]
+    [DataRow("fe80::1%3")]
+    [DataRow("::ffff:192.168.0.1")]
+    public void Utf8String_OnAParsableProperty_RoundTrips(string address)
+    {
+        var host = new Host { Address = IPAddress.Parse(address), Big = BigInteger.Parse("-123456789012345678901234567890", CultureInfo.InvariantCulture), Port = 1, Spare = 2 };
+
+        Host copy = PromptuariumSerializer.Deserialize<Host>(PromptuariumSerializer.Serialize(host));
+
+        Assert.AreEqual(host.Address, copy.Address);
+        Assert.AreEqual(host.Big, copy.Big);
+        Assert.AreEqual(1, copy.Port);
+        Assert.AreEqual(2, copy.Spare);
+    }
+
+    [TestMethod]
+    public void Utf8String_OnAParsableProperty_NullIsNull()
+    {
+        Host copy = PromptuariumSerializer.Deserialize<Host>(PromptuariumSerializer.Serialize(new Host()));
+
+        Assert.IsNull(copy.Address);
+        Assert.IsNull(copy.Spare);
+    }
+
+    [TestMethod]
+    public void Utf8String_InvalidTextInTheFile_IsRejectedWhenReading()
+    {
+        Element root = Nodes.Root(Nodes.Member("Address", 0x80, Data.FromUtf8String("not an address")));
+
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Host>(root));
+    }
+
+    [TestMethod]
+    public void Utf8String_OtherTypeInTheFile_IsRejectedWhenReading()
+    {
+        Element root = Nodes.Root(Nodes.Member("Port", 0x63, Data.FromDouble(8443)));
+
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Host>(root));
+    }
+
+    [TestMethod]
+    public void Utf8String_TextThatDoesNotGiveTheValueBack_IsRejectedWhenWriting()
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new WithLossy { Value = new Lossy(1, 2) }));
+        Assert.AreEqual(new Lossy(1, 0), PromptuariumSerializer.Deserialize<WithLossy>(PromptuariumSerializer.Serialize(new WithLossy { Value = new Lossy(1, 0) })).Value);
+    }
+
+    [TestMethod]
+    public void Utf8String_OnATypeThatIsNotParsable_IsRejected()
+    {
+        byte[] bytes = PromptuariumSerializer.Serialize(new Dictionary<string, object> { ["Names"] = new List<string> { "a" } });
+
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new NotParsable()));
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Deserialize<NotParsable>(bytes));
+    }
+
+    [TestMethod]
+    public void Utf8String_OnAType_StoresItsValuesAsTextEverywhere()
+    {
+        var palette = new Palette
+        {
+            Background = new Rgb(0x10, 0x20, 0x30),
+            Accent = new Rgb(0xFF, 0x80, 0x00),
+            Colors = [new Rgb(1, 2, 3), new Rgb(4, 5, 6)],
+            Named = new() { ["red"] = new Rgb(0xFF, 0, 0) },
+        };
+
+        Element root = PromptuariumSerializer.ToElement(palette);
+        Palette copy = PromptuariumSerializer.Deserialize<Palette>(root);
+
+        Assert.AreEqual("#102030", StoredText(root, "Background"));
+        Assert.AreEqual("#FF8000", StoredText(root, "Accent"));
+        Assert.AreEqual(palette.Background, copy.Background);
+        Assert.AreEqual(palette.Accent, copy.Accent);
+        CollectionAssert.AreEqual(palette.Colors, copy.Colors);
+        Assert.AreEqual(new Rgb(0xFF, 0, 0), copy.Named["red"]);
+    }
+
+    [TestMethod]
+    public void Utf8String_OnAType_CanNotBeTheRoot()
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Rgb(1, 2, 3)));
+    }
+
+    [TestMethod]
+    public void OtherTypeThanUtf8String_OnAType_IsRejected()
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new HoldsDeclaredAsNumber()));
     }
 }

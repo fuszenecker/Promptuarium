@@ -5,10 +5,10 @@ namespace Promptuarium.Serializer;
 
 /// <summary>
 /// A property as the serializer sees it: its name in the file, the type code it is declared to be stored as (from
-/// <see cref="PromptuariumTypeAttribute"/>), its comment (<see cref="PromptuariumCommentAttribute"/>) and whether it
-/// can be set.
+/// <see cref="PromptuariumTypeAttribute"/>), its comment (<see cref="PromptuariumCommentAttribute"/>), the conversion
+/// to text if it is declared as Utf8String but is not a text of its own, and whether it can be set.
 /// </summary>
-internal sealed record ShapeMember(string Name, PropertyInfo Property, byte? DeclaredType, string? Comment)
+internal sealed record ShapeMember(string Name, PropertyInfo Property, byte? DeclaredType, string? Comment, TextConversion? Text)
 {
     public bool CanSet => Property.SetMethod is { IsPublic: true };
 }
@@ -27,11 +27,13 @@ internal sealed class TypeShape
         Members = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(property => property.GetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0)
             .Where(property => property.GetCustomAttribute<PromptuariumIgnoreAttribute>() is null)
-            .Select(property => new ShapeMember(
-                property.GetCustomAttribute<PromptuariumNameAttribute>()?.Name ?? property.Name,
-                property,
-                (byte?)property.GetCustomAttribute<PromptuariumTypeAttribute>()?.Type,
-                property.GetCustomAttribute<PromptuariumCommentAttribute>()?.Text))
+            .Select(property => (Property: property, Declared: property.GetCustomAttribute<PromptuariumTypeAttribute>()?.Type))
+            .Select(pair => new ShapeMember(
+                pair.Property.GetCustomAttribute<PromptuariumNameAttribute>()?.Name ?? pair.Property.Name,
+                pair.Property,
+                (byte?)pair.Declared,
+                pair.Property.GetCustomAttribute<PromptuariumCommentAttribute>()?.Text,
+                pair.Declared == PromptuariumType.Utf8String ? TextConversion.ForProperty(pair.Property) : null))
             .ToList();
 
         // Several names that differ only in case: the first one is found when reading
