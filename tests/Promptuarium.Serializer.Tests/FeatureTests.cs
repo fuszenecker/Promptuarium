@@ -288,6 +288,70 @@ public sealed class FeatureTests
     }
 
     [TestMethod]
+    [DataRow((1L << 53) + 1)]
+    [DataRow(-(1L << 53) - 1)]
+    [DataRow(long.MaxValue)]
+    [DataRow(long.MinValue + 1)]
+    public void Serialize_LongNotHeldByAFloat64_IsRejected(long value)
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Dictionary<string, object> { ["key"] = value }));
+    }
+
+    [TestMethod]
+    [DataRow((1UL << 53) + 1)]
+    [DataRow(ulong.MaxValue)]
+    public void Serialize_ULongNotHeldByAFloat64_IsRejected(ulong value)
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Dictionary<string, object> { ["key"] = value }));
+    }
+
+    [TestMethod]
+    [DataRow("12345678901234567.25")]
+    [DataRow("0.1234567890123456789")]
+    [DataRow("79228162514264337593543950335")]
+    public void Serialize_DecimalNotHeldByAFloat64_IsRejected(string text)
+    {
+        decimal value = decimal.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Dictionary<string, object> { ["key"] = value }));
+    }
+
+    [TestMethod]
+    [DataRow(1L << 53)]
+    [DataRow(-(1L << 53))]
+    [DataRow(1L << 62)]
+    [DataRow(long.MinValue)]
+    public void Serialize_LongHeldByAFloat64_RoundTrips(long value)
+    {
+        byte[] bytes = PromptuariumSerializer.Serialize(new Dictionary<string, long> { ["key"] = value });
+
+        Assert.AreEqual(value, PromptuariumSerializer.Deserialize<Dictionary<string, long>>(bytes)["key"]);
+    }
+
+    [TestMethod]
+    [DataRow(1UL << 63)]
+    [DataRow(1UL << 53)]
+    public void Serialize_ULongHeldByAFloat64_RoundTrips(ulong value)
+    {
+        byte[] bytes = PromptuariumSerializer.Serialize(new Dictionary<string, ulong> { ["key"] = value });
+
+        Assert.AreEqual(value, PromptuariumSerializer.Deserialize<Dictionary<string, ulong>>(bytes)["key"]);
+    }
+
+    [TestMethod]
+    [DataRow("0.1")]
+    [DataRow("12.75")]
+    [DataRow("-123456789.123456")]
+    [DataRow("123456789012345")]
+    public void Serialize_DecimalHeldByAFloat64_RoundTrips(string text)
+    {
+        decimal value = decimal.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+        byte[] bytes = PromptuariumSerializer.Serialize(new Dictionary<string, decimal> { ["key"] = value });
+
+        Assert.AreEqual(value, PromptuariumSerializer.Deserialize<Dictionary<string, decimal>>(bytes)["key"]);
+    }
+
+    [TestMethod]
     public void Serialize_DictionaryWithNonStringKeys_IsRejected()
     {
         Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Dictionary<int, string> { [1] = "one" }));

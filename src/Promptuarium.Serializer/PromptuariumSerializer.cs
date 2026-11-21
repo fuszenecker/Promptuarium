@@ -24,7 +24,7 @@ namespace Promptuarium.Serializer;
 /// </summary>
 /// <remarks>
 /// Writing throws <see cref="NotSupportedException"/> for a value that can not be stored (an unsupported type, a
-/// non-finite number, nesting deeper than <see cref="PromptuariumSerializerOptions.MaxDepth"/>). Reading throws
+/// non-finite number, a number that a FLOAT64 does not hold exactly, nesting deeper than <see cref="PromptuariumSerializerOptions.MaxDepth"/>). Reading throws
 /// <see cref="InvalidDataException"/> for a file that is not valid, or does not fit the requested type.
 /// </remarks>
 public static partial class PromptuariumSerializer
@@ -170,10 +170,45 @@ public static partial class PromptuariumSerializer
         }
     }
 
+    // A FLOAT64 that gives the value back exactly when it is read: a long or a ulong beyond 2^53, or a decimal with more
+    // digits than a double holds, would come back changed (or not at all), so it is rejected instead of stored
     private static double FiniteNumber(object value)
     {
         double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
-        return double.IsFinite(number) ? number : throw new NotSupportedException("NaN and infinity can not be stored.");
+
+        if (!double.IsFinite(number))
+        {
+            throw new NotSupportedException("NaN and infinity can not be stored.");
+        }
+
+        bool exact = value switch
+        {
+            long integer => number < TwoTo63 && (long)number == integer,
+            ulong integer => number < TwoTo64 && (ulong)number == integer,
+            decimal fraction => ReadsBackAs(number, fraction),
+            _ => true,
+        };
+
+        return exact
+            ? number
+            : throw new NotSupportedException($"The {value.GetType().Name} {Convert.ToString(value, CultureInfo.InvariantCulture)} can not be stored exactly: version 1 of the format has FLOAT64 numbers only.");
+    }
+
+    private const double TwoTo63 = 9223372036854775808.0;
+
+    private const double TwoTo64 = 18446744073709551616.0;
+
+    // The reader converts a FLOAT64 into a decimal with Convert.ToDecimal (15 significant digits)
+    private static bool ReadsBackAs(double number, decimal fraction)
+    {
+        try
+        {
+            return Convert.ToDecimal(number, CultureInfo.InvariantCulture) == fraction;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
     }
 
     // The members of an OBJECT, or null when the value is an ARRAY

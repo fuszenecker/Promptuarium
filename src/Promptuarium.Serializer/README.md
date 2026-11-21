@@ -29,7 +29,7 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 | .NET | Stored as |
 |------|-----------|
 | `bool` | `BOOLEAN` |
-| `sbyte` … `ulong`, `float`, `double`, `decimal` | `FLOAT64` (an integer read back must be whole and in range) |
+| `sbyte` … `ulong`, `float`, `double`, `decimal` | `FLOAT64` (a `long`, `ulong` or `decimal` only if a double holds it exactly; an integer read back must be whole and in range) |
 | `string`, `char` | `UTF8_STRING` |
 | enums | `UTF8_STRING`, the name (`"Read, Write"` for flags); read from a name in any case, or a number |
 | `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly` | `UTF8_STRING`, round-trip text (`"O"`), the kind and the offset kept |
@@ -155,6 +155,8 @@ public sealed class Counter
 ## Writing
 
 `NotSupportedException` for what can not be stored: a scalar or a collection as the root, `NaN` and infinity,
+a number that would not come back exactly (a `long` or a `ulong` that a double does not hold, e.g. 2⁵³ + 1 or
+`long.MaxValue`; a `decimal` with more digits than 15),
 dictionaries with keys other than strings, number types without a mapping (`Int128`, `Half`, `nint`, …), nesting
 deeper than `MaxDepth` (a cycle), a value that does not fit its declared `PromptuariumType`.
 
