@@ -45,7 +45,7 @@ public static partial class PromptuariumSerializer
         ArgumentNullException.ThrowIfNull(value);
         options ??= PromptuariumSerializerOptions.Default;
 
-        IEnumerable<(string Name, object? Value, byte? Declared, string? Comment, TextConversion? Text)>? members = TryScalar(value, out _, out _) || TextConversion.ForType(value.GetType()) is not null
+        IEnumerable<(string Name, object? Value, byte? Declared, string? Comment, TextConversion? Text)>? members = TryScalar(value, out _, out _) || options.TextForType(value.GetType()) is not null
             ? null
             : MembersOf(value, options);
 
@@ -117,8 +117,8 @@ public static partial class PromptuariumSerializer
             return holder.Add(TypeNode(type), ValueNode(content));
         }
 
-        // A type declared as Utf8String on the type itself
-        if (TextConversion.ForType(value.GetType()) is { } text)
+        // A type registered as text in the options, or declared as Utf8String on the type itself
+        if (options.TextForType(value.GetType()) is { } text)
         {
             return TextHolder(tag, name, text, value);
         }
@@ -240,7 +240,7 @@ public static partial class PromptuariumSerializer
             return null;
         }
 
-        return TypeShape.Of(value.GetType(), options).Members.Select(member => (member.Name, member.Property.GetValue(value), member.DeclaredType, member.Comment, member.Text));
+        return TypeShape.Of(value.GetType(), options).Members.Select(member => (member.Name, member.Property.GetValue(value), member.DeclaredType, member.Comment, member.Text(options)));
     }
 
     // IDictionary's own enumerator: the generic one of a Dictionary<,> yields KeyValuePairs, not DictionaryEntries

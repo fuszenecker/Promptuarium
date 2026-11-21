@@ -5,12 +5,19 @@ namespace Promptuarium.Serializer;
 
 /// <summary>
 /// A property as the serializer sees it: its name in the file, the type code it is declared to be stored as (from
-/// <see cref="PromptuariumTypeAttribute"/>), its comment (<see cref="PromptuariumCommentAttribute"/>), the conversion
-/// to text if it is declared as Utf8String but is not a text of its own, and whether it can be set.
+/// <see cref="PromptuariumTypeAttribute"/>), its comment (<see cref="PromptuariumCommentAttribute"/>), whether it is
+/// declared as Utf8String but is not a text of its own (so it is stored by the text of its type, see
+/// <see cref="PromptuariumSerializerOptions.TextForProperty"/>), and whether it can be set.
 /// </summary>
-internal sealed record ShapeMember(string Name, PropertyInfo Property, byte? DeclaredType, string? Comment, TextConversion? Text)
+internal sealed record ShapeMember(string Name, PropertyInfo Property, byte? DeclaredType, string? Comment, bool DeclaredText)
 {
     public bool CanSet => Property.SetMethod is { IsPublic: true };
+
+    /// <summary>The type of the property, without <see cref="Nullable{T}"/>.</summary>
+    public Type ValueType => Nullable.GetUnderlyingType(Property.PropertyType) ?? Property.PropertyType;
+
+    /// <summary>The conversion to text of a member declared as Utf8String (<see cref="DeclaredText"/>), or null.</summary>
+    public TextConversion? Text(PromptuariumSerializerOptions options) => DeclaredText ? options.TextForProperty(this) : null;
 }
 
 /// <summary>
@@ -33,7 +40,8 @@ internal sealed class TypeShape
                 pair.Property,
                 (byte?)pair.Declared,
                 pair.Property.GetCustomAttribute<PromptuariumCommentAttribute>()?.Text,
-                pair.Declared == PromptuariumType.Utf8String ? TextConversion.ForProperty(pair.Property) : null))
+                pair.Declared == PromptuariumType.Utf8String
+                    && !TextConversion.IsTextOfItsOwn(Nullable.GetUnderlyingType(pair.Property.PropertyType) ?? pair.Property.PropertyType)))
             .ToList();
 
         // Several names that differ only in case: the first one is found when reading

@@ -181,7 +181,7 @@ public static partial class PromptuariumSerializer
 
             case CfgFormat.Utf8String:
                 string decoded = DecodeUtf8(ScalarValue(content));
-                return text is not null ? text.Parse(decoded) : FitText(decoded, target);
+                return text is not null ? text.Parse(decoded) : FitText(decoded, target, options);
 
             case CfgFormat.Blob:
                 return Fit(ScalarValue(content).ToArray(), target);
@@ -200,7 +200,7 @@ public static partial class PromptuariumSerializer
             type = typeof(Dictionary<string, object?>);
         }
 
-        if (IsScalar(type) || (typeof(IEnumerable).IsAssignableFrom(type) && DictionaryType(type) is null))
+        if (IsScalar(type, options) || (typeof(IEnumerable).IsAssignableFrom(type) && DictionaryType(type) is null))
         {
             throw new InvalidDataException($"An OBJECT does not fit a {type.Name}.");
         }
@@ -317,7 +317,7 @@ public static partial class PromptuariumSerializer
     // A member of an object: its value, of the type declared with PromptuariumTypeAttribute if there is one
     private static object? ReadMember(Element member, ShapeMember property, Type type, object? existing, int depth, PromptuariumSerializerOptions options)
     {
-        object? value = ReadHolder(member, type, existing, depth + 1, options, property.Text);
+        object? value = ReadHolder(member, type, existing, depth + 1, options, property.Text(options));
         byte stored = member.Children[0].Data.Span[0];
 
         if (property.DeclaredType is { } declared && stored != CfgFormat.Null && stored != declared)
@@ -332,7 +332,7 @@ public static partial class PromptuariumSerializer
 
     private static object ReadArray(List<Element> items, Type type, int depth, PromptuariumSerializerOptions options)
     {
-        if (IsScalar(type) || DictionaryType(type) is not null || (type != typeof(object) && !typeof(IEnumerable).IsAssignableFrom(type)))
+        if (IsScalar(type, options) || DictionaryType(type) is not null || (type != typeof(object) && !typeof(IEnumerable).IsAssignableFrom(type)))
         {
             throw new InvalidDataException($"An ARRAY does not fit a {type.Name}.");
         }
@@ -431,10 +431,10 @@ public static partial class PromptuariumSerializer
             : Array.Find(type.GetInterfaces(), candidate => candidate.IsGenericType && candidate.GetGenericTypeDefinition() == definition);
     }
 
-    private static bool IsScalar(Type type)
+    private static bool IsScalar(Type type, PromptuariumSerializerOptions options)
     {
         return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || ScalarText.Handles(type)
-            || TextConversion.ForType(type) is not null;
+            || options.TextForType(type) is not null;
     }
 
     private static bool AcceptsNull(Type type) => !type.IsValueType || Nullable.GetUnderlyingType(type) is not null;
@@ -511,15 +511,15 @@ public static partial class PromptuariumSerializer
         }
     }
 
-    private static object FitText(string text, Type target)
+    private static object FitText(string text, Type target, PromptuariumSerializerOptions options)
     {
         if (target == typeof(string) || target == typeof(object))
         {
             return text;
         }
 
-        // A type declared as Utf8String on the type itself
-        if (TextConversion.ForType(target) is { } conversion)
+        // A type registered as text in the options, or declared as Utf8String on the type itself
+        if (options.TextForType(target) is { } conversion)
         {
             return conversion.Parse(text);
         }

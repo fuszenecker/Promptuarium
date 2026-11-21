@@ -294,4 +294,116 @@ public sealed class TypeAttributeTests
     {
         Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new HoldsDeclaredAsNumber()));
     }
+
+    // ---------------------------------------------------------------- AddTextType: text types of the options
+
+    public sealed class Release
+    {
+        public Version? Version { get; set; }
+
+        public Uri? Home { get; set; }
+
+        public List<Version> History { get; set; } = [];
+
+        public Dictionary<string, Uri> Links { get; set; } = [];
+
+        [PromptuariumType(PromptuariumType.Utf8String)]
+        public Version? Declared { get; set; }
+    }
+
+    private static PromptuariumSerializerOptions ReleaseOptions() => new PromptuariumSerializerOptions()
+        .AddTextType<Version>(version => version.ToString(), Version.Parse)
+        .AddTextType<Uri>(uri => uri.OriginalString, text => new Uri(text, UriKind.RelativeOrAbsolute));
+
+    [TestMethod]
+    public void AddTextType_StoresTheTypeAsTextEverywhere()
+    {
+        var release = new Release
+        {
+            Version = new Version(8, 2, 2),
+            Home = new Uri("https://example.com/promptuarium"),
+            History = [new Version(8, 0), new Version(8, 1, 0, 3)],
+            Links = new() { ["docs"] = new Uri("docs/README.md", UriKind.Relative) },
+            Declared = new Version(1, 0),
+        };
+        PromptuariumSerializerOptions options = ReleaseOptions();
+
+        Element root = PromptuariumSerializer.ToElement(release, options);
+        Release copy = PromptuariumSerializer.Deserialize<Release>(root, options);
+
+        Assert.AreEqual("8.2.2", StoredText(root, "Version"));
+        Assert.AreEqual("https://example.com/promptuarium", StoredText(root, "Home"));
+        Assert.AreEqual("1.0", StoredText(root, "Declared"));
+        Assert.AreEqual(release.Version, copy.Version);
+        Assert.AreEqual(release.Home, copy.Home);
+        CollectionAssert.AreEqual(release.History, copy.History);
+        Assert.AreEqual(release.Links["docs"], copy.Links["docs"]);
+        Assert.AreEqual(release.Declared, copy.Declared);
+    }
+
+    [TestMethod]
+    public void AddTextType_TextThatDoesNotParse_IsRejectedWhenReading()
+    {
+        Element root = Nodes.Root(Nodes.Member("Version", 0x80, Data.FromUtf8String("not a version")));
+
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Release>(root, ReleaseOptions()));
+    }
+
+    [TestMethod]
+    public void AddTextType_TextThatDoesNotGiveTheValueBack_IsRejectedWhenWriting()
+    {
+        PromptuariumSerializerOptions options = new PromptuariumSerializerOptions()
+            .AddTextType<Version>(version => version.ToString(2), Version.Parse);
+
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Release { Version = new Version(8, 2, 2) }, options));
+    }
+
+    [TestMethod]
+    public void AddTextType_WinsOverTheDeclarationOnTheType()
+    {
+        PromptuariumSerializerOptions options = new PromptuariumSerializerOptions()
+            .AddTextType<Rgb>(rgb => $"{rgb.R},{rgb.G},{rgb.B}", text => text.Split(',') is [var r, var g, var b]
+                ? new Rgb(byte.Parse(r, CultureInfo.InvariantCulture), byte.Parse(g, CultureInfo.InvariantCulture), byte.Parse(b, CultureInfo.InvariantCulture))
+                : throw new FormatException());
+
+        Element root = PromptuariumSerializer.ToElement(new Palette { Background = new Rgb(1, 2, 3) }, options);
+
+        Assert.AreEqual("1,2,3", StoredText(root, "Background"));
+        Assert.AreEqual(new Rgb(1, 2, 3), PromptuariumSerializer.Deserialize<Palette>(root, options).Background);
+    }
+
+    [TestMethod]
+    public void AddTextType_TypesStoredAnyway_AreRejected()
+    {
+        var options = new PromptuariumSerializerOptions();
+
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddTextType<int>(value => "", int.Parse));
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddTextType<string>(value => value, text => text));
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddTextType<DateTime?>(value => "", text => null));
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddTextType<byte[]>(value => "", text => []));
+    }
+
+    [TestMethod]
+    public void AddTextType_SameTypeTwice_IsRejected()
+    {
+        PromptuariumSerializerOptions options = ReleaseOptions();
+
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddTextType<Version>(version => version.ToString(), Version.Parse));
+    }
+
+    [TestMethod]
+    public void AddTextType_OnTheDefaultOrOnUsedOptions_IsRejected()
+    {
+        PromptuariumSerializerOptions options = ReleaseOptions();
+        PromptuariumSerializer.Serialize(new Release(), options);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => PromptuariumSerializerOptions.Default.AddTextType<Version>(version => version.ToString(), Version.Parse));
+        Assert.ThrowsExactly<InvalidOperationException>(() => options.AddTextType<IPAddress>(address => address.ToString(), IPAddress.Parse));
+    }
+
+    [TestMethod]
+    public void Utf8String_OnAPropertyOfATypeThatIsNotParsable_NeedsAddTextType()
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Release { Declared = new Version(1, 0) }));
+    }
 }

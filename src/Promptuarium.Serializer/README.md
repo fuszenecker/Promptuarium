@@ -133,6 +133,7 @@ The comment of a property wins over the comment of its type.
 | `PropertyNameCaseInsensitive` | `true` | |
 | `MaxDepth` | `64` | the deepest nesting written or read; it stops cycles, too |
 | `LoadOptions` | 16 MiB, 1 000 000 nodes | the limits of loading; `null` for none |
+| `AddTextType<T>(format, parse)` | | stores every `T` as its text (see [Text types](#text-types-addtexttype)) |
 
 ### The experimental type control
 
@@ -160,7 +161,8 @@ public sealed class Counter
 * written with `IFormattable.ToString(null, CultureInfo.InvariantCulture)`, or `ToString()`;
 * read with `IParsable<T>.TryParse(text, CultureInfo.InvariantCulture, out ...)`; a text that does not parse is
   rejected (`InvalidDataException`);
-* the type must implement `IParsable<T>` (`NotSupportedException` otherwise, both when writing and when reading);
+* the type must implement `IParsable<T>`, or be registered with `AddTextType` (`NotSupportedException` otherwise,
+  both when writing and when reading);
 * the text must give back an equal value (`Equals`), or the value is rejected when written (`NotSupportedException`),
   so a lossy text is never stored; records and the .NET types have such an `Equals`.
 
@@ -181,6 +183,25 @@ public readonly record struct Rgb(byte R, byte G, byte B) : IParsable<Rgb> { /* 
 
 For the types that are stored as `UTF8_STRING` anyway (`string`, `char`, enums, the dates, `TimeSpan`, `Guid`) and
 for `object`, `Utf8String` only confirms the type, as before. The file is not different: an ordinary `UTF8_STRING`.
+
+#### Text types: `AddTextType`
+
+A type that implements no `IParsable<T>` (e.g. `Version`, `Uri`), or that is not the application's own (so no
+attribute can be put on it), is registered in the options with its own format and parse:
+
+```csharp
+var options = new PromptuariumSerializerOptions()
+    .AddTextType<Version>(version => version.ToString(), Version.Parse)
+    .AddTextType<Uri>(uri => uri.OriginalString, text => new Uri(text, UriKind.RelativeOrAbsolute));
+```
+
+Every value of a registered type is stored as its text (`UTF8_STRING`), as a member and in collections and
+dictionaries too, without an attribute; a registration wins over a `[PromptuariumType(Utf8String)]` on the type, and
+serves a property declared as `Utf8String`, too. The rules are the ones above: the text must give back an equal value
+when written, a text that `parse` does not take (a `FormatException`, `ArgumentException` or `OverflowException`, or
+null) is rejected when read. The types that are stored anyway (numbers, `bool`, strings, chars, enums, the dates,
+`TimeSpan`, `Guid`, `byte[]`, `object`) can not be registered. The options are set up before they are used: neither
+`PromptuariumSerializerOptions.Default` nor options already used can be changed (`InvalidOperationException`).
 
 ## Writing
 
