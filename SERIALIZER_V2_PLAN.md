@@ -14,7 +14,7 @@ decided parts move to SERIALIZER_FORMAT.md and this document is removed.
 6. [Decimal](#6-decimal)
 7. [Identifiers: UUID](#7-identifiers-uuid)
 8. [Dates and times](#8-dates-and-times)
-9. [Reading and writing rules](#9-reading-and-writing-rules)
+9. [Versions, reading and writing](#9-versions-reading-and-writing)
 10. [The rest of the ecosystem](#10-the-rest-of-the-ecosystem)
 11. [Order of the work](#11-order-of-the-work)
 12. [Open questions](#12-open-questions)
@@ -39,9 +39,11 @@ Version 2 gives every one of them a type of its own, exactly (every value comes 
 |---|---|
 | Signature | `PRMT:GEN2-LE` and `PRMT:CFG2-LE`: a reader of version 1 must reject the new type codes, and a later version of the layout should change the signature (SERIALIZER_FORMAT.md, 2) |
 | Readers | read both versions; a version 1 file is read as today |
-| Writers | write version 1 or version 2 (an option, e.g. `FormatVersion`); the default is an [open question](#12-open-questions) |
+| Writers | write **version 2**, there is no option for version 1. A property is written in the form of version 1 with `[PromptuariumType]` (e.g. `Float64` on an `int`, `Utf8String` on a `Guid`), or by a type of version 1 (a `double`, a `string`); see [9](#9-versions-reading-and-writing) |
 | The type of a value | follows the .NET type, not the value: an `int` is always `INT32`, even if it is 5. A type tells what the value is; choosing the smallest code that holds the value would save a few bytes, but lose that |
-| NaN and ±Infinity | **allowed** in version 2 (`FLOAT16`, `FLOAT32`, `FLOAT64`), so every value comes back, `-0.0` too; exporting to JSON, which has no such numbers, has to decide what to do with them (see [10](#10-the-rest-of-the-ecosystem)) |
+| NaN and ±Infinity | **allowed** in version 2 (`FLOAT16`, `FLOAT32`, `FLOAT64`), so every value comes back, `-0.0` too; exported to JSON, they are the strings `"NaN"`, `"Infinity"`, `"-Infinity"` (see [10](#10-the-rest-of-the-ecosystem)) |
+| `decimal` | `DECIMAL`, the **canonical text** of the number with a type of its own (not a binary form), see [6](#6-decimal) |
+| JSON import (pcfg) | every number stays `FLOAT64`: a JSON number has no type of its own |
 | Dates and times | **all of them** get a type: `DATE`, `TIME`, `DATETIME`, `TIMESTAMP`, `DURATION` |
 | `BigInteger` | not now (it may get a type later) |
 | `Version`, `Uri`, `IPAddress`, `IPNetwork` | stay text (their text is their natural form) |
@@ -59,14 +61,14 @@ bytes). Version 2 keeps the pattern, and gives every new kind of value a family 
 | `0x4_` | signed integers, 2^n bytes | `INT8` 0x40 ... `INT128` 0x44 |
 | `0x5_` | unsigned integers, 2^n bytes | `UINT8` 0x50 ... `UINT128` 0x54 |
 | `0x6_` | binary floating point (IEEE 754), 2^n bytes | `FLOAT16` 0x61, `FLOAT32` 0x62, `FLOAT64` 0x63 |
-| `0x7_` | **new:** decimal numbers, 2^n bytes | `DECIMAL128` 0x74 |
+| `0x7_` | **new:** decimal numbers | `DECIMAL` 0x70 (canonical text) |
 | `0x8_` | text | `UTF8_STRING` 0x80 |
 | `0x9_` | **new:** identifiers | `UUID` 0x90 |
 | `0xD_` | **new:** dates and times | `DATE` 0xD0, `TIME` 0xD1, `DATETIME` 0xD2, `TIMESTAMP` 0xD3, `DURATION` 0xD4 |
 | `0xF_` | raw bytes | `BLOB` 0xF0 |
 
-* The decimal numbers follow the size rule of the number families: 16 bytes, so 0x74 (and 0x73 would be a 64-bit
-  decimal, if it is ever needed).
+* The decimal numbers are a family of their own, but its values are text, so the size rule of the binary number
+  families does not apply to it.
 * The identifiers are a family of their own, so that others (e.g. a ULID) can follow the UUID without mixing with
   other kinds.
 * The dates and times are `0xD_` (*D* for date), in the order of their content: a day, a time of a day, both, both
@@ -111,22 +113,24 @@ point formats.
 
 | Type | Code | Value | .NET |
 |------|------|-------|------|
-| `DECIMAL128` | 0x74 | 16 bytes, see below | `decimal` |
+| `DECIMAL` | 0x70 | UTF-8 text, the canonical form of the number (below) | `decimal` |
 
-The value is the number `(-1)^sign × coefficient × 10^-scale`:
+The canonical form:
 
-| Bytes | Content |
-|-------|---------|
-| 0–11 | the coefficient, a 96-bit unsigned integer, little-endian |
-| 12 | the scale, 0 to 28 |
-| 13 | the sign: 0x00 = positive, 0x01 = negative |
-| 14–15 | 0x00 0x00 (reserved) |
+* an optional `-`, the integer part, and an optional `.` followed by the fraction: `-?(0|[1-9][0-9]*)(\.[0-9]+)?`;
+* no `+`, no exponent, no group separators, no leading zeros (except the single `0` of the integer part), no spaces;
+* the trailing zeros of the fraction are kept: they are the scale, `12.750` is not `12.75`;
+* a zero has no sign (`0`, `0.00`; never `-0`).
 
-* This is the content of a .NET `decimal` (the scale is kept: `12.750` stays `12.750`), in a layout that is simple to
-  read in any language (a big integer and a power of ten); IEEE 754 decimal128 would be standard, but much more
-  complex to encode and decode.
-* A reader rejects a scale above 28, a sign other than 0 or 1, and reserved bytes that are not zero. A negative zero
-  is allowed (a `decimal` has one).
+Rules:
+
+* A reader rejects a text that is not in the canonical form.
+* The format has no limit of digits; a reader that can not hold the value exactly rejects it. .NET holds 28–29
+  significant digits and a scale up to 28: `decimal.ToString(CultureInfo.InvariantCulture)` writes the canonical form,
+  and a reader parses the text and requires the value to give the same text back (`decimal.Parse` would round the
+  digits it can not hold).
+* A text is chosen instead of a binary form so that every language can read it exactly (as a string, or into its own
+  decimal type), and a reader without the type still sees the number.
 
 ## 7. Identifiers: UUID
 
@@ -163,28 +167,35 @@ All little-endian.
   `DateTimeOffset`, `DURATION` a `TimeSpan`.
 * A reader rejects values out of the range of .NET (and a `TIME` out of a day, an offset out of ±14 hours).
 
-## 9. Reading and writing rules
+## 9. Versions, reading and writing
 
-* **Writing** version 2 chooses the type by the .NET type (sections 4–8); version 1 writes as today.
-* **Reading** is lenient where nothing is lost:
+* **Writing** chooses the type by the .NET type (sections 4–8). There is no option to write version 1: a property is
+  written in the form of version 1 by its attribute, e.g. `[PromptuariumType(Float64)]` on an `int`, a `float` or a
+  `decimal` (with the rule of 8.3.0: only if a double holds it exactly), `[PromptuariumType(Utf8String)]` on a `Guid`,
+  a `DateTimeOffset` or a `decimal`, or by a type of version 1 (a `double`, a `string`).
+* **The signature follows the content** (proposal): with the default signatures, a tree that has only the types of
+  version 1 (and no NaN or infinity, which version 1 forbids) is signed `PRMT:GEN1-LE` (`PRMT:CFG1-LE`), so a reader
+  of version 1 still reads it; a tree with a type of version 2 (or a NaN or an infinity) is signed `PRMT:GEN2-LE` (`PRMT:CFG2-LE`). So the attributes and the types of version 1 give a file of
+  version 1. A signature of the application is written as it is: the application names its own versions
+  (SERIALIZER_FORMAT.md, 2).
+* **Reading** accepts both versions of the expected kind, and is lenient where nothing is lost:
   * any integer type is read into any integer type, if the value fits;
-  * a version 1 `FLOAT64` is read into an integer type if it is a whole number that fits (as today);
+  * a `FLOAT64` is read into an integer type if it is a whole number that fits (as today);
   * an integer is read into a `float`, a `double` or a `Half` only if it is held exactly, the rule of 8.3.0 for
     writing, now for reading;
-  * a version 1 text is still read into the dates, the times and `Guid` (as today), so a version 1 file stays
-    readable.
-* **`[PromptuariumType]`** gets its real meaning: e.g. `[PromptuariumType(Int64)]` on an `int`, or
-  `[PromptuariumType(Float64)]` on a `float`, or `[PromptuariumType(Utf8String)]` on a `Guid`, to keep the form of
-  version 1 for one property.
+  * a version 1 text is still read into the dates, the times, `Guid` and `decimal` (as today), so a version 1 file
+    stays readable.
 * The types registered with `AddTextType` and `AddBlobType`, and the default text types, are unchanged.
 
 ## 10. The rest of the ecosystem
 
 * **SERIALIZER_FORMAT.md**: a version 2 section with every new type, test vectors (byte for byte) for every one of
   them, and the transition from version 1.
-* **pcfg**: the names of the types in `show` and `check`; `set` with a type; `import` from JSON: a whole number
-  becomes `INT64`, any other number `FLOAT64` (an open question); `export` to JSON: what NaN and the infinities
-  become (an error, or a string).
+* **pcfg**: the names of the types in `show` and `check`; `set` with a type.
+  * `import` from JSON: every number stays `FLOAT64`, as in version 1 (a JSON number has no type of its own).
+  * `export` to JSON: NaN and the infinities become the strings `"NaN"`, `"Infinity"` and `"-Infinity"` (JSON has no
+    such numbers); imported again, they are strings. The other new types become strings (their text, as in version
+    1), `DECIMAL` a JSON number with all its digits, the integers JSON numbers.
 * **PStudio**: the type codes by name, and for every type the form that fits it.
 * **promptuarium-js**: reads and writes the same, byte for byte (`BigInt` for the 64- and 128-bit integers).
 * **Benchmarks**: version 1 and version 2 cases in `SerializerBenchmarks` (size and speed).
@@ -192,15 +203,11 @@ All little-endian.
 ## 11. Order of the work
 
 1. The specification: the version 2 section of SERIALIZER_FORMAT.md and its test vectors, before any code.
-2. The serializer: integers and binary floating point, with the version option and the reading rules.
-3. `UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL128`.
+2. The serializer: integers and binary floating point, the signature by the content, and the reading rules.
+3. `UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL`.
 4. pcfg and PStudio, then promptuarium-js.
 
 ## 12. Open questions
 
-1. Do writers write version 2 by default, or version 1 until the applications reading the files (e.g. the
-   configurations of PentaGrammata) can read version 2?
-2. The type codes of section 3 (the families) are a proposal, to be confirmed.
-3. `DECIMAL128`: the simple layout of section 6, or IEEE 754 decimal128, or text with a type of its own?
-4. pcfg: does a whole number of a JSON file become `INT64`, or stay `FLOAT64` as in version 1?
-5. JSON export: NaN and the infinities as an error, or as strings (`"NaN"`, `"Infinity"`)?
+1. The type codes of section 3 (the families) are a proposal, to be confirmed.
+2. The signature by the content (section 9) is a proposal, to be confirmed.
