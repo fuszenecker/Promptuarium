@@ -34,6 +34,7 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 | enums | `UTF8_STRING`, the name (`"Read, Write"` for flags); read from a name in any case, or a number |
 | `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly` | `UTF8_STRING`, round-trip text (`"O"`), the kind and the offset kept |
 | `TimeSpan`, `Guid` | `UTF8_STRING`, `"c"` and `"D"` |
+| `Version`, `Uri`, `IPAddress`, `IPNetwork` | `UTF8_STRING`, e.g. `"8.2.2"`, the original string of the `Uri` (absolute or relative), `"2001:db8::1"`, `"10.0.0.0/8"` (default types, see [Text types](#text-types-addtexttype)) |
 | `byte[]` | `BLOB` |
 | string-keyed dictionaries (`Dictionary<string, T>`, `IReadOnlyDictionary<string, T>`, …) | `OBJECT` |
 | objects and structs: their public properties with a public getter | `OBJECT` |
@@ -135,6 +136,7 @@ The comment of a property wins over the comment of its type.
 | `LoadOptions` | 16 MiB, 1 000 000 nodes | the limits of loading; `null` for none |
 | `AddTextType<T>(format, parse)` | | stores every `T` as its text (see [Text types](#text-types-addtexttype)) |
 | `AddBlobType<T>(toBytes, fromBytes)` | | stores every `T` as its bytes (see [Binary types](#binary-types-addblobtype)) |
+| `ClearDefaultTypes()` | | removes the default text types (`Version`, `Uri`, `IPAddress`, `IPNetwork`) |
 
 ### The experimental type control
 
@@ -203,6 +205,14 @@ when written, a text that `parse` does not take (a `FormatException`, `ArgumentE
 null) is rejected when read. The types that are stored anyway (numbers, `bool`, strings, chars, enums, the dates,
 `TimeSpan`, `Guid`, `byte[]`, `object`) can not be registered. The options are set up before they are used: neither
 `PromptuariumSerializerOptions.Default` nor options already used can be changed (`InvalidOperationException`).
+
+Some types are stored as text by default, without a registration: `Version` (`"8.2.2"`), `Uri` (its original
+string, absolute or relative), `IPAddress` (IPv4 and IPv6, `"192.168.0.1"`, `"2001:db8::1"`) and `IPNetwork`
+(`"10.0.0.0/8"`). A registration of the application wins over them; `ClearDefaultTypes()` removes them all:
+
+```csharp
+var options = new PromptuariumSerializerOptions().ClearDefaultTypes();
+```
 
 #### Binary types: `AddBlobType`
 

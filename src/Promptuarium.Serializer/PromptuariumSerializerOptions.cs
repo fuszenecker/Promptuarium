@@ -67,7 +67,25 @@ public sealed class PromptuariumSerializerOptions
     public LoadOptions? LoadOptions { get; init; } = new() { MaxBytes = 16 * 1024 * 1024, MaxNodes = 1_000_000 };
 
     private readonly Dictionary<Type, ValueConversion> _conversions = [];
+    private bool _defaultTypes = true;
     private volatile bool _used;
+
+    /// <summary>
+    /// Removes the types stored as text by default: <see cref="Version"/> (e.g. <c>"8.2.2"</c>), <see cref="Uri"/> (its
+    /// original string, absolute or relative), <see cref="System.Net.IPAddress"/> (IPv4 and IPv6, e.g.
+    /// <c>"192.168.0.1"</c>, <c>"2001:db8::1"</c>) and <see cref="System.Net.IPNetwork"/> (e.g. <c>"10.0.0.0/8"</c>).
+    /// Without them, such a value is written as an object of its properties (which does not come back), unless it is
+    /// registered with <see cref="AddTextType{T}"/> or <see cref="AddBlobType{T}"/>. A registration wins over a default
+    /// type anyway, so this is needed only to have none of them.
+    /// </summary>
+    /// <returns>These options, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">The options are <see cref="Default"/>, or have already been used.</exception>
+    public PromptuariumSerializerOptions ClearDefaultTypes()
+    {
+        ThrowIfReadOnly();
+        _defaultTypes = false;
+        return this;
+    }
 
     /// <summary>
     /// Stores every value of <typeparamref name="T"/> as UTF8_STRING, by the text that <paramref name="format"/> gives,
@@ -120,12 +138,17 @@ public sealed class PromptuariumSerializerOptions
         return Add(typeof(T), ValueConversion.Blob(toBytes, fromBytes));
     }
 
-    private PromptuariumSerializerOptions Add(Type registered, ValueConversion conversion)
+    private void ThrowIfReadOnly()
     {
         if (ReferenceEquals(this, Default) || _used)
         {
             throw new InvalidOperationException("The options can not be changed: they are the default options, or they have already been used.");
         }
+    }
+
+    private PromptuariumSerializerOptions Add(Type registered, ValueConversion conversion)
+    {
+        ThrowIfReadOnly();
 
         Type type = Nullable.GetUnderlyingType(registered) ?? registered;
 
@@ -144,13 +167,24 @@ public sealed class PromptuariumSerializerOptions
 
     /// <summary>
     /// The conversion of a type stored by a conversion everywhere: registered with <see cref="AddTextType{T}"/> or
-    /// <see cref="AddBlobType{T}"/>, or declared as Utf8String on the type itself. Null if it is neither. The options
-    /// are not changed after this.
+    /// <see cref="AddBlobType{T}"/>, a default type (unless <see cref="ClearDefaultTypes"/>), or declared as Utf8String
+    /// on the type itself. Null if it is none of them. The options are not changed after this.
     /// </summary>
     internal ValueConversion? ConversionForType(Type type)
     {
         _used = true;
-        return _conversions.Count > 0 && _conversions.TryGetValue(type, out ValueConversion? registered) ? registered : ValueConversion.ForType(type);
+
+        if (_conversions.Count > 0 && _conversions.TryGetValue(type, out ValueConversion? registered))
+        {
+            return registered;
+        }
+
+        if (_defaultTypes && ValueConversion.Defaults.TryGetValue(type, out ValueConversion? builtIn))
+        {
+            return builtIn;
+        }
+
+        return ValueConversion.ForType(type);
     }
 
     /// <summary>

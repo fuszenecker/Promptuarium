@@ -404,7 +404,9 @@ public sealed class TypeAttributeTests
     [TestMethod]
     public void Utf8String_OnAPropertyOfATypeThatIsNotParsable_NeedsAddTextType()
     {
-        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Release { Declared = new Version(1, 0) }));
+        PromptuariumSerializerOptions options = new PromptuariumSerializerOptions().ClearDefaultTypes();
+
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Release { Declared = new Version(1, 0) }, options));
     }
 
     // ---------------------------------------------------------------- AddBlobType: binary types of the options
@@ -503,5 +505,96 @@ public sealed class TypeAttributeTests
 
         Assert.ThrowsExactly<ArgumentException>(() => options.AddBlobType<Point3>(point => point.ToBytes(), Point3.FromBytes));
         Assert.ThrowsExactly<ArgumentException>(() => options.AddBlobType<byte[]>(bytes => bytes, bytes => bytes));
+    }
+
+    // ---------------------------------------------------------------- the default text types
+
+    public sealed class Network
+    {
+        public Version? Version { get; set; }
+
+        public Uri? Home { get; set; }
+
+        public Uri? Relative { get; set; }
+
+        public IPAddress? Gateway { get; set; }
+
+        public IPNetwork Subnet { get; set; }
+
+        public List<IPAddress> Servers { get; set; } = [];
+
+        public Dictionary<string, Uri> Links { get; set; } = [];
+    }
+
+    private static Network SampleNetwork() => new()
+    {
+        Version = new Version(8, 2, 2),
+        Home = new Uri("https://example.com/promptuarium?tab=1#top"),
+        Relative = new Uri("docs/README.md", UriKind.Relative),
+        Gateway = IPAddress.Parse("192.168.0.1"),
+        Subnet = IPNetwork.Parse("10.0.0.0/8"),
+        Servers = [IPAddress.Parse("2001:db8::1"), IPAddress.Parse("fe80::1%3")],
+        Links = new() { ["docs"] = new Uri("https://example.com/docs") },
+    };
+
+    [TestMethod]
+    public void DefaultTypes_AreStoredAsTextWithoutARegistration()
+    {
+        Network network = SampleNetwork();
+
+        Element root = PromptuariumSerializer.ToElement(network);
+        Network copy = PromptuariumSerializer.Deserialize<Network>(root);
+
+        Assert.AreEqual("8.2.2", StoredText(root, "Version"));
+        Assert.AreEqual("https://example.com/promptuarium?tab=1#top", StoredText(root, "Home"));
+        Assert.AreEqual("docs/README.md", StoredText(root, "Relative"));
+        Assert.AreEqual("192.168.0.1", StoredText(root, "Gateway"));
+        Assert.AreEqual("10.0.0.0/8", StoredText(root, "Subnet"));
+        Assert.AreEqual(network.Version, copy.Version);
+        Assert.AreEqual(network.Home!.OriginalString, copy.Home!.OriginalString);
+        Assert.AreEqual(network.Relative!.OriginalString, copy.Relative!.OriginalString);
+        Assert.AreEqual(network.Gateway, copy.Gateway);
+        Assert.AreEqual(network.Subnet, copy.Subnet);
+        CollectionAssert.AreEqual(network.Servers, copy.Servers);
+        Assert.AreEqual(network.Links["docs"], copy.Links["docs"]);
+    }
+
+    [TestMethod]
+    public void DefaultTypes_ARegistrationWins()
+    {
+        PromptuariumSerializerOptions options = new PromptuariumSerializerOptions()
+            .AddTextType<Version>(version => "v" + version, text => text.StartsWith('v') ? Version.Parse(text[1..]) : throw new FormatException());
+
+        Element root = PromptuariumSerializer.ToElement(new Network { Version = new Version(1, 2) }, options);
+
+        Assert.AreEqual("v1.2", StoredText(root, "Version"));
+        Assert.AreEqual(new Version(1, 2), PromptuariumSerializer.Deserialize<Network>(root, options).Version);
+    }
+
+    public sealed class VersionOnly
+    {
+        public Version? Version { get; set; }
+    }
+
+    [TestMethod]
+    public void ClearDefaultTypes_RemovesThem()
+    {
+        PromptuariumSerializerOptions options = new PromptuariumSerializerOptions().ClearDefaultTypes();
+
+        Element root = PromptuariumSerializer.ToElement(new VersionOnly { Version = new Version(1, 2) }, options);
+        Element version = root.Children.Single(child => child.Data.AsUtf8String() == "Version");
+
+        Assert.AreEqual(0x20, version.Children[0].Data.Span[0], "an object of its properties");
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<VersionOnly>(Nodes.Root(Nodes.Member("Version", 0x80, Data.FromUtf8String("1.2"))), new PromptuariumSerializerOptions().ClearDefaultTypes()));
+    }
+
+    [TestMethod]
+    public void ClearDefaultTypes_OnTheDefaultOrOnUsedOptions_IsRejected()
+    {
+        var options = new PromptuariumSerializerOptions();
+        PromptuariumSerializer.Serialize(new Network(), options);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => PromptuariumSerializerOptions.Default.ClearDefaultTypes());
+        Assert.ThrowsExactly<InvalidOperationException>(() => options.ClearDefaultTypes());
     }
 }

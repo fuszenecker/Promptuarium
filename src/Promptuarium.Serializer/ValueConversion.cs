@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Net;
 using System.Reflection;
 
 namespace Promptuarium.Serializer;
@@ -37,6 +38,19 @@ internal sealed class ValueConversion
 
     /// <summary>The type code the values are stored as: <see cref="CfgFormat.Utf8String"/> or <see cref="CfgFormat.Blob"/>.</summary>
     public byte StoredType { get; }
+
+    /// <summary>
+    /// The types stored as text by default (<see cref="PromptuariumSerializerOptions.ClearDefaultTypes"/> removes them):
+    /// <see cref="Version"/>, <see cref="Uri"/> (its original string, absolute or relative), <see cref="IPAddress"/>
+    /// and <see cref="IPNetwork"/>. Without a conversion they would be objects that do not come back.
+    /// </summary>
+    public static IReadOnlyDictionary<Type, ValueConversion> Defaults { get; } = new Dictionary<Type, ValueConversion>
+    {
+        [typeof(Version)] = Text<Version>(version => version.ToString(), Version.Parse),
+        [typeof(Uri)] = Text<Uri>(uri => uri.OriginalString, text => new Uri(text, UriKind.RelativeOrAbsolute)),
+        [typeof(IPAddress)] = OfParsable(typeof(IPAddress))!,
+        [typeof(IPNetwork)] = OfParsable(typeof(IPNetwork))!,
+    };
 
     /// <summary>A text conversion of the application.</summary>
     public static ValueConversion Text<T>(Func<T, string> format, Func<string, T> parse)
