@@ -86,7 +86,7 @@ The `GetStatistics()` method gives information about i.e.
 
 ## Documentation
 
-See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples), the [API Reference](docs/README.md) or the [Binary Format specification](BINARY_FORMAT.md), and the [Serializer Format specification](SERIALIZER_FORMAT.md) of Promptuarium.Serializer.
+See also the [Wiki page](https://github.com/fuszenecker/Promptuarium/wiki/Examples), the [API Reference](docs/README.md) or the [Binary Format specification](BINARY_FORMAT.md), and the [Serializer Format specification](SERIALIZER_FORMAT.md) of Promptuarium.Serializer (with the [plan of its version 2](SERIALIZER_V2_PLAN.md)).
 
 The [`pedit`](tools/PEdit/README.md) command line tool creates, dumps and edits trees, and lists the chunks of a file. It is non-interactive and has YAML and JSON output, so it can be driven by scripts and AI agents, and it serves as the reference when the format is implemented in another language.
 
