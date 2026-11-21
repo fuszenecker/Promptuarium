@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Promptuarium.Benchmarks/Promptuarium.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/examples/">
     <Project Path="examples/Configuration/Configuration.csproj" />
     <Project Path="examples/GettingStarted/GettingStarted.csproj" />

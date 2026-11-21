@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Benchmarks of the library and of the serializer (BenchmarkDotNet); not run by the tests or the CI, only built -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <Optimize>true</Optimize>
+    <!-- The serializer is experimental (opt-in) -->
+    <NoWarn>$(NoWarn);PRMTSER000</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Promptuarium/Promptuarium.csproj" />
+    <ProjectReference Include="../../src/Promptuarium.Serializer/Promptuarium.Serializer.csproj" />
+  </ItemGroup>
+
+</Project>

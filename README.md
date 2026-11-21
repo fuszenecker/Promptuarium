@@ -114,6 +114,7 @@ The [examples](examples/README.md) are small applications that use the library, 
 | `tests/` | the tests of the library and of the serializer |
 | `tools/` | `pedit`, `pcfg`, PStudio (with their tests), `ppak`, `ppakz` and Dump |
 | `examples/` | small applications that use the library |
+| `benchmarks/` | the benchmarks of the library and of the serializer |
 | `docs/` | the API reference of the library, generated |
 
 Other implementations:
@@ -126,6 +127,15 @@ Other implementations:
 
 ```sh
 dotnet test --filter "TestCategory!=Slow"
+```
+
+## Benchmarks
+
+`benchmarks/Promptuarium.Benchmarks` measures the library and the serializer with [BenchmarkDotNet](https://benchmarkdotnet.org/): building, saving and loading trees (in memory and through streams; wide, balanced and deep trees of 1 000 and 100 000 nodes), the operations on whole trees, the conversions of `Data`, and the serializer. They are not run by the tests:
+
+```sh
+dotnet run -c Release --project benchmarks/Promptuarium.Benchmarks -- --filter '*'
+dotnet run -c Release --project benchmarks/Promptuarium.Benchmarks -- --filter '*TreeBenchmarks.FromBytes*'
 ```
 
 ## Packages and releases
