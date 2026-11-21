@@ -86,7 +86,9 @@ public enum PromptuariumType : byte
 /// read with <see cref="IParsable{TSelf}.TryParse(string?, IFormatProvider?, out TSelf)"/> (invariant culture); the
 /// type must implement <see cref="IParsable{TSelf}"/>, and the text must give back an equal value. On a class or a
 /// struct (only <see cref="PromptuariumType.Utf8String"/>), every value of the type is stored so, in collections and
-/// dictionaries too; such a value can not be the root.
+/// dictionaries too; such a value can not be the root. <see cref="PromptuariumType.Blob"/> on a property of another
+/// type than <c>byte[]</c> stores its bytes, if the type is registered with
+/// <see cref="PromptuariumSerializerOptions.AddBlobType{T}"/>.
 /// </para>
 /// <para>
 /// Otherwise it can only state the type the value maps to anyway (an <c>int</c> is a

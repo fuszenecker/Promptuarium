@@ -134,6 +134,7 @@ The comment of a property wins over the comment of its type.
 | `MaxDepth` | `64` | the deepest nesting written or read; it stops cycles, too |
 | `LoadOptions` | 16 MiB, 1 000 000 nodes | the limits of loading; `null` for none |
 | `AddTextType<T>(format, parse)` | | stores every `T` as its text (see [Text types](#text-types-addtexttype)) |
+| `AddBlobType<T>(toBytes, fromBytes)` | | stores every `T` as its bytes (see [Binary types](#binary-types-addblobtype)) |
 
 ### The experimental type control
 
@@ -202,6 +203,22 @@ when written, a text that `parse` does not take (a `FormatException`, `ArgumentE
 null) is rejected when read. The types that are stored anyway (numbers, `bool`, strings, chars, enums, the dates,
 `TimeSpan`, `Guid`, `byte[]`, `object`) can not be registered. The options are set up before they are used: neither
 `PromptuariumSerializerOptions.Default` nor options already used can be changed (`InvalidOperationException`).
+
+#### Binary types: `AddBlobType`
+
+A type whose bytes are shorter than its text can be registered with its own bytes instead; every value of it is
+stored as a `BLOB`, by the same rules as a text type (as a member and in collections and dictionaries too, the bytes
+must give back an equal value, bytes that `fromBytes` does not take are rejected), and a property of it declared as
+`[PromptuariumType(PromptuariumType.Blob)]` uses the registration (a `Blob` property of another type than `byte[]`
+needs one, `NotSupportedException` otherwise):
+
+```csharp
+var options = new PromptuariumSerializerOptions()
+    .AddBlobType<Point3>(point => point.ToBytes(), Point3.FromBytes);
+```
+
+A `BLOB` is raw bytes: a reader without the type (into `object`, `pcfg`, PStudio, another language) sees bytes, not
+the value, so text is the better choice unless the size matters. A type is registered once, as text or as bytes.
 
 ## Writing
 

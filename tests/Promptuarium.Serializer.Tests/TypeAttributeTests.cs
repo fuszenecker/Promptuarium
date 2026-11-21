@@ -406,4 +406,102 @@ public sealed class TypeAttributeTests
     {
         Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Release { Declared = new Version(1, 0) }));
     }
+
+    // ---------------------------------------------------------------- AddBlobType: binary types of the options
+
+    public readonly record struct Point3(short X, short Y, short Z)
+    {
+        public byte[] ToBytes() => [.. BitConverter.GetBytes(X), .. BitConverter.GetBytes(Y), .. BitConverter.GetBytes(Z)];
+
+        public static Point3 FromBytes(byte[] bytes) => bytes.Length == 6
+            ? new Point3(BitConverter.ToInt16(bytes, 0), BitConverter.ToInt16(bytes, 2), BitConverter.ToInt16(bytes, 4))
+            : throw new ArgumentException("A Point3 is 6 bytes.", nameof(bytes));
+    }
+
+    public sealed class Mesh
+    {
+        public Point3 Origin { get; set; }
+
+        public Point3? Pivot { get; set; }
+
+        public List<Point3> Vertices { get; set; } = [];
+
+        public byte[] Raw { get; set; } = [];
+    }
+
+    public sealed class DeclaredBlob
+    {
+        [PromptuariumType(PromptuariumType.Blob)]
+        public Point3 Value { get; set; }
+    }
+
+    private static PromptuariumSerializerOptions MeshOptions() => new PromptuariumSerializerOptions()
+        .AddBlobType<Point3>(point => point.ToBytes(), Point3.FromBytes);
+
+    private static byte[] StoredBytes(Element root, string name)
+    {
+        Element holder = root.Children.Single(child => child.Data.AsUtf8String() == name);
+
+        Assert.AreEqual(0xF0, holder.Children[0].Data.Span[0], "the type of " + name);
+        return holder.Children[1].Data.ToArray();
+    }
+
+    [TestMethod]
+    public void AddBlobType_StoresTheTypeAsBytesEverywhere()
+    {
+        var mesh = new Mesh { Origin = new Point3(1, -2, 3), Pivot = new Point3(0, 0, 7), Vertices = [new Point3(1, 1, 1), new Point3(-1, -1, -1)], Raw = [9, 8] };
+        PromptuariumSerializerOptions options = MeshOptions();
+
+        Element root = PromptuariumSerializer.ToElement(mesh, options);
+        Mesh copy = PromptuariumSerializer.Deserialize<Mesh>(root, options);
+
+        CollectionAssert.AreEqual(new Point3(1, -2, 3).ToBytes(), StoredBytes(root, "Origin"));
+        Assert.AreEqual(mesh.Origin, copy.Origin);
+        Assert.AreEqual(mesh.Pivot, copy.Pivot);
+        CollectionAssert.AreEqual(mesh.Vertices, copy.Vertices);
+        CollectionAssert.AreEqual(mesh.Raw, copy.Raw);
+    }
+
+    [TestMethod]
+    public void AddBlobType_ServesAPropertyDeclaredAsBlob()
+    {
+        PromptuariumSerializerOptions options = MeshOptions();
+
+        Element root = PromptuariumSerializer.ToElement(new DeclaredBlob { Value = new Point3(4, 5, 6) }, options);
+
+        Assert.AreEqual(new Point3(4, 5, 6), PromptuariumSerializer.Deserialize<DeclaredBlob>(root, options).Value);
+    }
+
+    [TestMethod]
+    public void Blob_OnAPropertyOfAnUnregisteredType_IsRejected()
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new DeclaredBlob()));
+    }
+
+    [TestMethod]
+    public void AddBlobType_BytesThatDoNotDecode_AreRejectedWhenReading()
+    {
+        Element root = Nodes.Root(Nodes.Member("Origin", 0xF0, new byte[] { 1, 2, 3 }));
+
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Mesh>(root, MeshOptions()));
+    }
+
+    [TestMethod]
+    public void AddBlobType_BytesThatDoNotGiveTheValueBack_AreRejectedWhenWriting()
+    {
+        PromptuariumSerializerOptions options = new PromptuariumSerializerOptions()
+            .AddBlobType<Point3>(point => new Point3(point.X, point.Y, 0).ToBytes(), Point3.FromBytes);
+
+        Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Mesh { Origin = new Point3(1, 2, 3) }, options));
+    }
+
+    [TestMethod]
+    public void AddBlobType_TypeRegisteredAsTextAlready_IsRejected()
+    {
+        var options = new PromptuariumSerializerOptions();
+        options.AddTextType<Point3>(point => $"{point.X},{point.Y},{point.Z}", text => default);
+
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddBlobType<Point3>(point => point.ToBytes(), Point3.FromBytes));
+        Assert.ThrowsExactly<ArgumentException>(() => options.AddBlobType<byte[]>(bytes => bytes, bytes => bytes));
+    }
 }

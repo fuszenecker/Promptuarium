@@ -66,7 +66,7 @@ public sealed class PromptuariumSerializerOptions
     /// </summary>
     public LoadOptions? LoadOptions { get; init; } = new() { MaxBytes = 16 * 1024 * 1024, MaxNodes = 1_000_000 };
 
-    private readonly Dictionary<Type, TextConversion> _textTypes = [];
+    private readonly Dictionary<Type, ValueConversion> _conversions = [];
     private volatile bool _used;
 
     /// <summary>
@@ -82,8 +82,9 @@ public sealed class PromptuariumSerializerOptions
     /// <paramref name="parse"/> does not take (a <see cref="FormatException"/>, <see cref="ArgumentException"/> or
     /// <see cref="OverflowException"/>, or null) with <see cref="InvalidDataException"/>. The types that are stored
     /// anyway (numbers, <see cref="bool"/>, strings, chars, enums, the dates, <see cref="TimeSpan"/>,
-    /// <see cref="Guid"/>, <c>byte[]</c>, <see cref="object"/>) can not be registered. The options have to be set up
-    /// before they are used: neither <see cref="Default"/> nor options already used can be changed.
+    /// <see cref="Guid"/>, <c>byte[]</c>, <see cref="object"/>) can not be registered, and a type can be registered
+    /// once (as text or as bytes). The options have to be set up before they are used: neither <see cref="Default"/>
+    /// nor options already used can be changed.
     /// </remarks>
     /// <returns>These options, for chaining.</returns>
     /// <exception cref="ArgumentException">A type that is stored anyway, or a type registered already.</exception>
@@ -93,43 +94,86 @@ public sealed class PromptuariumSerializerOptions
         ArgumentNullException.ThrowIfNull(format);
         ArgumentNullException.ThrowIfNull(parse);
 
+        return Add(typeof(T), ValueConversion.Text(format, parse));
+    }
+
+    /// <summary>
+    /// Stores every value of <typeparamref name="T"/> as BLOB, by the bytes that <paramref name="toBytes"/> gives, and
+    /// reads it back with <paramref name="fromBytes"/>: as a member, and in collections and dictionaries too (such a
+    /// value can not be the root). It is for the values whose bytes are shorter than their text; it wins over a
+    /// <c>[PromptuariumType(Utf8String)]</c> on the type, and serves a property declared as Blob.
+    /// </summary>
+    /// <remarks>
+    /// A BLOB is raw bytes: a reader without the type (e.g. into <see cref="object"/>, pcfg, PStudio) sees bytes, not
+    /// the value, so text (<see cref="AddTextType{T}"/>) is the better choice unless the size matters. The rules are
+    /// the ones of <see cref="AddTextType{T}"/>: the bytes must give back an equal value when written, bytes that
+    /// <paramref name="fromBytes"/> does not take are rejected when read.
+    /// </remarks>
+    /// <returns>These options, for chaining.</returns>
+    /// <exception cref="ArgumentException">A type that is stored anyway, or a type registered already.</exception>
+    /// <exception cref="InvalidOperationException">The options are <see cref="Default"/>, or have already been used.</exception>
+    public PromptuariumSerializerOptions AddBlobType<T>(Func<T, byte[]> toBytes, Func<byte[], T> fromBytes)
+    {
+        ArgumentNullException.ThrowIfNull(toBytes);
+        ArgumentNullException.ThrowIfNull(fromBytes);
+
+        return Add(typeof(T), ValueConversion.Blob(toBytes, fromBytes));
+    }
+
+    private PromptuariumSerializerOptions Add(Type registered, ValueConversion conversion)
+    {
         if (ReferenceEquals(this, Default) || _used)
         {
             throw new InvalidOperationException("The options can not be changed: they are the default options, or they have already been used.");
         }
 
-        Type type = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+        Type type = Nullable.GetUnderlyingType(registered) ?? registered;
 
-        if (type.IsPrimitive || type == typeof(decimal) || type == typeof(byte[]) || TextConversion.IsTextOfItsOwn(type))
+        if (ValueConversion.IsStoredAnyway(type))
         {
-            throw new ArgumentException($"A {type.Name} is stored anyway, it can not be registered as text.", nameof(T));
+            throw new ArgumentException($"A {type.Name} is stored anyway, it can not be registered.", "T");
         }
 
-        if (!_textTypes.TryAdd(type, TextConversion.Create(format, parse)))
+        if (!_conversions.TryAdd(type, conversion))
         {
-            throw new ArgumentException($"{type.Name} is registered already.", nameof(T));
+            throw new ArgumentException($"{type.Name} is registered already.", "T");
         }
 
         return this;
     }
 
     /// <summary>
-    /// The conversion of a type stored as text everywhere: registered with <see cref="AddTextType{T}"/>, or declared as
-    /// Utf8String on the type itself. Null if it is neither. The options are not changed after this.
+    /// The conversion of a type stored by a conversion everywhere: registered with <see cref="AddTextType{T}"/> or
+    /// <see cref="AddBlobType{T}"/>, or declared as Utf8String on the type itself. Null if it is neither. The options
+    /// are not changed after this.
     /// </summary>
-    internal TextConversion? TextForType(Type type)
+    internal ValueConversion? ConversionForType(Type type)
     {
         _used = true;
-        return _textTypes.Count > 0 && _textTypes.TryGetValue(type, out TextConversion? registered) ? registered : TextConversion.ForType(type);
+        return _conversions.Count > 0 && _conversions.TryGetValue(type, out ValueConversion? registered) ? registered : ValueConversion.ForType(type);
     }
 
-    /// <summary>The conversion of a property declared as Utf8String: as <see cref="TextForType"/>, or through <see cref="IParsable{TSelf}"/>.</summary>
-    internal TextConversion TextForProperty(ShapeMember member)
+    /// <summary>
+    /// The conversion of a property declared as Utf8String or Blob (<see cref="ShapeMember.DeclaredConversion"/>): the
+    /// one of its type if it stores as declared, else through <see cref="IParsable{TSelf}"/> (Utf8String); a Blob needs
+    /// a registration with <see cref="AddBlobType{T}"/>.
+    /// </summary>
+    internal ValueConversion ConversionForProperty(ShapeMember member)
     {
         Type type = member.ValueType;
 
-        return TextForType(type) ?? TextConversion.OfParsable(type)
-            ?? throw new NotSupportedException($"The property {member.Property.Name} is declared as Utf8String, but {type.Name} does not implement IParsable<{type.Name}>, and it is not registered with AddTextType.");
+        if (ConversionForType(type) is { } conversion && conversion.StoredType == member.DeclaredType)
+        {
+            return conversion;
+        }
+
+        if (member.DeclaredType == CfgFormat.Utf8String)
+        {
+            return ValueConversion.OfParsable(type)
+                ?? throw new NotSupportedException($"The property {member.Property.Name} is declared as Utf8String, but {type.Name} does not implement IParsable<{type.Name}>, and it is not registered with AddTextType.");
+        }
+
+        throw new NotSupportedException($"The property {member.Property.Name} is declared as Blob, but a {type.Name} has no bytes: it is not registered with AddBlobType.");
     }
 
     internal byte[] SignatureBytes => Encoding.ASCII.GetBytes(_signature);

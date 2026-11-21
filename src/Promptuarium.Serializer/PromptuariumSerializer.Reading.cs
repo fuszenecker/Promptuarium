@@ -111,8 +111,8 @@ public static partial class PromptuariumSerializer
 
     // ---------------------------------------------------------------- holders
 
-    // text: the conversion of a property declared as Utf8String (ShapeMember.Text)
-    private static object? ReadHolder(Element holder, Type type, object? existing, int depth, PromptuariumSerializerOptions options, TextConversion? text = null)
+    // conversion: the one of a property declared as Utf8String or Blob (ShapeMember.Conversion)
+    private static object? ReadHolder(Element holder, Type type, object? existing, int depth, PromptuariumSerializerOptions options, ValueConversion? conversion = null)
     {
         if (depth > options.MaxDepth)
         {
@@ -181,10 +181,11 @@ public static partial class PromptuariumSerializer
 
             case CfgFormat.Utf8String:
                 string decoded = DecodeUtf8(ScalarValue(content));
-                return text is not null ? text.Parse(decoded) : FitText(decoded, target, options);
+                return conversion is { StoredType: CfgFormat.Utf8String } ? conversion.Decode(decoded) : FitText(decoded, target, options);
 
             case CfgFormat.Blob:
-                return Fit(ScalarValue(content).ToArray(), target);
+                byte[] bytes = ScalarValue(content).ToArray();
+                return conversion is { StoredType: CfgFormat.Blob } ? conversion.Decode(bytes) : FitBlob(bytes, target, options);
 
             case byte unknown:
                 throw new InvalidDataException($"Unsupported type code 0x{unknown:x2}.");
@@ -317,7 +318,7 @@ public static partial class PromptuariumSerializer
     // A member of an object: its value, of the type declared with PromptuariumTypeAttribute if there is one
     private static object? ReadMember(Element member, ShapeMember property, Type type, object? existing, int depth, PromptuariumSerializerOptions options)
     {
-        object? value = ReadHolder(member, type, existing, depth + 1, options, property.Text(options));
+        object? value = ReadHolder(member, type, existing, depth + 1, options, property.Conversion(options));
         byte stored = member.Children[0].Data.Span[0];
 
         if (property.DeclaredType is { } declared && stored != CfgFormat.Null && stored != declared)
@@ -434,7 +435,7 @@ public static partial class PromptuariumSerializer
     private static bool IsScalar(Type type, PromptuariumSerializerOptions options)
     {
         return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || ScalarText.Handles(type)
-            || options.TextForType(type) is not null;
+            || options.ConversionForType(type) is not null;
     }
 
     private static bool AcceptsNull(Type type) => !type.IsValueType || Nullable.GetUnderlyingType(type) is not null;
@@ -511,6 +512,12 @@ public static partial class PromptuariumSerializer
         }
     }
 
+    // Bytes for a type registered as bytes in the options, or else for a byte[] (or an object)
+    private static object FitBlob(byte[] bytes, Type target, PromptuariumSerializerOptions options)
+    {
+        return options.ConversionForType(target) is { StoredType: CfgFormat.Blob } conversion ? conversion.Decode(bytes) : Fit(bytes, target);
+    }
+
     private static object FitText(string text, Type target, PromptuariumSerializerOptions options)
     {
         if (target == typeof(string) || target == typeof(object))
@@ -519,9 +526,9 @@ public static partial class PromptuariumSerializer
         }
 
         // A type registered as text in the options, or declared as Utf8String on the type itself
-        if (options.TextForType(target) is { } conversion)
+        if (options.ConversionForType(target) is { StoredType: CfgFormat.Utf8String } conversion)
         {
-            return conversion.Parse(text);
+            return conversion.Decode(text);
         }
 
         if (ScalarText.Handles(target))
