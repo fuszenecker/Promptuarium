@@ -5,7 +5,7 @@ This document specifies how structured values (objects, arrays, strings, numbers
 The same layout is used for general objects (`PRMT:GEN1-LE`), for configurations (`PRMT:CFG1-LE`, e.g. the content of an `appsettings.json`) and for the files of applications that give them a signature of their own; only the signature differs.
 It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the metadata and the data of its nodes.
 
-There are two versions of the layout (see [section 7](#7-versions)). **Version 2** adds types to version 1; a file of version 1 is a valid file of version 2, but a reader of version 1 rejects a file of version 2. Promptuarium.Serializer reads and writes **version 1** so far; version 2 is specified, not yet implemented.
+There are two versions of the layout (see [section 7](#7-versions)). **Version 2** adds types to version 1; a file of version 1 is a valid file of version 2, but a reader of version 1 rejects a file of version 2. Promptuarium.Serializer reads both versions, and writes the lowest version that holds a tree.
 
 **Contents**
 

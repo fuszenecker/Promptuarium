@@ -7,24 +7,31 @@ namespace Promptuarium.Serializer;
 /// <summary>
 /// Maps .NET objects to Promptuarium trees in the layout of <c>SERIALIZER_FORMAT.md</c> and back, directly, without an
 /// intermediate representation such as JSON. The files are signed with
-/// <see cref="PromptuariumSerializerOptions.Signature"/> (<c>PRMT:GEN1-LE</c> by default).
+/// <see cref="PromptuariumSerializerOptions.Signature"/> (<c>PRMT:GEN1-LE</c> or <c>PRMT:GEN2-LE</c> by default: the lowest
+/// version of the layout that holds the tree).
 /// <list type="table">
 /// <item><term><c>bool</c></term><description>BOOLEAN</description></item>
-/// <item><term>number types (<c>int</c>, <c>double</c>, <c>decimal</c>, ...)</term><description>FLOAT64</description></item>
+/// <item><term><c>sbyte</c> ... <c>long</c>, <c>Int128</c>; <c>byte</c> ... <c>ulong</c>, <c>UInt128</c>; <c>BigInteger</c></term><description>INT8 ... INT128, UINT8 ... UINT128, BIGINT (version 2)</description></item>
+/// <item><term><c>Half</c>, <c>float</c>, <c>double</c></term><description>FLOAT16, FLOAT32 (version 2), FLOAT64</description></item>
+/// <item><term><c>decimal</c></term><description>DECIMAL, its canonical text (version 2)</description></item>
 /// <item><term><c>string</c>, <c>char</c>, enums (by name)</term><description>UTF8_STRING</description></item>
-/// <item><term><c>DateTime</c>, <c>DateTimeOffset</c>, <c>DateOnly</c>, <c>TimeOnly</c>, <c>TimeSpan</c>, <c>Guid</c></term><description>UTF8_STRING, invariant round-trip text</description></item>
+/// <item><term><c>Guid</c></term><description>UUID (version 2)</description></item>
+/// <item><term><c>DateOnly</c>, <c>TimeOnly</c>, <c>DateTime</c>, <c>DateTimeOffset</c>, <c>TimeSpan</c></term><description>DATE, TIME, DATETIME (an unspecified <c>DateTime</c>) or TIMESTAMP, DURATION (version 2)</description></item>
 /// <item><term><c>byte[]</c></term><description>BLOB, the bytes as they are</description></item>
 /// <item><term>string-keyed dictionaries, objects (their public properties)</term><description>OBJECT</description></item>
 /// <item><term>other collections (arrays, lists, ...)</term><description>ARRAY</description></item>
 /// <item><term><c>null</c></term><description>NULL</description></item>
 /// </list>
 /// Read into <see cref="object"/>, a file gives <see cref="Dictionary{TKey,TValue}"/> (string to object),
-/// <see cref="List{T}"/> (of object), <see cref="bool"/>, <see cref="double"/>, <see cref="string"/>,
-/// <c>byte[]</c> or <c>null</c>. Unknown members are validated and ignored.
+/// <see cref="List{T}"/> (of object), <see cref="bool"/>, <see cref="long"/> (or a wider integer type),
+/// <see cref="double"/> (<see cref="float"/>, <see cref="Half"/>), <see cref="decimal"/>, <see cref="string"/>,
+/// <see cref="Guid"/>, the date and time types, <c>byte[]</c> or <c>null</c>. Unknown members are validated and ignored.
+/// <c>[PromptuariumType]</c> declares another form for a property, e.g. FLOAT64 (the form of version 1) for an
+/// <c>int</c>, or UTF8_STRING for a <c>Guid</c>.
 /// </summary>
 /// <remarks>
 /// Writing throws <see cref="NotSupportedException"/> for a value that can not be stored (an unsupported type, a
-/// non-finite number, a number that a FLOAT64 does not hold exactly, nesting deeper than <see cref="PromptuariumSerializerOptions.MaxDepth"/>). Reading throws
+/// number that its declared type does not hold exactly, nesting deeper than <see cref="PromptuariumSerializerOptions.MaxDepth"/>). Reading throws
 /// <see cref="InvalidDataException"/> for a file that is not valid, or does not fit the requested type.
 /// </remarks>
 public static partial class PromptuariumSerializer
@@ -54,7 +61,7 @@ public static partial class PromptuariumSerializer
             throw new NotSupportedException($"A {value.GetType().Name} can not be the root: the root is an OBJECT.");
         }
 
-        Element root = new ElementBuilder().WithSignature(Data.FromAsciiString(options.Signature)).Build();
+        var root = new Element();
 
         if (TypeComment(value) is { } comment)
         {
@@ -66,6 +73,7 @@ public static partial class PromptuariumSerializer
             root.Add(Holder(CfgFormat.Name, Data.FromUtf8String(name), member, declared, memberComment, conversion, 1, options));
         }
 
+        root.MetaData = Data.FromAsciiString(options.SignatureFor(NeedsVersion2(root)));
         return root;
     }
 
@@ -75,13 +83,27 @@ public static partial class PromptuariumSerializer
     {
         if (declared is { } reserved && !PromptuariumTypeAttribute.IsSupported((PromptuariumType)reserved))
         {
-            throw new NotSupportedException($"The type {(PromptuariumType)reserved} is reserved in version 1 of the format.");
+            throw new NotSupportedException($"The type {(PromptuariumType)reserved} is reserved.");
         }
 
-        // A property declared as Utf8String or Blob whose type is stored otherwise: its text or its bytes
-        Element holder = conversion is not null && value is not null
-            ? ConvertedHolder(tag, name, conversion, value)
-            : Holder(tag, name, value, depth, options);
+        // A property declared as Utf8String or Blob whose type is stored otherwise: its text or its bytes; a property
+        // declared as another number type (e.g. FLOAT64, the form of version 1), or a date, a time or a UUID declared as
+        // text: that form
+        Element holder;
+
+        if (conversion is not null && value is not null)
+        {
+            holder = ConvertedHolder(tag, name, conversion, value);
+        }
+        else if (declared is { } form && value is not null && Scalars.TryEncodeAs(value, form, out ReadOnlyMemory<byte> content))
+        {
+            holder = new Element(name, Data.FromByte(tag), TypeNode(form), ValueNode(content));
+        }
+        else
+        {
+            holder = Holder(tag, name, value, depth, options);
+        }
+
         byte stored = holder.Children[0].Data.Span[0];
 
         if (declared is { } type && stored != CfgFormat.Null && stored != type)
@@ -150,81 +172,34 @@ public static partial class PromptuariumSerializer
         return new Element(name, Data.FromByte(tag), TypeNode(conversion.StoredType), ValueNode(conversion.Encode(value)));
     }
 
-    // A value that is stored in one VALUE node
-    private static bool TryScalar(object value, out byte type, out ReadOnlyMemory<byte> content)
+    // A value that is stored in one VALUE node (SERIALIZER_FORMAT.md, version 2)
+    private static bool TryScalar(object value, out byte type, out ReadOnlyMemory<byte> content) => Scalars.TryEncode(value, out type, out content);
+
+    // The lowest version that holds the tree (SERIALIZER_FORMAT.md, 7): a type of version 2, or a NaN or an infinity
+    private static bool NeedsVersion2(Element root)
     {
-        switch (value)
+        foreach (Element node in Descendants(root))
         {
-            case bool flag:
-                (type, content) = (CfgFormat.Boolean, Data.FromBool(flag));
+            if (node.MetaData.Length != 1 || node.MetaData.Span[0] != CfgFormat.Type || node.Data.Length != 1)
+            {
+                continue;
+            }
+
+            byte type = node.Data.Span[0];
+
+            if (!CfgFormat.IsVersion1(type))
+            {
                 return true;
+            }
 
-            case string text:
-                (type, content) = (CfgFormat.Utf8String, Data.FromUtf8String(text));
+            if (type == CfgFormat.Float64 && node.Parent!.Children.FirstOrDefault(sibling => sibling.MetaData.Length == 1 && sibling.MetaData.Span[0] == CfgFormat.Value) is { Data.Length: 8 } value
+                && !double.IsFinite(value.Data.AsDouble()))
+            {
                 return true;
-
-            case byte[] blob:
-                (type, content) = (CfgFormat.Blob, blob);
-                return true;
-
-            case sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal:
-                (type, content) = (CfgFormat.Float64, Data.FromDouble(FiniteNumber(value)));
-                return true;
-
-            case nint or nuint or Int128 or UInt128 or Half:
-                throw new NotSupportedException($"A {value.GetType().Name} can not be stored: version 1 of the format has FLOAT64 numbers only.");
-
-            default:
-                if (ScalarText.TryFormat(value, out string? formatted))
-                {
-                    (type, content) = (CfgFormat.Utf8String, Data.FromUtf8String(formatted));
-                    return true;
-                }
-
-                (type, content) = (0, ReadOnlyMemory<byte>.Empty);
-                return false;
-        }
-    }
-
-    // A FLOAT64 that gives the value back exactly when it is read: a long or a ulong beyond 2^53, or a decimal with more
-    // digits than a double holds, would come back changed (or not at all), so it is rejected instead of stored
-    private static double FiniteNumber(object value)
-    {
-        double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
-
-        if (!double.IsFinite(number))
-        {
-            throw new NotSupportedException("NaN and infinity can not be stored.");
+            }
         }
 
-        bool exact = value switch
-        {
-            long integer => number < TwoTo63 && (long)number == integer,
-            ulong integer => number < TwoTo64 && (ulong)number == integer,
-            decimal fraction => ReadsBackAs(number, fraction),
-            _ => true,
-        };
-
-        return exact
-            ? number
-            : throw new NotSupportedException($"The {value.GetType().Name} {Convert.ToString(value, CultureInfo.InvariantCulture)} can not be stored exactly: version 1 of the format has FLOAT64 numbers only.");
-    }
-
-    private const double TwoTo63 = 9223372036854775808.0;
-
-    private const double TwoTo64 = 18446744073709551616.0;
-
-    // The reader converts a FLOAT64 into a decimal with Convert.ToDecimal (15 significant digits)
-    private static bool ReadsBackAs(double number, decimal fraction)
-    {
-        try
-        {
-            return Convert.ToDecimal(number, CultureInfo.InvariantCulture) == fraction;
-        }
-        catch (OverflowException)
-        {
-            return false;
-        }
+        return false;
     }
 
     // The members of an OBJECT, or null when the value is an ARRAY
@@ -258,6 +233,23 @@ public static partial class PromptuariumSerializer
     private static string? TypeComment(object value)
     {
         return value is IEnumerable ? null : value.GetType().GetCustomAttribute<PromptuariumCommentAttribute>(inherit: false)?.Text;
+    }
+
+    // Every node below the root, without recursion (the enumerator of an Element gives its children only)
+    private static IEnumerable<Element> Descendants(Element root)
+    {
+        var pending = new Stack<Element>(root.Children);
+
+        while (pending.Count > 0)
+        {
+            Element node = pending.Pop();
+            yield return node;
+
+            foreach (Element child in node.Children)
+            {
+                pending.Push(child);
+            }
+        }
     }
 
     private static Element CommentNode(string comment) => new(Data.FromUtf8String(comment), Data.FromByte(CfgFormat.Comment));

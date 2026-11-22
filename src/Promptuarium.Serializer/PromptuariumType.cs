@@ -5,7 +5,8 @@ namespace Promptuarium.Serializer;
 /// <summary>
 /// The type codes of SERIALIZER_FORMAT.md (section 4), the data of a TYPE node. Version 1 of the layout supports <see cref="Null"/>,
 /// <see cref="Boolean"/>, <see cref="Object"/>, <see cref="Array"/>, <see cref="Float64"/>, <see cref="Utf8String"/>
-/// and <see cref="Blob"/>; the others are reserved for later versions.
+/// and <see cref="Blob"/>; version 2 all of them but <see cref="Float8"/> and <see cref="Float128"/>, which are
+/// reserved.
 /// </summary>
 [Experimental(PromptuariumTypeAttribute.DiagnosticId)]
 public enum PromptuariumType : byte
@@ -22,43 +23,43 @@ public enum PromptuariumType : byte
     /// <summary>ITEM elements.</summary>
     Array = 0x21,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 1 byte, two's complement.</summary>
     Int8 = 0x40,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 2 bytes, two's complement, little-endian.</summary>
     Int16 = 0x41,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 4 bytes, two's complement, little-endian.</summary>
     Int32 = 0x42,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 8 bytes, two's complement, little-endian.</summary>
     Int64 = 0x43,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 16 bytes, two's complement, little-endian.</summary>
     Int128 = 0x44,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 1 byte, unsigned.</summary>
     UInt8 = 0x50,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 2 bytes, unsigned, little-endian.</summary>
     UInt16 = 0x51,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 4 bytes, unsigned, little-endian.</summary>
     UInt32 = 0x52,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 8 bytes, unsigned, little-endian.</summary>
     UInt64 = 0x53,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 16 bytes, unsigned, little-endian.</summary>
     UInt128 = 0x54,
 
     /// <summary>Reserved.</summary>
     Float8 = 0x60,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 2 bytes, IEEE 754 binary16, little-endian.</summary>
     Float16 = 0x61,
 
-    /// <summary>Reserved.</summary>
+    /// <summary>Version 2: 4 bytes, IEEE 754 binary32, little-endian.</summary>
     Float32 = 0x62,
 
     /// <summary>8 bytes, IEEE 754 binary64, little-endian.</summary>
@@ -67,8 +68,32 @@ public enum PromptuariumType : byte
     /// <summary>Reserved.</summary>
     Float128 = 0x64,
 
+    /// <summary>Version 2: the canonical text of a decimal number, UTF-8.</summary>
+    Decimal = 0x70,
+
+    /// <summary>Version 2: an integer of any size, two's complement, little-endian, in its shortest form.</summary>
+    BigInt = 0x78,
+
     /// <summary>UTF-8 bytes.</summary>
     Utf8String = 0x80,
+
+    /// <summary>Version 2: 16 bytes, in the order of RFC 9562.</summary>
+    Uuid = 0x90,
+
+    /// <summary>Version 2: 4 bytes, days since 1970-01-01.</summary>
+    Date = 0xD0,
+
+    /// <summary>Version 2: 8 bytes, ticks of 100 ns since midnight.</summary>
+    Time = 0xD1,
+
+    /// <summary>Version 2: 8 bytes, ticks of 100 ns since 1970-01-01T00:00, without an offset.</summary>
+    DateTime = 0xD2,
+
+    /// <summary>Version 2: 10 bytes, ticks of 100 ns since 1970-01-01T00:00Z, and the offset in minutes.</summary>
+    Timestamp = 0xD3,
+
+    /// <summary>Version 2: 8 bytes, ticks of 100 ns.</summary>
+    Duration = 0xD4,
 
     /// <summary>Raw bytes.</summary>
     Blob = 0xF0,
@@ -108,7 +133,6 @@ public sealed class PromptuariumTypeAttribute(PromptuariumType type) : Attribute
     /// <summary>The type code the property is stored as.</summary>
     public PromptuariumType Type { get; } = type;
 
-    /// <summary>Whether version 1 of the format supports the type (it is not reserved).</summary>
-    internal static bool IsSupported(PromptuariumType type) => type is PromptuariumType.Null or PromptuariumType.Boolean
-        or PromptuariumType.Object or PromptuariumType.Array or PromptuariumType.Float64 or PromptuariumType.Utf8String or PromptuariumType.Blob;
+    /// <summary>Whether the format supports the type (it is not reserved).</summary>
+    internal static bool IsSupported(PromptuariumType type) => CfgFormat.IsSupported((byte)type);
 }

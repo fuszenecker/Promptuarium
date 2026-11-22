@@ -1,9 +1,9 @@
 # Plan: version 2 of the serializer format
 
-Status: **specified, not implemented**. The format of version 2 (the type codes, the values, the versions and a
-test vector) is specified in [SERIALIZER_FORMAT.md](SERIALIZER_FORMAT.md), which is the reference; this document keeps
-the decisions and the plan of the implementation (the serializer, pcfg, PStudio, promptuarium-js), and is removed
-when it is done.
+Status: **specified, implemented in Promptuarium.Serializer**; pcfg, PStudio and promptuarium-js are still to follow.
+The format of version 2 (the type codes, the values, the versions and a test vector) is specified in
+[SERIALIZER_FORMAT.md](SERIALIZER_FORMAT.md), which is the reference; this document keeps the decisions and the plan
+of the rest of the work, and is removed when it is done.
 
 **Contents**
 
@@ -204,8 +204,8 @@ All little-endian.
 ## 11. Order of the work
 
 1. ~~The specification: the version 2 section of SERIALIZER_FORMAT.md and its test vectors, before any code.~~ Done.
-2. The serializer: integers and binary floating point, the signature by the content, and the reading rules.
-3. `UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL` and `BIGINT`.
+2. ~~The serializer: integers and binary floating point, the signature by the content, and the reading rules.~~ Done.
+3. ~~`UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL` and `BIGINT`.~~ Done.
 4. pcfg and PStudio, then promptuarium-js.
 
 ## 12. Open questions

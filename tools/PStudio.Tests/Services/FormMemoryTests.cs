@@ -105,6 +105,33 @@ public sealed class FormMemoryTests
     }
 
     [TestMethod]
+    public void TheFile_HoldsOnlyTheTypesOfVersion1()
+    {
+        var forms = new FileForms();
+        forms.Data["/"] = ContentForm.Hex;
+
+        new FormMemory(SettingsPath).Remember("tree.prmt", forms);
+
+        // The earlier versions of PStudio read it: the time is text, not a TIMESTAMP of version 2
+        var pending = new Stack<Element>([Element.FromBytes(File.ReadAllBytes(SettingsPath))]);
+
+        while (pending.Count > 0)
+        {
+            Element node = pending.Pop();
+
+            if (node.MetaData.Length == 1 && node.MetaData.Span[0] == 0x01)
+            {
+                CollectionAssert.Contains(new byte[] { 0x00, 0x01, 0x20, 0x21, 0x63, 0x80, 0xF0 }, node.Data.Span[0]);
+            }
+
+            foreach (Element child in node.Children)
+            {
+                pending.Push(child);
+            }
+        }
+    }
+
+    [TestMethod]
     public void ABrokenFile_IsAnEmptyMemory()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
@@ -149,8 +176,12 @@ public sealed class FormMemoryTests
         public Dictionary<string, OldFileForms> Files { get; } = new(StringComparer.Ordinal);
     }
 
+    // The earlier versions wrote the time as text (version 1 of the layout)
     private sealed class OldFileForms
     {
+#pragma warning disable PRMTSER001
+        [PromptuariumType(PromptuariumType.Utf8String)]
+#pragma warning restore PRMTSER001
         public DateTime LastUsed { get; set; }
 
         public Dictionary<string, ContentForm> Data { get; } = new(StringComparer.Ordinal);

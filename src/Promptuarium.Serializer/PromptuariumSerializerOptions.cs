@@ -3,17 +3,31 @@ using System.Text;
 namespace Promptuarium.Serializer;
 
 /// <summary>
-/// Options of <see cref="PromptuariumSerializer"/>. The defaults read and write <c>PRMT:GEN1-LE</c> files, the layout of
-/// <c>SERIALIZER_FORMAT.md</c> with a signature of their own; configuration files have <see cref="ConfigurationSignature"/>,
-/// and an application can give its files a signature of its own, too. The layout stays the same.
+/// Options of <see cref="PromptuariumSerializer"/>. The defaults read and write general objects (<c>PRMT:GEN1-LE</c> or
+/// <c>PRMT:GEN2-LE</c>), the layout of <c>SERIALIZER_FORMAT.md</c>; configuration files have
+/// <see cref="ConfigurationSignature"/>, and an application can give its files a signature of its own, too. The layout
+/// stays the same.
 /// </summary>
 public sealed class PromptuariumSerializerOptions
 {
-    /// <summary>The default signature, <c>PRMT:GEN1-LE</c>: general objects.</summary>
+    /// <summary>
+    /// The default signature, <c>PRMT:GEN1-LE</c>: general objects. Written, the version follows the content: a tree with
+    /// a type of version 2 (or a NaN or an infinity) is signed <c>PRMT:GEN2-LE</c>; read, both are accepted.
+    /// </summary>
     public const string DefaultSignature = "PRMT:GEN1-LE";
 
-    /// <summary>The signature of configuration files, <c>PRMT:CFG1-LE</c> (<c>SERIALIZER_FORMAT.md</c>).</summary>
+    /// <summary>
+    /// The signature of configuration files, <c>PRMT:CFG1-LE</c> (<c>SERIALIZER_FORMAT.md</c>). As with
+    /// <see cref="DefaultSignature"/>, the version follows the content (<c>PRMT:CFG2-LE</c>), and both are accepted.
+    /// </summary>
     public const string ConfigurationSignature = "PRMT:CFG1-LE";
+
+    // The signatures of the layout by kind and version (SERIALIZER_FORMAT.md, 2)
+    private static readonly string[][] Kinds =
+    [
+        ["PRMT:GEN1-LE", "PRMT:GEN2-LE"],
+        ["PRMT:CFG1-LE", "PRMT:CFG2-LE"],
+    ];
 
     /// <summary>The options used when none are given.</summary>
     public static PromptuariumSerializerOptions Default { get; } = new();
@@ -23,7 +37,10 @@ public sealed class PromptuariumSerializerOptions
 
     /// <summary>
     /// The metadata of the root (BINARY_FORMAT.md, 10): 1 to 15 ASCII bytes, e.g. <c>PRMT:MYAPP1-LE</c>. A reader
-    /// rejects every other signature, unless <see cref="UnexpectedSignature"/> decides otherwise.
+    /// rejects every other signature, unless <see cref="UnexpectedSignature"/> decides otherwise. A signature of the
+    /// layout (<c>PRMT:GEN1-LE</c>, <c>PRMT:GEN2-LE</c>, <c>PRMT:CFG1-LE</c>, <c>PRMT:CFG2-LE</c>) names its kind: the
+    /// version is chosen by the content when writing, and both versions are accepted when reading. A signature of an
+    /// application is written and required as it is, and its files may hold the types of version 2.
     /// </summary>
     public string Signature
     {
@@ -210,7 +227,25 @@ public sealed class PromptuariumSerializerOptions
         throw new NotSupportedException($"The property {member.Property.Name} is declared as Blob, but a {type.Name} has no bytes: it is not registered with AddBlobType.");
     }
 
-    internal byte[] SignatureBytes => Encoding.ASCII.GetBytes(_signature);
+    /// <summary>The signature written: of a kind of the layout, the version that holds the tree; of an application, itself.</summary>
+    internal string SignatureFor(bool needsVersion2)
+    {
+        return Array.Find(Kinds, kind => kind.Contains(_signature)) is { } versions ? versions[needsVersion2 ? 1 : 0] : _signature;
+    }
+
+    /// <summary>Whether a reader accepts <paramref name="metadata"/>: the signature, or (of a kind of the layout) either version of it.</summary>
+    internal bool Accepts(ReadOnlySpan<byte> metadata)
+    {
+        string signature = Encoding.Latin1.GetString(metadata);
+        return signature == _signature || (Array.Find(Kinds, kind => kind.Contains(_signature)) is { } versions && versions.Contains(signature));
+    }
+
+    /// <summary>Whether <paramref name="metadata"/> is a signature of version 1 of the layout, whose files hold only the types of version 1.</summary>
+    internal static bool IsVersion1Signature(ReadOnlySpan<byte> metadata)
+    {
+        string signature = Encoding.Latin1.GetString(metadata);
+        return Array.Exists(Kinds, kind => kind[0] == signature);
+    }
 
     internal StringComparer NameComparer => PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 }

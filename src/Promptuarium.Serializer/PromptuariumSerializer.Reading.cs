@@ -96,17 +96,54 @@ public static partial class PromptuariumSerializer
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        if (root.Data.IsEmpty && root.MetaData.Span.SequenceEqual(options.SignatureBytes))
+        bool accepted = root.Data.IsEmpty && options.Accepts(root.MetaData.Span);
+
+        if (!accepted)
         {
-            return WithoutComments(root.Children);
+            switch (options.UnexpectedSignature?.Invoke(Encoding.Latin1.GetString(root.MetaData.Span)) ?? SignatureAction.Reject)
+            {
+                case SignatureAction.Accept:
+                    break;
+
+                case SignatureAction.Skip:
+                    return [];
+
+                default:
+                    throw new InvalidDataException($"The file does not have the signature \"{options.Signature}\".");
+            }
         }
 
-        return (options.UnexpectedSignature?.Invoke(Encoding.Latin1.GetString(root.MetaData.Span)) ?? SignatureAction.Reject) switch
+        if (PromptuariumSerializerOptions.IsVersion1Signature(root.MetaData.Span))
         {
-            SignatureAction.Accept => WithoutComments(root.Children),
-            SignatureAction.Skip => [],
-            _ => throw new InvalidDataException($"The file does not have the signature \"{options.Signature}\"."),
-        };
+            RequireVersion1(root);
+        }
+
+        return WithoutComments(root.Children);
+    }
+
+    // A file signed with a signature of version 1 holds only the types of version 1, and no NaN or infinity (SERIALIZER_FORMAT.md, 7)
+    private static void RequireVersion1(Element root)
+    {
+        foreach (Element node in Descendants(root))
+        {
+            if (node.MetaData.Length != 1 || node.MetaData.Span[0] != CfgFormat.Type || node.Data.Length != 1 || node.Parent is null || ReferenceEquals(node.Parent, root))
+            {
+                continue;
+            }
+
+            byte type = node.Data.Span[0];
+
+            if (!CfgFormat.IsVersion1(type))
+            {
+                throw new InvalidDataException($"A file of version 1 does not hold the type code 0x{type:x2}.");
+            }
+
+            if (type == CfgFormat.Float64 && node.Parent.Children.FirstOrDefault(sibling => sibling.MetaData.Length == 1 && sibling.MetaData.Span[0] == CfgFormat.Value) is { Data.Length: 8 } value
+                && !double.IsFinite(value.Data.AsDouble()))
+            {
+                throw new InvalidDataException("A FLOAT64 value of a file of version 1 is finite.");
+            }
+        }
     }
 
     // ---------------------------------------------------------------- holders
@@ -162,22 +199,6 @@ public static partial class PromptuariumSerializer
 
                 return Fit(flag.Span[0] == 1, target);
 
-            case CfgFormat.Float64:
-                ReadOnlyMemory<byte> raw = ScalarValue(content);
-
-                if (raw.Length != sizeof(double))
-                {
-                    throw new InvalidDataException("A FLOAT64 value is 8 bytes.");
-                }
-
-                double number = raw.AsDouble();
-
-                if (!double.IsFinite(number))
-                {
-                    throw new InvalidDataException("A FLOAT64 value is finite.");
-                }
-
-                return FitNumber(number, target);
 
             case CfgFormat.Utf8String:
                 string decoded = DecodeUtf8(ScalarValue(content));
@@ -186,6 +207,10 @@ public static partial class PromptuariumSerializer
             case CfgFormat.Blob:
                 byte[] bytes = ScalarValue(content).ToArray();
                 return conversion is { StoredType: CfgFormat.Blob } ? conversion.Decode(bytes) : FitBlob(bytes, target, options);
+
+            case byte code when CfgFormat.IsSupported(code):
+                // The numbers, DECIMAL, UUID, the dates and times
+                return Scalars.Decode(code, ScalarValue(content), target);
 
             case byte unknown:
                 throw new InvalidDataException($"Unsupported type code 0x{unknown:x2}.");
@@ -435,6 +460,7 @@ public static partial class PromptuariumSerializer
     private static bool IsScalar(Type type, PromptuariumSerializerOptions options)
     {
         return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || ScalarText.Handles(type)
+            || type == typeof(Half) || type == typeof(Int128) || type == typeof(UInt128) || type == typeof(System.Numerics.BigInteger)
             || options.ConversionForType(type) is not null;
     }
 
@@ -475,41 +501,6 @@ public static partial class PromptuariumSerializer
     private static object Fit(object value, Type target)
     {
         return target.IsInstanceOfType(value) ? value : throw new InvalidDataException($"A {value.GetType().Name} does not fit a {target.Name}.");
-    }
-
-    private static object FitNumber(double number, Type target)
-    {
-        if (target == typeof(double) || target == typeof(object))
-        {
-            return number;
-        }
-
-        if (target.IsEnum)
-        {
-            return Enum.ToObject(target, (long)FitNumber(number, typeof(long)));
-        }
-
-        bool integral = target == typeof(sbyte) || target == typeof(byte) || target == typeof(short) || target == typeof(ushort)
-            || target == typeof(int) || target == typeof(uint) || target == typeof(long) || target == typeof(ulong);
-
-        if (integral && Math.Floor(number) != number)
-        {
-            throw new InvalidDataException($"{number.ToString(CultureInfo.InvariantCulture)} does not fit a {target.Name}.");
-        }
-
-        if (!integral && target != typeof(float) && target != typeof(decimal))
-        {
-            throw new InvalidDataException($"A number does not fit a {target.Name}.");
-        }
-
-        try
-        {
-            return Convert.ChangeType(number, target, CultureInfo.InvariantCulture);
-        }
-        catch (OverflowException exception)
-        {
-            throw new InvalidDataException($"{number.ToString(CultureInfo.InvariantCulture)} does not fit a {target.Name}.", exception);
-        }
     }
 
     // Bytes for a type registered as bytes in the options, or else for a byte[] (or an object)

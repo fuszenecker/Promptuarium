@@ -1,5 +1,5 @@
 // Configuration: settings in sections, with typed values, stored with Promptuarium.Serializer as configuration files
-// (PRMT:CFG1-LE, SERIALIZER_FORMAT.md).
+// (PRMT:CFG1-LE, or PRMT:CFG2-LE when a value has a type of version 2, as the int and the TimeSpan here; SERIALIZER_FORMAT.md).
 //
 // The settings are plain classes, with comments that are written into the file (for the people and the editors that
 // read it, e.g. PStudio). The defaults are one file, the user's changes another one on top of them; a file of another

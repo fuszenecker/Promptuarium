@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Promptuarium.Serializer;
 
 namespace PStudio.Models;
 
@@ -10,6 +11,13 @@ namespace PStudio.Models;
 public sealed class FileForms
 {
     /// <summary>When the forms were stored last (the least recently used files are forgotten first).</summary>
+    /// <remarks>
+    /// Stored as text, the form of version 1 of the layout, so that forms.prmt (<c>PRMT:PSTNT1</c>) stays a file of
+    /// version 1, which the earlier versions of PStudio read too.
+    /// </remarks>
+#pragma warning disable PRMTSER001 // the type control of the serializer is experimental
+    [PromptuariumType(PromptuariumType.Utf8String)]
+#pragma warning restore PRMTSER001
     public DateTime LastUsed { get; set; }
 
     /// <summary>The forms of the data.</summary>

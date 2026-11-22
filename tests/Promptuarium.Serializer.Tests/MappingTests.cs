@@ -137,13 +137,25 @@ public sealed class MappingTests
     {
         Element root = PromptuariumSerializer.ToElement(Sample());
 
+        Assert.AreEqual("PRMT:GEN2-LE", root.MetaData.AsAsciiString());
         Assert.AreEqual(0x01, TypeOf(root, "Flag"));
-        Assert.AreEqual(0x63, TypeOf(root, "Int"));
-        Assert.AreEqual(0x63, TypeOf(root, "Decimal"));
+        Assert.AreEqual(0x42, TypeOf(root, "Int"));
+        Assert.AreEqual(0x43, TypeOf(root, "Long"));
+        Assert.AreEqual(0x63, TypeOf(root, "Double"));
+        Assert.AreEqual(0x62, TypeOf(root, "Float"));
+        Assert.AreEqual(0x70, TypeOf(root, "Decimal"));
+        Assert.AreEqual(0x50, TypeOf(root, "Byte"));
+        Assert.AreEqual(0x42, TypeOf(root, "NullableInt"));
         Assert.AreEqual(0x80, TypeOf(root, "Text"));
         Assert.AreEqual(0x00, TypeOf(root, "Missing"));
+        Assert.AreEqual(0x80, TypeOf(root, "Character"));
         Assert.AreEqual(0x80, TypeOf(root, "Color"));
-        Assert.AreEqual(0x80, TypeOf(root, "When"));
+        Assert.AreEqual(0xD3, TypeOf(root, "When"));
+        Assert.AreEqual(0xD3, TypeOf(root, "WhenOffset"));
+        Assert.AreEqual(0xD0, TypeOf(root, "Day"));
+        Assert.AreEqual(0xD1, TypeOf(root, "Time"));
+        Assert.AreEqual(0xD4, TypeOf(root, "Duration"));
+        Assert.AreEqual(0x90, TypeOf(root, "Id"));
         Assert.AreEqual(0xF0, TypeOf(root, "Payload"));
         Assert.AreEqual(0x21, TypeOf(root, "Numbers"));
         Assert.AreEqual(0x20, TypeOf(root, "Counts"));
@@ -185,7 +197,10 @@ public sealed class MappingTests
         var decoded = PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(PromptuariumSerializer.Serialize(Sample()));
 
         Assert.IsInstanceOfType<bool>(decoded["Flag"]);
-        Assert.AreEqual(-42.0, decoded["Int"]);
+        Assert.AreEqual(-42L, decoded["Int"]);
+        Assert.AreEqual(12.75m, decoded["Decimal"]);
+        Assert.AreEqual(new DateOnly(2026, 10, 28), decoded["Day"]);
+        Assert.AreEqual(Guid.Parse("01234567-89ab-cdef-0123-456789abcdef"), decoded["Id"]);
         Assert.AreEqual("Blue", decoded["Color"]);
         Assert.IsInstanceOfType<byte[]>(decoded["Payload"]);
         Assert.IsInstanceOfType<List<object?>>(decoded["Numbers"]);

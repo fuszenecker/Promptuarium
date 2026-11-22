@@ -31,7 +31,7 @@ public sealed class TypeAttributeTests
 
     public sealed class Reserved
     {
-        [PromptuariumType(PromptuariumType.Int64)]
+        [PromptuariumType(PromptuariumType.Float8)]
         public long Ticks { get; set; }
     }
 
@@ -75,7 +75,7 @@ public sealed class TypeAttributeTests
     {
         var exception = Assert.ThrowsExactly<NotSupportedException>(() => PromptuariumSerializer.Serialize(new Reserved { Ticks = 1 }));
 
-        StringAssert.Contains(exception.Message, "Int64");
+        StringAssert.Contains(exception.Message, "Float8");
     }
 
     [TestMethod]

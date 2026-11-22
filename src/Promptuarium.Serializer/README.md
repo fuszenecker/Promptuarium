@@ -2,8 +2,10 @@
 
 A general serializer between .NET objects and Promptuarium trees, in the layout of [SERIALIZER_FORMAT.md](../../SERIALIZER_FORMAT.md):
 every value is a holder node with a TYPE child and, for scalars, a VALUE child. There is no intermediate representation
-(no JSON): a `byte[]` is a BLOB, the bytes as they are. The files are signed with `PRMT:GEN1-LE` (general objects) by
-default; configuration files have `PRMT:CFG1-LE` (`PromptuariumSerializerOptions.ConfigurationSignature`).
+(no JSON): a `byte[]` is a BLOB, the bytes as they are. The files are signed with `PRMT:GEN1-LE` or `PRMT:GEN2-LE`
+(general objects) by default; configuration files have `PRMT:CFG1-LE` or `PRMT:CFG2-LE`
+(`PromptuariumSerializerOptions.ConfigurationSignature`). It writes **version 2** of the layout: every number, date,
+time and UUID has a type of its own; a file is signed with the lowest version that holds it (see [Versions](#versions)).
 
 The serializer is **experimental**: the API and the format can still change. The assembly is marked
 `[Experimental("PRMTSER000")]`, so using it needs an opt-in, e.g. in the project file:
@@ -29,11 +31,17 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 | .NET | Stored as |
 |------|-----------|
 | `bool` | `BOOLEAN` |
-| `sbyte` … `ulong`, `float`, `double`, `decimal` | `FLOAT64` (a `long`, `ulong` or `decimal` only if a double holds it exactly; an integer read back must be whole and in range) |
+| `sbyte`, `short`, `int`, `long` (and `nint`), `Int128` | `INT8`, `INT16`, `INT32`, `INT64`, `INT128` |
+| `byte`, `ushort`, `uint`, `ulong` (and `nuint`), `UInt128` | `UINT8`, `UINT16`, `UINT32`, `UINT64`, `UINT128` |
+| `BigInteger` | `BIGINT`, two's complement, the shortest form |
+| `Half`, `float`, `double` | `FLOAT16`, `FLOAT32`, `FLOAT64`; NaN and the infinities too |
+| `decimal` | `DECIMAL`, its canonical text (`"12.750"`, the scale kept) |
 | `string`, `char` | `UTF8_STRING` |
 | enums | `UTF8_STRING`, the name (`"Read, Write"` for flags); read from a name in any case, or a number |
-| `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly` | `UTF8_STRING`, round-trip text (`"O"`), the kind and the offset kept |
-| `TimeSpan`, `Guid` | `UTF8_STRING`, `"c"` and `"D"` |
+| `Guid` | `UUID`, 16 bytes in the order of RFC 9562 |
+| `DateOnly`, `TimeOnly`, `TimeSpan` | `DATE`, `TIME`, `DURATION` |
+| `DateTime` | `DATETIME` (`Kind` `Unspecified`), or `TIMESTAMP` (`Utc` with offset 0, `Local` with its offset); the kind comes back |
+| `DateTimeOffset` | `TIMESTAMP`, the instant and the offset |
 | `Version`, `Uri`, `IPAddress`, `IPNetwork` | `UTF8_STRING`, e.g. `"8.2.2"`, the original string of the `Uri` (absolute or relative), `"2001:db8::1"`, `"10.0.0.0/8"` (default types, see [Text types](#text-types-addtexttype)) |
 | `byte[]` | `BLOB` |
 | string-keyed dictionaries (`Dictionary<string, T>`, `IReadOnlyDictionary<string, T>`, …) | `OBJECT` |
@@ -41,8 +49,29 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 | other collections (`T[]`, `List<T>`, `IReadOnlyList<T>`, `HashSet<T>`, …) | `ARRAY` |
 | `null` | `NULL` |
 
-Read into `object`, a file gives `Dictionary<string, object?>`, `List<object?>`, `bool`, `double`, `string`, `byte[]`
-or `null`, so a file of any shape can be read without a type.
+Read into `object`, a file gives `Dictionary<string, object?>`, `List<object?>`, `bool`, `long` (`ulong`, `Int128`,
+`UInt128`, `BigInteger` for `UINT64`, `INT128`, `UINT128`, `BIGINT`), `double` (`float`, `Half`), `decimal`, `string`,
+`Guid`, `DateOnly`, `TimeOnly`, `DateTime`, `DateTimeOffset`, `TimeSpan`, `byte[]` or `null`, so a file of any shape can
+be read without a type.
+
+## Versions
+
+A file is signed with the **lowest version that holds it** (SERIALIZER_FORMAT.md, 7): a tree with only the types of
+version 1 (`NULL`, `BOOLEAN`, `OBJECT`, `ARRAY`, a finite `FLOAT64`, `UTF8_STRING`, `BLOB`) gets `PRMT:GEN1-LE`
+(`PRMT:CFG1-LE`), so a reader of version 1 still reads it; any other tree `PRMT:GEN2-LE` (`PRMT:CFG2-LE`). A signature
+of an application is written as it is. There is no option to write version 1: a property gets the form of version 1 by
+its declaration (`[PromptuariumType(Float64)]` on an `int`, `[PromptuariumType(Utf8String)]` on a `Guid` or a
+`DateTime`, see [the type control](#the-experimental-type-control)), or by a type of version 1 (a `double`, a
+`string`).
+
+Reading accepts both versions of the kind of `Signature`, and rejects a file of version 1 with a type of version 2 (or a
+NaN or an infinity). It is lenient where nothing is lost:
+
+* any integer type is read into any integer type (or `BigInteger`) the value fits;
+* a `FLOAT64` is read into an integer type if it is a whole number that fits (the files of version 1);
+* an integer is read into a `double`, a `float`, a `Half` or a `decimal`, and a floating point number into a smaller
+  floating point type, only if the value is held exactly (a `FLOAT64` into a `decimal` as in version 1);
+* the text of version 1 is still read into the dates, the times and `Guid`.
 
 The root is always an `OBJECT`: an object or a dictionary.
 
@@ -55,8 +84,9 @@ The root is always an `OBJECT`: an object or a dictionary.
   whose parameters are its members; a missing parameter gets its default value.
 * A file with another signature (or a root with data) is rejected, unless the `UnexpectedSignature` callback decides
   otherwise (see [Signatures](#signatures)).
-* Everything the specification requires a reader to reject is rejected with `InvalidDataException`: unknown metadata, reserved or unknown type codes, invalid booleans, non-finite or wrongly sized numbers,
-  invalid UTF-8, malformed holders. So is a file that does not fit the type (a string for an `int`, `1.5` for an `int`,
+* Everything the specification requires a reader to reject is rejected with `InvalidDataException`: unknown metadata, reserved or unknown type codes, invalid booleans, wrongly sized values,
+  a `DECIMAL` that is not canonical, a `BIGINT` that is not in its shortest form, dates and times out of range, a type
+  of version 2 in a file of version 1, invalid UTF-8, malformed holders. So is a file that does not fit the type (a string for an `int`, `1.5` for an `int`,
   `256` for a `byte`, ...).
 
 ## Layering
@@ -129,7 +159,7 @@ The comment of a property wins over the comment of its type.
 
 | Option | Default | |
 |--------|---------|---|
-| `Signature` | `PRMT:GEN1-LE` | the root metadata, 1 to 15 ASCII bytes; a reader requires it |
+| `Signature` | `PRMT:GEN1-LE` | the root metadata, 1 to 15 ASCII bytes; a reader requires it. A signature of the layout names its kind: the version follows the content, and both versions are read |
 | `UnexpectedSignature` | `null` (reject) | what a reader does with a file of another signature |
 | `PropertyNameCaseInsensitive` | `true` | |
 | `MaxDepth` | `64` | the deepest nesting written or read; it stops cycles, too |
@@ -140,18 +170,24 @@ The comment of a property wins over the comment of its type.
 
 ### The experimental type control
 
-`PromptuariumType` lists every type code of the specification, the reserved ones (`Int64`, `Float32`, …) too, and
-`[PromptuariumType(...)]` states the type a property is stored as. Writing rejects a value that does not map to it,
-reading rejects a file that has another type (`NULL` is always allowed). Apart from `Utf8String` (below), it can only
-confirm the type a value maps to anyway, and a reserved type is rejected (`NotSupportedException`); it is where e.g.
-`Int64` instead of `Float64` will be chosen once the format supports it. Both types are marked `[Experimental("PRMTSER001")]`, so using
-them needs an opt-in:
+`PromptuariumType` lists every type code of the specification, the reserved ones (`Float8`, `Float128`) too, and
+`[PromptuariumType(...)]` states the type a property is stored as; reading requires the file to have that type (`NULL`
+is always allowed). It chooses another form than the natural one:
+
+* an integer type for an integer (`Int64` on an `int`, `BigInt` on a `long`), if the value fits;
+* a floating point type for a number (`Float64` on an `int`, a `long`, a `decimal`, a `float`: the form of version 1;
+  `Float32` on a `double`), if the type holds the value exactly (a `long` beyond 2⁵³ as `Float64` is rejected);
+* `Utf8String` for a date, a time or a `Guid`: the text of version 1 (`"O"` for the dates, `"c"` for a `TimeSpan`,
+  `"D"` for a `Guid`); for another type, see below.
+
+A value that does not fit the declared type is rejected (`NotSupportedException`), and so is a reserved type. Both
+types are marked `[Experimental("PRMTSER001")]`, so using them needs an opt-in:
 
 ```csharp
 #pragma warning disable PRMTSER001
 public sealed class Counter
 {
-    [PromptuariumType(PromptuariumType.Float64)]
+    [PromptuariumType(PromptuariumType.Float64)]   // FLOAT64, the form of version 1
     public long Value { get; set; }
 }
 ```
@@ -232,11 +268,10 @@ the value, so text is the better choice unless the size matters. A type is regis
 
 ## Writing
 
-`NotSupportedException` for what can not be stored: a scalar or a collection as the root, `NaN` and infinity,
-a number that would not come back exactly (a `long` or a `ulong` that a double does not hold, e.g. 2⁵³ + 1 or
-`long.MaxValue`; a `decimal` with more digits than 15),
-dictionaries with keys other than strings, number types without a mapping (`Int128`, `Half`, `nint`, …), nesting
-deeper than `MaxDepth` (a cycle), a value that does not fit its declared `PromptuariumType`.
+`NotSupportedException` for what can not be stored: a scalar or a collection as the root, dictionaries with keys
+other than strings, nesting deeper than `MaxDepth` (a cycle), a value that does not fit its declared
+`PromptuariumType` (e.g. a `long` beyond 2⁵³ declared as `Float64`, a `decimal` with more than 15 digits as `Float64`,
+300 as `Int8`). A NaN is written as the canonical quiet NaN.
 
 ## Tests
 
