@@ -61,6 +61,8 @@ pedit \- create, dump and edit Promptuarium trees
 .IR FILE ]
 .br
 .B pedit help
+.br
+.B pedit version
 .SH DESCRIPTION
 .B pedit
 creates, dumps and edits Promptuarium trees. Every command is a single, non\-interactive call;
@@ -114,6 +116,12 @@ Deletes a node with its subtree (not the root).
 .B get
 Prints the metadata or the data of a node, or writes the raw bytes into
 .BR \-\-out .
+.TP
+.B version
+Prints the version and the commit it was built from. Also
+.B \-\-version
+or
+.BR \-V .
 .PP
 .B \-\-tree \fIFILE\fR|\fB\-
 reads a subtree in the form of

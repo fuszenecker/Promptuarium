@@ -28,4 +28,9 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
+  <!-- The version of the tool: the version command, the About box of PStudio -->
+  <ItemGroup>
+    <Compile Include="..\Shared\ToolVersion.cs" Link="Shared\ToolVersion.cs" />
+  </ItemGroup>
+
 </Project>

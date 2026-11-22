@@ -5,6 +5,7 @@
 //   ppak unpack FILE DIRECTORY [--strict]  unpacks into the directory (--strict: no warnings allowed)
 //   ppak list FILE                         lists the entries
 //   ppak verify FILE                       checks the file: the mandatory components, and the additional infos
+//   ppak --version                         prints the version
 //
 // Only the names and the contents are mandatory: an error in them stops ppak. A discrepancy in the additional infos
 // (size, CRC-32, type, mode, ...) is a warning, written to the standard error; by default the content is used anyway.
@@ -54,8 +55,12 @@ try
             return warnings.Count == 0 ? 0 : 1;
         }
 
+        case ["--version" or "-V" or "version"]:
+            Console.WriteLine(Promptuarium.Tools.ToolVersion.Line("ppak"));
+            return 0;
+
         default:
-            Console.Error.WriteLine("Usage: ppak pack DIRECTORY FILE | unpack FILE DIRECTORY [--strict] | list FILE | verify FILE");
+            Console.Error.WriteLine("Usage: ppak pack DIRECTORY FILE | unpack FILE DIRECTORY [--strict] | list FILE | verify FILE | --version");
             return 2;
     }
 }

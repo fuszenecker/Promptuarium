@@ -60,6 +60,8 @@ pcfg \- show and edit Promptuarium configuration files
 .B pcfg check
 .I FILE
 .RB [ \-\-strict ]
+.br
+.B pcfg version
 .SH DESCRIPTION
 .B pcfg
 shows and edits configuration files of Promptuarium: containers signed
@@ -166,6 +168,12 @@ Checks the file by SERIALIZER_FORMAT.md: the signature, the tags, the type codes
 holders, the values and the comments. A repeated name is a warning: the last one wins.
 .B \-\-strict
 makes a warning an error.
+.TP
+.B version
+Prints the version and the commit it was built from. Also
+.B \-\-version
+or
+.BR \-V .
 .SH KEYS
 A key is the names of the members and the indexes of the elements, separated by
 .B :

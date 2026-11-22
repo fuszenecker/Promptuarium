@@ -17,4 +17,9 @@ public interface IMessageDialogService
     /// Shows an error.
     /// </summary>
     Task ShowErrorAsync(string title, string message);
+
+    /// <summary>
+    /// Shows an information (e.g. the About box).
+    /// </summary>
+    Task ShowInfoAsync(string title, string message);
 }

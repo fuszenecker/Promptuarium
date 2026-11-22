@@ -6,6 +6,7 @@
 //                                                      unpacks into the directory (--strict: no warnings allowed)
 //   ppakz list FILE [--max-size=BYTES]                 lists the entries
 //   ppakz verify FILE [--max-size=BYTES]               checks the file: the mandatory components, and the additional infos
+//   ppakz --version                                    prints the version
 //
 // As in ppak, only the names and the contents are mandatory: an error in them (or a content that is not a gzip stream,
 // or contents longer than --max-size together, 4 GiB by default) stops ppakz. A discrepancy in the additional infos
@@ -15,7 +16,7 @@ using PPakZ;
 using Promptuarium;
 using static PPakZ.PPakZFormat;
 
-const string Usage = "Usage: ppakz pack DIRECTORY FILE | unpack FILE DIRECTORY [--strict] [--max-size=BYTES] | list FILE [--max-size=BYTES] | verify FILE [--max-size=BYTES]";
+const string Usage = "Usage: ppakz pack DIRECTORY FILE | unpack FILE DIRECTORY [--strict] [--max-size=BYTES] | list FILE [--max-size=BYTES] | verify FILE [--max-size=BYTES] | --version";
 
 try
 {
@@ -57,6 +58,10 @@ try
             Console.WriteLine(warnings.Count == 0 ? "OK" : $"{warnings.Count:N0} warnings");
             return warnings.Count == 0 ? 0 : 1;
         }
+
+        case ["--version" or "-V" or "version"]:
+            Console.WriteLine(Promptuarium.Tools.ToolVersion.Line("ppakz"));
+            return 0;
 
         default:
             Console.Error.WriteLine(Usage);

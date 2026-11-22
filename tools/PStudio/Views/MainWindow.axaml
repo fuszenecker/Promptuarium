@@ -60,6 +60,9 @@
         <Separator />
         <MenuItem Header="_Reset Types" Command="{Binding ResetTypesCommand}" ToolTip.Tip="Forget the forms chosen for the metadata and the data of the nodes of this tree" />
       </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="_About Promptuarium Studio…" Command="{Binding AboutCommand}" />
+      </MenuItem>
     </Menu>
 
     <Border DockPanel.Dock="Bottom" Padding="8,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">

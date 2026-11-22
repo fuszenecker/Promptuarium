@@ -41,6 +41,12 @@ public sealed class MessageDialogService : IMessageDialogService
         await ShowAsync(new MessageDialogViewModel(title, message, [new DialogButton("OK", 0, IsDefault: true, IsCancel: true)]));
     }
 
+    /// <inheritdoc/>
+    public async Task ShowInfoAsync(string title, string message)
+    {
+        await ShowAsync(new MessageDialogViewModel(title, message, [new DialogButton("OK", 0, IsDefault: true, IsCancel: true)]));
+    }
+
     private async Task<int?> ShowAsync(MessageDialogViewModel viewModel)
     {
         if (windowContext.ActiveWindow is not { } owner)

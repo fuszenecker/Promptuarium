@@ -36,6 +36,7 @@ pedit set    FILE PATH [--metadata VALUE] [--data VALUE] [--tree FILE|-] [--outp
 pedit delete FILE PATH [--output FILE] [--yaml|--json]
 pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
 pedit help
+pedit version                      # also --version, -V
 ```
 
 | Command  | What it does |
@@ -47,6 +48,7 @@ pedit help
 | `set`    | Sets the metadata and/or the data of a node. `empty` clears a content. With `--tree`, it replaces the node, with its children, with a subtree. |
 | `delete` | Deletes a node with its subtree. The root can not be deleted. |
 | `get`    | Prints the metadata or the data of a node as hex (default), base64 or UTF-8, or writes the raw bytes into `--out FILE`. |
+| `version` | Prints the version and the commit it was built from, e.g. `pedit 8.4.0 (4c18335)`. Also `--version` or `-V`. |
 
 ### Subtrees
 

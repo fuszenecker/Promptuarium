@@ -11,6 +11,7 @@ ppak pack DIRECTORY FILE                 # packs the contents of the directory (
 ppak unpack FILE DIRECTORY [--strict]    # unpacks into the directory (created if it does not exist)
 ppak list FILE                           # lists the entries, like ls -l
 ppak verify FILE                         # checks the archive, without unpacking it
+ppak --version                           # prints the version, e.g. ppak 8.4.0 (4c18335)
 ```
 
 From the repository:

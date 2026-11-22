@@ -1,0 +1,9 @@
+<Project>
+  <!-- The tools carry the version of the packages: the one version in src/Directory.Build.props (a release build
+       overrides it with /p:Version), so that "pcfg version" and the About box of PStudio show it in a local build too -->
+  <PropertyGroup>
+    <Version Condition="'$(Version)' == ''">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../src/Directory.Build.props')), '&lt;Version&gt;\s*([^&lt;\s]+)\s*&lt;/Version&gt;').Groups[1].Value)</Version>
+    <Company>Fuszenecker Software Development</Company>
+    <Copyright>Copyright 2012-2026, Fuszenecker Róbert</Copyright>
+  </PropertyGroup>
+</Project>

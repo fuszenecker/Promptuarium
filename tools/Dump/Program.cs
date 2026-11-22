@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Promptuarium;
 
@@ -8,9 +8,15 @@ namespace Dump
     {
         private static async Task Main(string[] args)
         {
+            if (args is ["--version" or "-V"])
+            {
+                Console.WriteLine(Promptuarium.Tools.ToolVersion.Line("dump"));
+                return;
+            }
+
             if (args.Length != 1)
             {
-                Console.WriteLine("Usage: dump.exe <promptuarium_container>");
+                Console.WriteLine("Usage: dump.exe <promptuarium_container> | --version");
                 Environment.Exit(-1);
             }
 

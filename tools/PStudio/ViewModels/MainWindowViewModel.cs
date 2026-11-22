@@ -147,8 +147,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         ? $"{hostEditor.DocumentName} {hostNode.Path}"
         : FileName is null ? "untitled" : System.IO.Path.GetFileName(FileName);
 
+    /// <summary>The version of PStudio, e.g. 8.4.0 (without the commit).</summary>
+    public static string AppVersion => Promptuarium.Tools.ToolVersion.Version;
+
     /// <summary>The title of the window.</summary>
-    public string Title => $"{DocumentName}{(IsNested ? " (nested)" : string.Empty)}{(IsModified ? " *" : string.Empty)} - Promptuarium Studio";
+    public string Title => $"{DocumentName}{(IsNested ? " (nested)" : string.Empty)}{(IsModified ? " *" : string.Empty)} - Promptuarium Studio {AppVersion}";
 
     /// <summary>The path of the selected node.</summary>
     public string NodePath => SelectedNode?.Path ?? "No node is selected";
@@ -283,6 +286,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         settings.Saved -= OnSettingsSaved;
         hostEditor?.nestedEditors.Remove(this);
     }
+
+    /// <summary>
+    /// The text of the About box: the version, the commit, the runtime and the copyright.
+    /// </summary>
+    public static string AboutText
+    {
+        get
+        {
+            string commit = Promptuarium.Tools.ToolVersion.Commit is string hash ? $" (commit {hash})" : string.Empty;
+            return $"""
+                Promptuarium Studio {AppVersion}{commit}
+
+                .NET {Environment.Version}, {System.Runtime.InteropServices.RuntimeInformation.OSDescription}
+
+                Copyright 2012-2026, Fuszenecker Róbert
+                MIT License
+                https://github.com/fuszenecker/Promptuarium
+                """;
+        }
+    }
+
+    [RelayCommand]
+    private Task AboutAsync() => messages.ShowInfoAsync("About Promptuarium Studio", AboutText);
 
     [RelayCommand(CanExecute = nameof(IsNotNested))]
     private async Task NewAsync()

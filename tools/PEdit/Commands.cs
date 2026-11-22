@@ -81,6 +81,7 @@ internal static class Commands
           pedit delete FILE PATH [--output FILE] [--yaml|--json]
           pedit get    FILE PATH metadata|data [--format hex|base64|utf8] [--out FILE]
           pedit help
+          pedit version
 
         Commands:
           new     Creates a file with an empty root (or a signed root, see BINARY_FORMAT.md, section 10).
@@ -129,6 +130,11 @@ internal static class Commands
                 case "--help":
                 case "-h":
                     output.WriteLine(Usage);
+                    return ExitCodes.Success;
+                case "version":
+                case "--version":
+                case "-V":
+                    output.WriteLine(Promptuarium.Tools.ToolVersion.Line("pedit"));
                     return ExitCodes.Success;
                 case "new":
                     await NewAsync(command, output).ConfigureAwait(false);

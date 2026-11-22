@@ -26,7 +26,7 @@ public sealed class EditorScenarios
         Assert.IsTrue(await editor.ViewModel.OpenFileAsync(path));
         Editor.Pump();
 
-        Assert.AreEqual("tree.prmt - Promptuarium Studio", editor.Window.Title);
+        Assert.AreEqual($"tree.prmt - Promptuarium Studio {MainWindowViewModel.AppVersion}", editor.Window.Title);
         Assert.AreEqual(
             "root  [\"PRMT\"] | #0  [0102]  \"hello\" | #1  00FF",
             string.Join(" | ", editor.Find<TreeViewItem>().Select(item => ((NodeViewModel)item.DataContext!).Header)));
@@ -49,7 +49,7 @@ public sealed class EditorScenarios
         Editor.Pump();
 
         Assert.AreEqual("hello, world", editor.ViewModel.Root.Element[0].Data.AsUtf8String());
-        Assert.AreEqual("tree.prmt * - Promptuarium Studio", editor.Window.Title);
+        Assert.AreEqual($"tree.prmt * - Promptuarium Studio {MainWindowViewModel.AppVersion}", editor.Window.Title);
     });
 
     [TestMethod]
@@ -277,7 +277,7 @@ public sealed class EditorScenarios
         file.Close();
         Editor.Pump();
 
-        Assert.AreEqual("recent_one.prmt - Promptuarium Studio", editor.Window.Title);
+        Assert.AreEqual($"recent_one.prmt - Promptuarium Studio {MainWindowViewModel.AppVersion}", editor.Window.Title);
     });
 
     [TestMethod]
@@ -378,14 +378,14 @@ public sealed class EditorScenarios
 
         MainWindow nested = editor.Window.OwnedWindows.OfType<MainWindow>().Single();
         var viewModel = (MainWindowViewModel)nested.DataContext!;
-        Assert.AreEqual("untitled / (nested) - Promptuarium Studio", nested.Title);
+        Assert.AreEqual($"untitled / (nested) - Promptuarium Studio {MainWindowViewModel.AppVersion}", nested.Title);
 
         viewModel.AddChildCommand.Execute(null);
         viewModel.SaveCommand.Execute(null);
         Editor.Pump();
 
         Assert.AreEqual(1, Element.FromBytes(editor.ViewModel.Root.Element.Data).Children.Count);
-        Assert.AreEqual("untitled * - Promptuarium Studio", editor.Window.Title);
+        Assert.AreEqual($"untitled * - Promptuarium Studio {MainWindowViewModel.AppVersion}", editor.Window.Title);
 
         // Closing the nested window after saving asks nothing
         nested.Close();

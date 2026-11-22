@@ -17,6 +17,8 @@ ppakz \- pack a directory tree into a compressed Promptuarium container, and unp
 .B ppakz verify
 .I FILE
 .RB [ \-\-max\-size=\fIBYTES\fR ]
+.br
+.B ppakz \-\-version
 .SH DESCRIPTION
 .B ppakz
 is
@@ -50,6 +52,10 @@ Lists the entries, with the size and the compressed size.
 .TP
 .B verify \fIFILE\fR
 Checks the archive without unpacking it.
+.TP
+.B \-\-version
+Prints the version and the commit it was built from. Also
+.BR \-V .
 .SH OPTIONS
 .TP
 .B \-\-max\-size=\fIBYTES\fR

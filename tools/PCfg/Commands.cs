@@ -83,6 +83,7 @@ internal static class Commands
           pcfg export  FILE [KEY] [--json] [--output FILE]
           pcfg check   FILE [--strict]
           pcfg help
+          pcfg version
 
         Commands:
           new      Creates a configuration without members.
@@ -140,6 +141,11 @@ internal static class Commands
                 case "--help":
                 case "-h":
                     output.WriteLine(Usage);
+                    return ExitCodes.Success;
+                case "version":
+                case "--version":
+                case "-V":
+                    output.WriteLine(Promptuarium.Tools.ToolVersion.Line("pcfg"));
                     return ExitCodes.Success;
                 case "new":
                     await NewAsync(command, output).ConfigureAwait(false);

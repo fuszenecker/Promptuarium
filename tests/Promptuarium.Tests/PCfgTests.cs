@@ -51,6 +51,15 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task Version()
+        {
+            foreach (string command in new[] { "version", "--version", "-V" })
+            {
+                StringAssert.StartsWith(await Ok(command).ConfigureAwait(false), "pcfg 8.");
+            }
+        }
+
+        [TestMethod]
         public async Task ImportWritesTheTestVector()
         {
             await Ok("import", file, json).ConfigureAwait(false);

@@ -34,10 +34,21 @@ public sealed class MainWindowViewModelTests
         Assert.AreSame(sut.Root, sut.SelectedNode);
         Assert.AreEqual(0, sut.Root.Children.Count);
         Assert.IsFalse(sut.IsModified);
-        Assert.AreEqual("untitled - Promptuarium Studio", sut.Title);
+        Assert.AreEqual($"untitled - Promptuarium Studio {MainWindowViewModel.AppVersion}", sut.Title);
         Assert.IsTrue(sut.AddChildCommand.CanExecute(null));
         Assert.IsFalse(sut.DeleteCommand.CanExecute(null));
         Assert.IsFalse(sut.AddSiblingCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task About_ShowsTheVersion()
+    {
+        MainWindowViewModel sut = Create();
+
+        await sut.AboutCommand.ExecuteAsync(null);
+
+        Assert.StartsWith("8.", MainWindowViewModel.AppVersion);
+        await messages.Received(1).ShowInfoAsync("About Promptuarium Studio", Arg.Is<string>(text => text.Contains($"Promptuarium Studio {MainWindowViewModel.AppVersion}")));
     }
 
     [TestMethod]
@@ -57,7 +68,7 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual(2, sut.Root.Element.Children.Count);
         Assert.AreEqual(1, sut.Root.Element[1].Children.Count);
         Assert.IsTrue(sut.IsModified);
-        Assert.AreEqual("untitled * - Promptuarium Studio", sut.Title);
+        Assert.AreEqual($"untitled * - Promptuarium Studio {MainWindowViewModel.AppVersion}", sut.Title);
     }
 
     [TestMethod]
@@ -215,7 +226,7 @@ public sealed class MainWindowViewModelTests
 
         await sut.OpenCommand.ExecuteAsync(null);
 
-        Assert.AreEqual("tree.prmt - Promptuarium Studio", sut.Title);
+        Assert.AreEqual($"tree.prmt - Promptuarium Studio {MainWindowViewModel.AppVersion}", sut.Title);
         Assert.AreEqual("x", sut.Root.Children.Single().Element.Data.AsAsciiString());
         Assert.AreSame(sut.Root, sut.SelectedNode);
     }
@@ -397,7 +408,7 @@ public sealed class MainWindowViewModelTests
         await fileDialogs.Received(1).PickTreeToSaveAsync(Arg.Any<string?>());
         await files.Received(2).SaveAsync(sut.Root.Element, "/data/new.prmt");
         Assert.IsFalse(sut.IsModified);
-        Assert.AreEqual("new.prmt - Promptuarium Studio", sut.Title);
+        Assert.AreEqual($"new.prmt - Promptuarium Studio {MainWindowViewModel.AppVersion}", sut.Title);
     }
 
     [TestMethod]
@@ -445,7 +456,7 @@ public sealed class MainWindowViewModelTests
         Assert.IsTrue(nested.IsNested);
         Assert.IsFalse(nested.SaveAsCommand.CanExecute(null));
         Assert.IsFalse(nested.OpenCommand.CanExecute(null));
-        Assert.AreEqual("untitled / (nested) - Promptuarium Studio", nested.Title);
+        Assert.AreEqual($"untitled / (nested) - Promptuarium Studio {MainWindowViewModel.AppVersion}", nested.Title);
         Assert.AreEqual("inner", nested.Root.Element.Data.AsAsciiString());
 
         nested.AddChildCommand.Execute(null);
@@ -621,7 +632,7 @@ public sealed class MainWindowViewModelTests
 
         MenuEntry b = sut.RecentFiles[2];
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<string>)b.Command!).ExecuteAsync((string)b.Parameter!);
-        Assert.AreEqual("my_b.prmt - Promptuarium Studio", sut.Title);
+        Assert.AreEqual($"my_b.prmt - Promptuarium Studio {MainWindowViewModel.AppVersion}", sut.Title);
 
         sut.RecentFiles.Single(entry => entry.Header == "_Clear Recent Files").Command!.Execute(null);
         Assert.AreEqual(0, settings.Settings.RecentFiles.Count);

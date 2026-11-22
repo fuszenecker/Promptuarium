@@ -9,6 +9,7 @@ ppakz pack DIRECTORY FILE                       # packs the contents of the dire
 ppakz unpack FILE DIRECTORY [--strict]          # unpacks into the directory (--strict: no warnings allowed)
 ppakz list FILE                                 # lists the entries, with the size and the compressed size
 ppakz verify FILE                               # checks the mandatory components and the additional infos
+ppakz --version                                 # prints the version, e.g. ppakz 8.4.0 (4c18335)
 ```
 
 `unpack`, `list` and `verify` take `--max-size=BYTES` too: the limit of the decompressed contents, together

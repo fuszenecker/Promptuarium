@@ -14,6 +14,8 @@ ppak \- pack a directory tree into a Promptuarium container, and unpack it
 .br
 .B ppak verify
 .I FILE
+.br
+.B ppak \-\-version
 .SH DESCRIPTION
 .B ppak
 packs the contents of a directory (the files, the directories and the symbolic links, with the size and the CRC\-32
@@ -46,6 +48,10 @@ Lists the entries, like
 .TP
 .B verify \fIFILE\fR
 Checks the archive without unpacking it.
+.TP
+.B \-\-version
+Prints the version and the commit it was built from. Also
+.BR \-V .
 .SH EXIT STATUS
 .TP
 .B 0

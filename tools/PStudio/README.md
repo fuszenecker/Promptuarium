@@ -79,6 +79,7 @@ tools/PStudio/packaging/build-rpm.sh [--version 8.1.0] [--runtime linux-x64|linu
 * **Chunk panel** (View / Chunks, F6): a table with resizable columns of the chunks of the tree as it would be saved (offset, control byte, direction, type, length, kind, depth, payload), decoded with the decoder of `pedit`, directly from the [specification](../../BINARY_FORMAT.md). The chunks of the selected node are highlighted, and a click on a chunk selects its node.
 * **Nested trees**: if the data of a node is itself a tree, Node / Open Data as Nested Tree opens it in its own window; Save stores the tree in the data of the node.
 * **Signed roots**: the signature of a signed root ([BINARY_FORMAT.md](../../BINARY_FORMAT.md), 10) is shown in the node information.
+* **Version**: in the title of the window (`tree.prmt - Promptuarium Studio 8.4.0`), and in Help / About, with the commit it was built from and the .NET runtime. The command line tools print theirs with `--version` (`pcfg 8.4.0 (4c18335)`).
 * Files are saved atomically (a temporary file is written, then renamed), and unsaved changes are asked about before closing or opening another file.
 
 ## Keys

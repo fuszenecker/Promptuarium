@@ -49,6 +49,7 @@ pcfg import  FILE SOURCE|- [--json] [--force]
 pcfg export  FILE [KEY] [--json] [--output FILE]
 pcfg check   FILE [--strict]
 pcfg help
+pcfg version                         # also --version, -V
 ```
 
 | Command   | What it does |
@@ -63,6 +64,7 @@ pcfg help
 | `import`  | Creates a configuration from a YAML file or the standard input (`-`), with its comments. A `.json` file, or any source with `--json`, is read as JSON, e.g. an `appsettings.json`; comments and trailing commas are allowed there, but its comments are not kept. |
 | `export`  | Writes the configuration (or a value) as YAML: a BLOB is `!!binary`, a value of version 2 has its type as a tag (`!int32 8080`), a comment is a `#` line before its value, so importing it gives the configuration back, byte for byte. With `--json`, or into a `.json` file, it writes JSON: a BLOB is a base64 string, an integer or a decimal a number with all its digits, a NaN or an infinity the string `"NaN"`, `"Infinity"` or `"-Infinity"`, a UUID, a date or a time its text, and the comments are left out, so the JSON is not a full copy. |
 | `check`   | Checks the file by SERIALIZER_FORMAT.md: the signature, the tags, the type codes (a reserved one is an error), the holders, the values, the comments. A repeated name is a warning (the last one wins); `--strict` makes it an error. |
+| `version` | Prints the version and the commit it was built from, e.g. `pcfg 8.4.0 (4c18335)`. Also `--version` or `-V`. |
 
 Every command takes `--signature SIG`: the signature of the file, `PRMT:CFG1-LE` by default (e.g. `PRMT:GEN1-LE` for the general objects of the serializer). A signature of the layout names its kind: both versions are read (`PRMT:CFG1-LE` and `PRMT:CFG2-LE`), and a file is saved with the lowest version that holds it, so a value of version 2 makes it `PRMT:CFG2-LE`, and without one it is `PRMT:CFG1-LE` again. A file signed with version 1 that holds a type of version 2 (or a NaN) is invalid. The editing commands save the file in place or into `--output FILE`, through a temporary file.
 

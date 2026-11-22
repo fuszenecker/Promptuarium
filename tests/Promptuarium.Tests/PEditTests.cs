@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -390,6 +390,15 @@ namespace PromptuariumTests
         public async Task Help()
         {
             StringAssert.Contains(await Ok("help").ConfigureAwait(false), "pedit chunks FILE");
+        }
+
+        [TestMethod]
+        public async Task Version()
+        {
+            foreach (string command in new[] { "version", "--version", "-V" })
+            {
+                StringAssert.StartsWith(await Ok(command).ConfigureAwait(false), "pedit 8.");
+            }
         }
 
         private static async Task<(int ExitCode, string Output, string Error)> Run(params string[] args)
