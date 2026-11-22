@@ -7,7 +7,7 @@ namespace Promptuarium.Serializer.Tests;
 [TestClass]
 public sealed class CommentTests
 {
-    // SERIALIZER_FORMAT.md, section 7: the member key8 with a comment, inserted before the final terminator
+    // SERIALIZER_FORMAT.md, section 9.1: the member key8 with a comment, inserted before the final terminator
     private const string CommentedMember = """
         84 6b 65 79 38 21 00 41 80 21 01 ce 74 68 65 20
         65 69 67 68 74 68 20 6b 65 79 21 04 c6 76 61 6c

@@ -7,7 +7,7 @@ namespace Promptuarium.Serializer.Tests;
 [TestClass]
 public sealed class FormatTests
 {
-    // SERIALIZER_FORMAT.md, section 7
+    // SERIALIZER_FORMAT.md, section 9.1
     private const string TestVector = """
         6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45 44 6b 65
         79 31 21 00 41 80 21 01 c6 76 61 6c 75 65 31 21

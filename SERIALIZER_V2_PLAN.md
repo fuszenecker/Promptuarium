@@ -1,8 +1,9 @@
 # Plan: version 2 of the serializer format
 
-Status: **plan**, nothing of it is implemented. Version 1 is specified in [SERIALIZER_FORMAT.md](SERIALIZER_FORMAT.md);
-this document collects what version 2 adds and the decisions taken so far. Once the specification is written, the
-decided parts move to SERIALIZER_FORMAT.md and this document is removed.
+Status: **specified, not implemented**. The format of version 2 (the type codes, the values, the versions and a
+test vector) is specified in [SERIALIZER_FORMAT.md](SERIALIZER_FORMAT.md), which is the reference; this document keeps
+the decisions and the plan of the implementation (the serializer, pcfg, PStudio, promptuarium-js), and is removed
+when it is done.
 
 **Contents**
 
@@ -173,7 +174,7 @@ All little-endian.
   written in the form of version 1 by its attribute, e.g. `[PromptuariumType(Float64)]` on an `int`, a `float` or a
   `decimal` (with the rule of 8.3.0: only if a double holds it exactly), `[PromptuariumType(Utf8String)]` on a `Guid`,
   a `DateTimeOffset` or a `decimal`, or by a type of version 1 (a `double`, a `string`).
-* **The signature follows the content** (proposal): with the default signatures, a tree that has only the types of
+* **The signature follows the content**: with the default signatures, a tree that has only the types of
   version 1 (and no NaN or infinity, which version 1 forbids) is signed `PRMT:GEN1-LE` (`PRMT:CFG1-LE`), so a reader
   of version 1 still reads it; a tree with a type of version 2 (or a NaN or an infinity) is signed `PRMT:GEN2-LE` (`PRMT:CFG2-LE`). So the attributes and the types of version 1 give a file of
   version 1. A signature of the application is written as it is: the application names its own versions
@@ -202,12 +203,11 @@ All little-endian.
 
 ## 11. Order of the work
 
-1. The specification: the version 2 section of SERIALIZER_FORMAT.md and its test vectors, before any code.
+1. ~~The specification: the version 2 section of SERIALIZER_FORMAT.md and its test vectors, before any code.~~ Done.
 2. The serializer: integers and binary floating point, the signature by the content, and the reading rules.
 3. `UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL`.
 4. pcfg and PStudio, then promptuarium-js.
 
 ## 12. Open questions
 
-1. The type codes of section 3 (the families) are a proposal, to be confirmed.
-2. The signature by the content (section 9) is a proposal, to be confirmed.
+None: the type codes by families (section 3) and the signature by the content (section 9) are confirmed.

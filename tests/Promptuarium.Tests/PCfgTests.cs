@@ -14,7 +14,7 @@ namespace PromptuariumTests
     [TestClass]
     public sealed class PCfgTests : IDisposable
     {
-        // The example of SERIALIZER_FORMAT.md, section 6
+        // The example of SERIALIZER_FORMAT.md, section 8
         private const string ExampleJson = """
             {
                 // comments and trailing commas are allowed
@@ -27,7 +27,7 @@ namespace PromptuariumTests
             }
             """;
 
-        // The test vector of SERIALIZER_FORMAT.md, section 7
+        // The test vector of SERIALIZER_FORMAT.md, section 9.1
         private const string TestVector =
             "6c50524d543a434647312d4c45446b657931210041802101c676616c7565312103846b657932210041632101c8000000000000f83f2103" +
             "846b657933210041012101c1012103846b657934210041212101e10241802101c776616c756534312103a10241802101c776616c75653432" +
