@@ -13,7 +13,8 @@ namespace PCfg;
 
 /// <summary>
 /// Turns one YAML document into the content of a holder, by the core schema of YAML 1.2: a plain scalar is null, a
-/// boolean, a number or a string (so "yes" is a string), a quoted or a block one is a string, !!binary is a BLOB.
+/// boolean, a number or a string (so "yes" is a string), a quoted or a block one is a string, !!binary is a BLOB,
+/// !container a CONTAINER (the base64 of a whole tree).
 /// A comment belongs to the value after it, a comment at the end of a line to the value of that line, and the comments
 /// before a "---" line to the document. Other comments, e.g. at the end of the document, are left out. Aliases are
 /// refused: they could make a small document huge.
@@ -177,6 +178,17 @@ internal sealed partial class YamlReader
                 return CfgLayout.StringContent(scalar.Value);
             case TagPrefix + "binary":
                 return Binary(scalar.Value);
+            case "!container":
+                // A nested tree: the base64 of its stream
+                try
+                {
+                    return CfgLayout.ContainerContent(Convert.FromBase64String(scalar.Value));
+                }
+                catch (FormatException ex)
+                {
+                    throw Invalid(ex.Message);
+                }
+
             case TagPrefix + "null" or TagPrefix + "bool" or TagPrefix + "int" or TagPrefix + "float":
                 return Plain(scalar.Value);
             case ['!', .. string prefix] when SerializerValues.TypeOfPrefix(prefix) is { } type:

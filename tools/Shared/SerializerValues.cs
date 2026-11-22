@@ -57,7 +57,11 @@ internal static partial class SerializerValues
         [0xD3] = "TIMESTAMP",
         [0xD4] = "DURATION",
         [0xF0] = "BLOB",
+        [0xF1] = "CONTAINER",
     };
+
+    /// <summary>CONTAINER: a nested tree (SERIALIZER_FORMAT.md, 6.6).</summary>
+    public const byte Container = 0xF1;
 
     /// <summary>The type codes of version 1 of the layout.</summary>
     public static IReadOnlySet<byte> Version1Types { get; } = new HashSet<byte> { 0x00, 0x01, 0x20, 0x21, 0x63, 0x80, 0xF0 };
@@ -65,8 +69,75 @@ internal static partial class SerializerValues
     /// <summary>The type codes of version 2 of the layout (the ones of version 1 included); FLOAT8 and FLOAT128 are reserved.</summary>
     public static IReadOnlySet<byte> Version2Types { get; } = TypeNames.Keys.Where(code => code is not (0x60 or 0x64)).ToHashSet();
 
-    /// <summary>The type codes whose values this class reads and writes: the numbers, DECIMAL, UUID, the dates and times.</summary>
-    public static IReadOnlySet<byte> TypedValues { get; } = Version2Types.Where(code => code is not (0x00 or 0x01 or 0x20 or 0x21 or 0x80 or 0xF0)).ToHashSet();
+    /// <summary>The type codes whose values this class reads and writes as text: the numbers, DECIMAL, UUID, the dates and times.</summary>
+    public static IReadOnlySet<byte> TypedValues { get; } = Version2Types.Where(code => code is not (0x00 or 0x01 or 0x20 or 0x21 or 0x80 or 0xF0 or 0xF1)).ToHashSet();
+
+    /// <summary>
+    /// The tree of a CONTAINER value (SERIALIZER_FORMAT.md, 6.6): one complete Promptuarium stream, with its terminator
+    /// and nothing after it.
+    /// </summary>
+    /// <exception cref="FormatException">The value is not one complete stream.</exception>
+    public static Element DecodeContainer(ReadOnlySpan<byte> value)
+    {
+        if (value.IsEmpty)
+        {
+            throw new FormatException("the CONTAINER value is empty; the smallest one is 6000, an empty tree");
+        }
+
+        // One byte more: a stream without its terminator consumes it too, a complete one stops before it
+        byte[] probe = new byte[value.Length + 1];
+        value.CopyTo(probe);
+
+        Element tree;
+        int consumed;
+
+        try
+        {
+            tree = Element.FromBytes(probe, null, out consumed);
+        }
+        catch (PromptuariumException ex)
+        {
+            throw new FormatException($"the CONTAINER value is not a Promptuarium stream: {ex.Message}", ex);
+        }
+
+        if (consumed > value.Length)
+        {
+            throw new FormatException("the CONTAINER value ends without the terminator of its stream");
+        }
+
+        if (consumed < value.Length)
+        {
+            throw new FormatException(string.Create(Invariant, $"the CONTAINER value has {value.Length - consumed} bytes after the terminator of its stream"));
+        }
+
+        return tree;
+    }
+
+    /// <summary>What is wrong with a CONTAINER value, or null if it is one complete stream.</summary>
+    public static string? ContainerProblem(ReadOnlySpan<byte> value)
+    {
+        try
+        {
+            DecodeContainer(value);
+            return null;
+        }
+        catch (FormatException ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    /// <summary>A CONTAINER value in a few words: its size, its signature and its nodes, e.g. "26 bytes, PRMT:GEN1-LE, 7 nodes".</summary>
+    public static string ContainerSummary(ReadOnlySpan<byte> value)
+    {
+        Element tree = DecodeContainer(value);
+        string signature = tree.Data.IsEmpty && tree.MetaData.Length is > 0 and <= 15 && Ascii.IsValid(tree.MetaData.Span)
+            ? Encoding.ASCII.GetString(tree.MetaData.Span)
+            : "not signed";
+
+        int nodes = tree.GetStatistics().Nodes;
+        return string.Create(Invariant, $"{value.Length} bytes, {signature}, {nodes} {(nodes == 1 ? "node" : "nodes")}");
+    }
 
     /// <summary>The signatures of the layout, by kind: version 1 and version 2 (SERIALIZER_FORMAT.md, 2).</summary>
     public static IReadOnlyList<(string Version1, string Version2)> Kinds { get; } =

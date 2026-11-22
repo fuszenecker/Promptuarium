@@ -70,7 +70,7 @@ or
 .B PRMT:CFG2\-LE
 (version 2) in the layout of the serializer (SERIALIZER_FORMAT.md). It knows the tags (NAME, TYPE, ITEM, VALUE,
 COMMENT) and the type codes (NULL, BOOLEAN, OBJECT, ARRAY, FLOAT64, UTF8_STRING, BLOB, and those of version 2: the
-integers, FLOAT16, FLOAT32, DECIMAL, BIGINT, UUID, DATE, TIME, DATETIME, TIMESTAMP, DURATION), so a configuration is
+integers, FLOAT16, FLOAT32, DECIMAL, BIGINT, UUID, DATE, TIME, DATETIME, TIMESTAMP, DURATION, CONTAINER), so a configuration is
 shown by its values, not by its nodes:
 .PP
 .nf
@@ -110,10 +110,12 @@ line with its full key. A string is quoted, a BLOB is shown as
 .BI hex: ...
 (shortened to
 .B \-\-max\-bytes
-bytes, 32 by default).
+bytes, 32 by default), a CONTAINER as
+.BI container: ...
+with its size, its signature and its nodes.
 .TP
 .B get \fIFILE KEY\fR
-Prints a value as it is: a string without quotes, a BLOB as hex, a number,
+Prints a value as it is: a string without quotes, a BLOB or a CONTAINER as hex, a number,
 .BR true ,
 .B false
 or
@@ -153,14 +155,18 @@ with its comments; the root must be a mapping. A .json file, or any source with
 is read as JSON, e.g. an appsettings.json: comments and trailing commas are allowed there, but they are not kept.
 A plain scalar follows the core schema of YAML 1.2, so yes and no are strings;
 .B !!binary
-is a BLOB. More documents, aliases, keys that are not scalars, other tags, .inf and .nan are refused.
+is a BLOB,
+.B !container
+a CONTAINER (base64). More documents, aliases, keys that are not scalars, other tags, .inf and .nan are refused.
 .TP
 .B export \fIFILE\fR [\fIKEY\fR]
 Writes the configuration, or a value, as YAML: a BLOB is
 .BR !!binary ,
+a CONTAINER
+.BR !container ,
 a comment is a # line before its value, and the comments of the file come before a \-\-\- line. With
 .BR \-\-json ,
-or into a .json file, it writes JSON: a BLOB is a base64 string and the comments are left out, so the JSON is not a
+or into a .json file, it writes JSON: a BLOB or a CONTAINER is a base64 string and the comments are left out, so the JSON is not a
 full copy of the file.
 .TP
 .B check \fIFILE\fR
@@ -233,6 +239,9 @@ An instant, as the local time with its offset.
 .TP
 .BI duration: \-01:30:00
 A length of time.
+.TP
+.BI container: HEX\fR,\fP " container:file:" PATH
+A CONTAINER, a nested tree: the bytes of a whole Promptuarium file, checked to be one complete tree.
 .PP
 A value without a form keeps the type of the existing value (so
 .B set app.cfg Port 9090

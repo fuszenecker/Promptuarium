@@ -64,7 +64,7 @@ internal static partial class Renderer
     /// <summary>
     /// A scalar for people and for the command line: a string quoted, a BLOB as hex:..., a number, true, false or null;
     /// a value of version 2 with its type, as it is set (int32:8080, timestamp:2026-11-22T19:30:15+01:00), and so is a
-    /// FLOAT64 NaN or infinity (float64:NaN).
+    /// FLOAT64 NaN or infinity (float64:NaN); a CONTAINER as container:... (the hex of the stream) with its summary.
     /// </summary>
     public static string Scalar(Element holder, int maxBytes)
     {
@@ -92,12 +92,16 @@ internal static partial class Renderer
                 return bytes.Length <= maxBytes
                     ? "hex:" + Convert.ToHexString(bytes)
                     : string.Create(CultureInfo.InvariantCulture, $"hex:{Convert.ToHexString(bytes[..maxBytes])}...  # {bytes.Length} bytes");
+            case CfgLayout.Container:
+                ReadOnlySpan<byte> stream = value!.Data.Span;
+                string hex = stream.Length <= maxBytes ? Convert.ToHexString(stream) : Convert.ToHexString(stream[..maxBytes]) + "...";
+                return $"container:{hex}  # {SerializerValues.ContainerSummary(stream)}";
             default:
                 return "null";
         }
     }
 
-    /// <summary>A scalar as it is: the text of a string, the hex of a BLOB, a number, true, false or null.</summary>
+    /// <summary>A scalar as it is: the text of a string, the hex of a BLOB or a CONTAINER, a number, true, false or null.</summary>
     public static string Raw(Element holder)
     {
         Element? value = CfgLayout.ValueOf(holder);
@@ -107,7 +111,7 @@ internal static partial class Renderer
         return type switch
         {
             CfgLayout.Utf8String => Encoding.UTF8.GetString(value!.Data.Span),
-            CfgLayout.Blob => Convert.ToHexString(value!.Data.Span),
+            CfgLayout.Blob or CfgLayout.Container => Convert.ToHexString(value!.Data.Span),
             _ when SerializerValues.TypedValues.Contains(type) => SerializerValues.Format(type, value!.Data.Span),
             _ => Scalar(holder, int.MaxValue),
         };
@@ -264,7 +268,7 @@ internal static partial class Renderer
             case CfgLayout.Boolean:
                 writer.WriteBooleanValue(value!.Data.Span[0] == 1);
                 break;
-            case CfgLayout.Blob:
+            case CfgLayout.Blob or CfgLayout.Container:
                 writer.WriteBase64StringValue(value!.Data.Span);
                 break;
             case byte type when SerializerValues.TypedValues.Contains(type):
@@ -334,6 +338,10 @@ internal static partial class Renderer
                 break;
             case CfgLayout.Blob:
                 emitter.Emit(new Scalar(AnchorName.Empty, new TagName(BinaryTag), Convert.ToBase64String(value!.Data.Span), ScalarStyle.Plain, false, false));
+                break;
+            case CfgLayout.Container:
+                // A nested tree: the base64 of its stream, as !!binary, with a local tag of its own: !container
+                emitter.Emit(new Scalar(AnchorName.Empty, new TagName("!container"), Convert.ToBase64String(value!.Data.Span), ScalarStyle.Plain, false, false));
                 break;
             case CfgLayout.Float64 when double.IsFinite(CfgLayout.ReadNumber(value!)):
                 emitter.Emit(new Scalar(AnchorName.Empty, TagName.Empty, Scalar(holder, int.MaxValue), ScalarStyle.Plain, true, false));

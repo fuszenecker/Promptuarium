@@ -55,14 +55,14 @@ pcfg version                         # also --version, -V
 | Command   | What it does |
 |-----------|--------------|
 | `new`     | Creates a configuration without members (with `--comment`, a comment about the file). |
-| `show`    | Shows the configuration (or the value of `KEY`) as a tree, or as `key = value` lines (`--flat`). The comments are `#` lines before the value they are about. A string is quoted, a BLOB is `hex:...` (shortened to `--max-bytes`, 32 by default), a value of version 2 has its type as it is set (`int32:8080`, `timestamp:2026-11-22T19:30:15+01:00`, `float64:NaN`). |
-| `get`     | Prints a value as it is: a string without quotes, a BLOB as hex, a number, `true`, `false` or `null`, the text of a value of version 2 (`2026-11-22T19:30:15+01:00`); an object or an array as a tree. `--yaml` prints YAML, `--json` prints JSON, `--out` writes the bytes of the value into a file. |
+| `show`    | Shows the configuration (or the value of `KEY`) as a tree, or as `key = value` lines (`--flat`). The comments are `#` lines before the value they are about. A string is quoted, a BLOB is `hex:...` (shortened to `--max-bytes`, 32 by default), a value of version 2 has its type as it is set (`int32:8080`, `timestamp:2026-11-22T19:30:15+01:00`, `float64:NaN`), a CONTAINER is `container:...` (the hex of its stream, shortened too) with its size, its signature and its nodes as a comment. |
+| `get`     | Prints a value as it is: a string without quotes, a BLOB or a CONTAINER as hex, a number, `true`, `false` or `null`, the text of a value of version 2 (`2026-11-22T19:30:15+01:00`); an object or an array as a tree. `--yaml` prints YAML, `--json` prints JSON, `--out` writes the bytes of the value into a file. |
 | `set`     | Sets a value. The missing objects on the way are created; an index of an array must exist or be the next one (it appends). The comments of the value are kept; `--comment` replaces them. |
 | `delete`  | Deletes a value; every member with the name, so that an earlier one does not come back. |
 | `rename`  | Renames a member of an object. |
 | `comment` | Replaces the comments of a value (of the file: key `''`) with `TEXT`; `--add` appends it; without `TEXT` they are removed. |
 | `import`  | Creates a configuration from a YAML file or the standard input (`-`), with its comments. A `.json` file, or any source with `--json`, is read as JSON, e.g. an `appsettings.json`; comments and trailing commas are allowed there, but its comments are not kept. |
-| `export`  | Writes the configuration (or a value) as YAML: a BLOB is `!!binary`, a value of version 2 has its type as a tag (`!int32 8080`), a comment is a `#` line before its value, so importing it gives the configuration back, byte for byte. With `--json`, or into a `.json` file, it writes JSON: a BLOB is a base64 string, an integer or a decimal a number with all its digits, a NaN or an infinity the string `"NaN"`, `"Infinity"` or `"-Infinity"`, a UUID, a date or a time its text, and the comments are left out, so the JSON is not a full copy. |
+| `export`  | Writes the configuration (or a value) as YAML: a BLOB is `!!binary`, a CONTAINER is `!container` (the base64 of its stream), a value of version 2 has its type as a tag (`!int32 8080`), a comment is a `#` line before its value, so importing it gives the configuration back, byte for byte. With `--json`, or into a `.json` file, it writes JSON: a BLOB or a CONTAINER is a base64 string, an integer or a decimal a number with all its digits, a NaN or an infinity the string `"NaN"`, `"Infinity"` or `"-Infinity"`, a UUID, a date or a time its text, and the comments are left out, so the JSON is not a full copy. |
 | `check`   | Checks the file by SERIALIZER_FORMAT.md: the signature, the tags, the type codes (a reserved one is an error), the holders, the values, the comments. A repeated name is a warning (the last one wins); `--strict` makes it an error. |
 | `version` | Prints the version and the commit it was built from, e.g. `pcfg 8.4.0 (4c18335)`. Also `--version` or `-V`. |
 
@@ -92,12 +92,13 @@ As in `IConfiguration`: the names of the members and the indexes of the elements
 | `datetime:2026-11-22T19:30:15` | DATETIME, without an offset |
 | `timestamp:2026-11-22T19:30:15+01:00` | TIMESTAMP, the local time with its offset |
 | `duration:-01:30:00`, `duration:1.02:03:04.5` | DURATION |
+| `container:6C50…00`, `container:file:PATH` | CONTAINER, a nested tree: the bytes of a whole Promptuarium file (raw bytes, like a BLOB, but checked to be one complete tree) |
 
 A value without a form keeps the type of the existing value: `pcfg set app.cfg Port 9090` stays a number (an `int32:` stays an INT32), a string stays a string. JSON numbers (in `json:` and `import`) are FLOAT64: a JSON number has no type of its own. A new value is a boolean (`true`, `false`), a number (as in JSON: `8080`, `1.5`, but not `1.0.3`), or else a string. Use a form when the guess is not right (`string:8080`).
 
 ### YAML
 
-`pcfg` reads one YAML document, by the core schema of YAML 1.2. A plain scalar is null (`null`, `~` or nothing), a boolean (`true`, `false`), a number (also `0x10`, `0o17`) or else a string, so `yes` and `no` are strings. A quoted or a block scalar is a string, `!!binary` is a BLOB; the tags `!!str`, `!!int`, `!!float`, `!!bool` and `!!null` are understood too. The types of version 2 are local tags, the forms above without the colon: `!int32 8080`, `!decimal 12.750`, `!timestamp 2026-11-22T19:30:15+01:00`. When it writes YAML, it quotes the strings that a reader (of YAML 1.1 too) could take for something else.
+`pcfg` reads one YAML document, by the core schema of YAML 1.2. A plain scalar is null (`null`, `~` or nothing), a boolean (`true`, `false`), a number (also `0x10`, `0o17`) or else a string, so `yes` and `no` are strings. A quoted or a block scalar is a string, `!!binary` is a BLOB, `!container` a CONTAINER (base64); the tags `!!str`, `!!int`, `!!float`, `!!bool` and `!!null` are understood too. The types of version 2 are local tags, the forms above without the colon: `!int32 8080`, `!decimal 12.750`, `!timestamp 2026-11-22T19:30:15+01:00`. When it writes YAML, it quotes the strings that a reader (of YAML 1.1 too) could take for something else.
 
 A comment belongs to the value after it, a comment at the end of a line to the value of that line, and the comments before a `---` line to the file. Lines that follow each other are one comment. Other comments, e.g. at the end of the document, are left out.
 

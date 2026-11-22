@@ -88,22 +88,23 @@ internal static class Commands
         Commands:
           new      Creates a configuration without members.
           show     Shows the configuration (or the value of KEY) as a tree, or as key = value lines (--flat).
-          get      Prints a value: a string as it is, a BLOB as hex, a number, true, false or null.
+          get      Prints a value: a string as it is, a BLOB or a CONTAINER as hex, a number, true, false or null.
           set      Sets a value; the missing objects on the way are created. The comments of the value are kept.
           delete   Deletes a value (every member with the name).
           rename   Renames a member of an object.
           comment  Replaces the comments of a value (or of the file, KEY ''); --add appends, no TEXT removes them.
           import   Creates a configuration from a YAML file, with its comments; from JSON if the file is a .json
                    (e.g. appsettings.json; comments are allowed) or with --json.
-          export   Writes the configuration as YAML (a BLOB as !!binary, with the comments); as JSON (a BLOB as base64,
-                   without the comments) with --json or into a .json file.
+          export   Writes the configuration as YAML (a BLOB as !!binary, a CONTAINER as !container, with the comments);
+                   as JSON (a BLOB or a CONTAINER as base64, without the comments) with --json or into a .json file.
           check    Checks the file by SERIALIZER_FORMAT.md and lists every problem.
 
         KEY:     names and indexes separated by ':', e.g. Logging:LogLevel:Default or Hosts:0 ('' is the root);
                  a ':' or a '\' in a name is escaped with '\'.
         VALUE:   string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON
                  version 2: int8: ... int128:, uint8: ... uint128:, bigint:, float16:, float32:, float64:, decimal:,
-                 uuid:, date:, time:, datetime:, timestamp: (2026-11-22T19:30:15+01:00), duration:
+                 uuid:, date:, time:, datetime:, timestamp: (2026-11-22T19:30:15+01:00), duration:,
+                 container:HEX | container:file:PATH (a nested tree: the bytes of a whole Promptuarium file, checked)
                  Without a form, an existing value keeps its type; a new one is true/false, a number, or a string.
         --signature SIG  The signature of the file (default PRMT:CFG1-LE), e.g. PRMT:GEN1-LE; both versions of its kind
                  are read, a file is saved with the lowest version that holds it. Every command takes it.

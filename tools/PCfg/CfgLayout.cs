@@ -54,6 +54,9 @@ internal static class CfgLayout
     /// <summary>BLOB.</summary>
     public const byte Blob = 0xF0;
 
+    /// <summary>CONTAINER: a nested tree.</summary>
+    public const byte Container = SerializerValues.Container;
+
     /// <summary>The UTF-8 decoder that rejects invalid bytes.</summary>
     public static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
@@ -140,6 +143,13 @@ internal static class CfgLayout
 
     /// <summary>The children of a holder of a BLOB.</summary>
     public static Element[] BlobContent(byte[] value) => [TypeNode(Blob), Node(ValueTag, value)];
+
+    /// <summary>The children of a holder of a CONTAINER (the bytes of a whole tree, checked).</summary>
+    public static Element[] ContainerContent(byte[] value)
+    {
+        SerializerValues.DecodeContainer(value);
+        return [TypeNode(Container), Node(ValueTag, value)];
+    }
 
     /// <summary>The children of a holder of null, of an empty object or of an empty array.</summary>
     public static Element[] EmptyContent(byte type) => [TypeNode(type)];

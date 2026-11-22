@@ -200,6 +200,7 @@ internal static class Validator
             CfgLayout.Float64 when data.Length != 8 => string.Create(CultureInfo.InvariantCulture, $"the FLOAT64 value has {data.Length} bytes, not 8"),
             CfgLayout.Float64 when problems.Version1Signature is not null && !double.IsFinite(CfgLayout.ReadNumber(value)) => "the FLOAT64 value is NaN or infinite, which a file of version 1 can not hold",
             CfgLayout.Utf8String when !IsUtf8(data) => "the UTF8_STRING value is not valid UTF-8",
+            CfgLayout.Container => SerializerValues.ContainerProblem(data),
             _ when SerializerValues.TypedValues.Contains(type) => SerializerValues.Problem(type, data),
             _ => null,
         };

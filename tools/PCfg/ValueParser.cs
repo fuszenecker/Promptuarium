@@ -18,7 +18,7 @@ internal static partial class ValueParser
 {
     /// <summary>The accepted forms, for the help text.</summary>
     public const string Forms = "string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON"
-        + " | int8: ... int128:, uint8: ... uint128:, bigint:, float16:, float32:, float64:, decimal:, uuid:, date:, time:, datetime:, timestamp:, duration:";
+        + " | int8: ... int128:, uint8: ... uint128:, bigint:, float16:, float32:, float64:, decimal:, uuid:, date:, time:, datetime:, timestamp:, duration:, container:HEX, container:file:PATH";
 
     private static readonly JsonDocumentOptions JsonOptions = new()
     {
@@ -66,6 +66,10 @@ internal static partial class ValueParser
                     return CfgLayout.BlobContent(Convert.FromBase64String(value));
                 case "file":
                     return CfgLayout.BlobContent(File.ReadAllBytes(value));
+                case "container" when value.StartsWith("file:", StringComparison.Ordinal):
+                    return CfgLayout.ContainerContent(File.ReadAllBytes(value[5..]));
+                case "container":
+                    return CfgLayout.ContainerContent(Convert.FromHexString(new string(value.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray())));
                 case "yaml":
                     return YamlReader.Read(value, "the value").Content;
                 case "json":
@@ -106,6 +110,7 @@ internal static partial class ValueParser
             CfgLayout.Float64 => CfgLayout.NumberContent(ParseNumber(text, text)),
             CfgLayout.Boolean => CfgLayout.BooleanContent(ParseBoolean(text, text)),
             CfgLayout.Blob => Parse("hex:" + text, null),
+            CfgLayout.Container => Parse("container:" + text, null),
             _ when text is "true" or "false" => CfgLayout.BooleanContent(text == "true"),
             _ when JsonNumber().IsMatch(text) && double.IsFinite(double.Parse(text, CultureInfo.InvariantCulture)) =>
                 CfgLayout.NumberContent(double.Parse(text, CultureInfo.InvariantCulture)),
@@ -201,7 +206,7 @@ internal static partial class ValueParser
         _ => throw Invalid(text, "a boolean is true or false"),
     };
 
-    private static PCfgException Invalid(string text, string reason) => new(ExitCodes.Usage, $"Invalid value '{text}': {reason}. Use {Forms}.");
+    private static PCfgException Invalid(string text, string reason) => new(ExitCodes.Usage, $"Invalid value '{text}': {reason.TrimEnd('.')}. Use {Forms}.");
 
     [GeneratedRegex(@"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant)]
     private static partial Regex JsonNumber();

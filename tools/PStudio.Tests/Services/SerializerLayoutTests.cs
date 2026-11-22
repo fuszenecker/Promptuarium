@@ -80,6 +80,22 @@ public sealed class SerializerLayoutTests
         Assert.AreEqual(ContentForm.Double, SerializerLayout.DataForm(rate.Children[2], rate), "the VALUE after the comment");
     }
 
+    public sealed class Nesting
+    {
+        public Element Inner { get; set; } = PromptuariumSerializer.ToElement(new Commented());
+    }
+
+    [TestMethod]
+    public void AContainer_IsRawBytes_AndItsValueIsATree()
+    {
+        Element tree = PromptuariumSerializer.ToElement(new Nesting());
+        Element inner = tree.Children[0];
+
+        Assert.AreEqual("CONTAINER", SerializerLayout.Types[inner.Children[0].Data.Span[0]]);
+        Assert.AreEqual(ContentForm.Hex, SerializerLayout.DataForm(inner.Children[1], inner));
+        Assert.IsTrue(new Nesting().Inner.StructurallyEquals(Element.FromBytes(inner.Children[1].Data)));
+    }
+
     public sealed class Commented
     {
         [PromptuariumComment("In Hz")]

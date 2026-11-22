@@ -71,6 +71,7 @@ public static class SerializerLayout
         [0xD3] = ContentForm.Timestamp,
         [0xD4] = ContentForm.TimeSpan,
         [0xF0] = ContentForm.Hex,
+        [0xF1] = ContentForm.Hex,
     };
 
     /// <summary>

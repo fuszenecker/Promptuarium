@@ -483,6 +483,48 @@ namespace PromptuariumTests
         }
 
         [TestMethod]
+        public async Task Container_IsSetShownExportedAndImportedByteForByte()
+        {
+            string inner = Path.Combine(directory, "inner.cfg");
+            string back = Path.Combine(directory, "back.cfg");
+            string yaml = Path.Combine(directory, "app.yaml");
+            await Ok("new", inner).ConfigureAwait(false);
+            await Ok("set", inner, "a", "string:b").ConfigureAwait(false);
+            byte[] nested = await File.ReadAllBytesAsync(inner).ConfigureAwait(false);
+
+            await Ok("new", file).ConfigureAwait(false);
+            await Ok("set", file, "inner", "container:file:" + inner).ConfigureAwait(false);
+
+            StringAssert.Contains(await Ok("show", file).ConfigureAwait(false), $"inner = container:{Convert.ToHexString(nested)}  # 26 bytes, PRMT:CFG1-LE, 4 nodes");
+            Assert.AreEqual(Convert.ToHexString(nested), (await Ok("get", file, "inner").ConfigureAwait(false)).Trim());
+            Assert.AreEqual("PRMT:CFG2-LE", Element.FromBytes(await File.ReadAllBytesAsync(file).ConfigureAwait(false)).MetaData.AsAsciiString());
+
+            await Ok("export", file, "--output", yaml).ConfigureAwait(false);
+            StringAssert.Contains(await File.ReadAllTextAsync(yaml).ConfigureAwait(false), "inner: !container " + Convert.ToBase64String(nested));
+            await Ok("import", back, yaml).ConfigureAwait(false);
+            CollectionAssert.AreEqual(await File.ReadAllBytesAsync(file).ConfigureAwait(false), await File.ReadAllBytesAsync(back).ConfigureAwait(false));
+
+            StringAssert.Contains(await Ok("export", file, "--json").ConfigureAwait(false), $"\"inner\": \"{Convert.ToBase64String(nested)}\"");
+            Assert.AreEqual(ExitCodes.Success, (await Run("check", file).ConfigureAwait(false)).ExitCode);
+            Assert.AreEqual(ExitCodes.Usage, (await Run("set", file, "inner", "container:" + Convert.ToHexString(nested)[..^2]).ConfigureAwait(false)).ExitCode);
+        }
+
+        [TestMethod]
+        public async Task ABrokenContainer_IsAnError()
+        {
+            Element root = new ElementBuilder().WithSignature(System.Text.Encoding.ASCII.GetBytes("PRMT:CFG2-LE")).Build();
+            root.Add(Holder("a", 0xF1, new byte[] { 0x60, 0x00, 0x00 }), Holder("b", 0xF1, Array.Empty<byte>()));
+            await root.SaveAsync(file).ConfigureAwait(false);
+
+            (int exitCode, string output, string error) = await Run("check", file).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Failed, exitCode);
+            StringAssert.Contains(output, "2 errors");
+            StringAssert.Contains(error, "a: the CONTAINER value has 1 bytes after the terminator of its stream");
+            StringAssert.Contains(error, "b: the CONTAINER value is empty");
+        }
+
+        [TestMethod]
         public async Task InvalidTypedValues_AreErrors()
         {
             Element root = new ElementBuilder().WithSignature(System.Text.Encoding.ASCII.GetBytes("PRMT:CFG2-LE")).Build();
