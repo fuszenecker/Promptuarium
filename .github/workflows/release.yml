@@ -60,7 +60,12 @@ jobs:
   rpm:
     name: PStudio RPM package (Rocky Linux 9)
     runs-on: ubuntu-latest
-    container: quay.io/rockylinux/rockylinux:9
+    # The image has no PATH in its config, and the runner puts the PATH of setup-dotnet before that of the image:
+    # without an explicit PATH, the later steps do not find even sh
+    container:
+      image: quay.io/rockylinux/rockylinux:9
+      env:
+        PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
