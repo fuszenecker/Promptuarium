@@ -1,6 +1,6 @@
 # Promptuarium Serializer Format
 
-This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs; in version 2 also typed integers and floating point numbers, decimals, UUIDs, dates and times), with comments, are stored in a Promptuarium container.
+This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs; in version 2 also typed integers and floating point numbers, decimals, big integers, UUIDs, dates and times), with comments, are stored in a Promptuarium container.
 [Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) writes and reads it, mapping .NET objects to it and back (the mapping is described in its README).
 The same layout is used for general objects (`PRMT:GEN1-LE`), for configurations (`PRMT:CFG1-LE`, e.g. the content of an `appsettings.json`) and for the files of applications that give them a signature of their own; only the signature differs.
 It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the metadata and the data of its nodes.
@@ -93,7 +93,7 @@ The high nibble of a type code is its **family**; in the families of the binary 
 | `0x4_` | signed integers, 2^n bytes | 2 |
 | `0x5_` | unsigned integers, 2^n bytes | 2 |
 | `0x6_` | binary floating point (IEEE 754), 2^n bytes | 1 (`FLOAT64`), 2 |
-| `0x7_` | decimal numbers | 2 |
+| `0x7_` | arbitrary-precision numbers (decimals, big integers) | 2 |
 | `0x8_` | text | 1 |
 | `0x9_` | identifiers | 2 |
 | `0xD_` | dates and times | 2 |
@@ -123,6 +123,7 @@ The other families (`0x1_`, `0x3_`, `0xA_` ... `0xC_`, `0xE_`) are free for late
 | `FLOAT32`     | `0x62` | 2 | 4 bytes, IEEE 754 binary32 | — |
 | `FLOAT64`     | `0x63` | 1 | 8 bytes, IEEE 754 binary64 | — |
 | `DECIMAL`     | `0x70` | 2 | UTF-8, the canonical text of a decimal number ([6.3](#63-decimal)) | — |
+| `BIGINT`      | `0x78` | 2 | 1 or more bytes, two's complement, the shortest form ([6.1](#61-integers)) | — |
 | `UTF8_STRING` | `0x80` | 1 | UTF-8 bytes, may be empty | — |
 | `UUID`        | `0x90` | 2 | 16 bytes, in the order of RFC 9562 ([6.4](#64-uuid)) | — |
 | `DATE`        | `0xD0` | 2 | 4 bytes: days since 1970-01-01 ([6.5](#65-dates-and-times)) | — |
@@ -135,7 +136,7 @@ The other families (`0x1_`, `0x3_`, `0xA_` ... `0xC_`, `0xE_`) are free for late
 All multi-byte numbers are little-endian. Rules:
 
 * A `BOOLEAN` value MUST be `0x00` or `0x01`.
-* A value of a fixed size (every type above but `DECIMAL`, `UTF8_STRING` and `BLOB`) MUST have exactly that size.
+* A value of a fixed size (every type above but `DECIMAL`, `BIGINT`, `UTF8_STRING` and `BLOB`) MUST have exactly that size.
 * A `FLOAT64` value MUST NOT be NaN or ±Infinity **in version 1** (JSON can not represent them); in version 2 they are allowed ([6.2](#62-binary-floating-point)).
 * A `UTF8_STRING` value MUST be valid UTF-8.
 * A `BLOB` value is any byte sequence, taken as is (a `byte[]` in .NET); it is never re-encoded as text (e.g. base64).
@@ -185,6 +186,7 @@ FLOAT64     = 0x63   (1)
 FLOAT128    = 0x64   (reserved)
 
 DECIMAL     = 0x70   (2)
+BIGINT      = 0x78   (2)
 
 UTF8_STRING = 0x80   (1)
 
@@ -249,6 +251,23 @@ Promptuarium.Serializer writes the comments of `[PromptuariumComment("...")]`: o
 `INT8` ... `INT128` are two's complement, `UINT8` ... `UINT128` unsigned, both little-endian, of the size of their code (1, 2, 4, 8 or 16 bytes). Every bit pattern is a valid value.
 
 A writer chooses the type by the type of the value in its language, not by the value: e.g. a .NET `int` is always an `INT32`, even if it is 5. A reader MAY read an integer into an integer type of another size or sign if the value fits it, and into a floating point type if the value is held exactly.
+
+`BIGINT` is an integer of any size (.NET: `BigInteger`): the encoding of the signed integers, two's complement and little-endian, but of any length (the length of the VALUE node). `INT32` -2 is `FE FF FF FF`, `BIGINT` -2 is `FE`. A value is in its **shortest form**:
+
+* it has at least 1 byte; zero is `00`;
+* its last (most significant) byte is not a needless sign extension: it is not `00` if the byte before it is below `80`, and not `FF` if the byte before it is `80` or above.
+
+| Value | `BIGINT` |
+|-------|----------|
+| 0 | `00` |
+| 127 | `7F` |
+| 128 | `80 00` |
+| -1 | `FF` |
+| -128 | `80` |
+| -129 | `7F FF` |
+| 2^64 | `00 00 00 00 00 00 00 00 01` |
+
+A reader MUST reject an empty value and a value that is not in its shortest form, so that every value has one encoding. The format has no limit of size; a reader that can not hold a value MUST reject it. (.NET: `value.ToByteArray()` writes the shortest form, `new BigInteger(bytes)` reads it; the form is the shortest if `GetByteCount()` is the length.)
 
 ### 6.2 Binary floating point
 
@@ -419,6 +438,7 @@ A general object (`PRMT:GEN2-LE`) with one member of every new kind of value:
 | `f32` | `FLOAT32` | 0.1 (binary32) | `cd cc cc 3d` |
 | `nan` | `FLOAT64` | NaN | `00 00 00 00 00 00 f8 7f` |
 | `dec` | `DECIMAL` | 12.750 | `31 32 2e 37 35 30` (`12.750`) |
+| `big` | `BIGINT` | -(2^64) - 1 | `ff ff ff ff ff ff ff ff fe` |
 | `id` | `UUID` | 00112233-4455-6677-8899-aabbccddeeff | `00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff` |
 | `date` | `DATE` | 2026-11-22 (20 779 days) | `2b 51 00 00` |
 | `time` | `TIME` | 19:30:15.5 (702 155 000 000 ticks) | `c0 08 b3 7b a3 00 00 00` |
@@ -442,7 +462,7 @@ Every member is a holder with a TYPE and a VALUE node, as in [section 5](#5-tree
     └── [m: VALUE] [d: 00 64 59 6D F3 FF FF FF]
 ```
 
-The canonical encoding (334 bytes):
+The canonical encoding (356 bytes):
 
 ```text
 6c 50 52 4d 54 3a 47 45 4e 32 2d 4c 45 42 69 38
@@ -457,15 +477,17 @@ The canonical encoding (334 bytes):
 03 83 66 33 32 21 00 41 62 21 01 c4 cd cc cc 3d
 21 03 83 6e 61 6e 21 00 41 63 21 01 c8 00 00 00
 00 00 00 f8 7f 21 03 83 64 65 63 21 00 41 70 21
-01 c6 31 32 2e 37 35 30 21 03 82 69 64 21 00 41
-90 21 01 d0 00 11 22 33 44 55 66 77 88 99 aa bb
-cc dd ee ff 21 03 84 64 61 74 65 21 00 41 d0 21
-01 c4 2b 51 00 00 21 03 84 74 69 6d 65 21 00 41
-d1 21 01 c8 c0 08 b3 7b a3 00 00 00 21 03 82 64
-74 21 00 41 d2 21 01 c8 80 fd e9 10 d9 c8 3f 00
-21 03 82 74 73 21 00 41 d3 21 01 ca 80 95 25 af
-d0 c8 3f 00 3c 00 21 03 83 64 75 72 21 00 41 d4
-21 01 c8 00 64 59 6d f3 ff ff ff 21 03 00
+01 c6 31 32 2e 37 35 30 21 03 83 62 69 67 21 00
+41 78 21 01 c9 ff ff ff ff ff ff ff ff fe 21 03
+82 69 64 21 00 41 90 21 01 d0 00 11 22 33 44 55
+66 77 88 99 aa bb cc dd ee ff 21 03 84 64 61 74
+65 21 00 41 d0 21 01 c4 2b 51 00 00 21 03 84 74
+69 6d 65 21 00 41 d1 21 01 c8 c0 08 b3 7b a3 00
+00 00 21 03 82 64 74 21 00 41 d2 21 01 c8 80 fd
+e9 10 d9 c8 3f 00 21 03 82 74 73 21 00 41 d3 21
+01 ca 80 95 25 af d0 c8 3f 00 3c 00 21 03 83 64
+75 72 21 00 41 d4 21 01 c8 00 64 59 6d f3 ff ff
+ff 21 03 00
 ```
 
 A reader of version 1 rejects this file (its signature, and its type codes); with the signature `PRMT:GEN1-LE` (bytes 6 to 9 `47 45 4e 31`) it is invalid for every reader, because a file of version 1 can not hold these types. The example of [section 8](#8-example) has only types of version 1, so a writer of version 2 signs it with the signature of version 1, and writes the 160 bytes of [9.1](#91-version-1).

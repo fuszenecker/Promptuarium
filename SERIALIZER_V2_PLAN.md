@@ -46,7 +46,7 @@ Version 2 gives every one of them a type of its own, exactly (every value comes 
 | `decimal` | `DECIMAL`, the **canonical text** of the number with a type of its own (not a binary form), see [6](#6-decimal) |
 | JSON import (pcfg) | every number stays `FLOAT64`: a JSON number has no type of its own |
 | Dates and times | **all of them** get a type: `DATE`, `TIME`, `DATETIME`, `TIMESTAMP`, `DURATION` |
-| `BigInteger` | not now (it may get a type later) |
+| `BigInteger` | `BIGINT` (0x78): two's complement, little-endian, the shortest form (the encoding of the `INTn` types, of any length) |
 | `Version`, `Uri`, `IPAddress`, `IPNetwork` | stay text (their text is their natural form) |
 
 ## 3. Type codes
@@ -62,14 +62,14 @@ bytes). Version 2 keeps the pattern, and gives every new kind of value a family 
 | `0x4_` | signed integers, 2^n bytes | `INT8` 0x40 ... `INT128` 0x44 |
 | `0x5_` | unsigned integers, 2^n bytes | `UINT8` 0x50 ... `UINT128` 0x54 |
 | `0x6_` | binary floating point (IEEE 754), 2^n bytes | `FLOAT16` 0x61, `FLOAT32` 0x62, `FLOAT64` 0x63 |
-| `0x7_` | **new:** decimal numbers | `DECIMAL` 0x70 (canonical text) |
+| `0x7_` | **new:** arbitrary-precision numbers | `DECIMAL` 0x70 (canonical text), `BIGINT` 0x78 (two's complement, any length) |
 | `0x8_` | text | `UTF8_STRING` 0x80 |
 | `0x9_` | **new:** identifiers | `UUID` 0x90 |
 | `0xD_` | **new:** dates and times | `DATE` 0xD0, `TIME` 0xD1, `DATETIME` 0xD2, `TIMESTAMP` 0xD3, `DURATION` 0xD4 |
 | `0xF_` | raw bytes | `BLOB` 0xF0 |
 
-* The decimal numbers are a family of their own, but its values are text, so the size rule of the binary number
-  families does not apply to it.
+* The arbitrary-precision numbers are a family of their own; their values have any length, so the size rule of the
+  binary number families does not apply to it.
 * The identifiers are a family of their own, so that others (e.g. a ULID) can follow the UUID without mixing with
   other kinds.
 * The dates and times are `0xD_` (*D* for date), in the order of their content: a day, a time of a day, both, both
@@ -205,7 +205,7 @@ All little-endian.
 
 1. ~~The specification: the version 2 section of SERIALIZER_FORMAT.md and its test vectors, before any code.~~ Done.
 2. The serializer: integers and binary floating point, the signature by the content, and the reading rules.
-3. `UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL`.
+3. `UUID` and `TIMESTAMP`, then `DATE`, `TIME`, `DATETIME` and `DURATION`, then `DECIMAL` and `BIGINT`.
 4. pcfg and PStudio, then promptuarium-js.
 
 ## 12. Open questions
