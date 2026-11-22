@@ -12,7 +12,7 @@
     <Title>Promptuarium.Serializer</Title>
     <Description>A general serializer between .NET objects and Promptuarium trees in the PRMT:CFG1-LE layout: typed holders, byte[] as BLOB, no JSON in between; layering (Populate), records, attributes.</Description>
     <PackageTags>promptuarium serializer serialization configuration binary tree</PackageTags>
-    <PackageReleaseNotes>Still experimental (opt-in PRMTSER000). A packaging release: the serializer is unchanged since 8.4.1 (only the version of the package differs), so it still has CONTAINER (0xF1) in version 2 of the layout and enums by their number. Released together with Promptuarium 8.4.1.1, whose RPM package of the tools is now built and tried on Rocky Linux 9.</PackageReleaseNotes>
+    <PackageReleaseNotes>Still experimental (opt-in PRMTSER000). A packaging release: the serializer is unchanged since 8.4.1 (only the version of the package differs), so it still has CONTAINER (0xF1) in version 2 of the layout and enums by their number. Released together with Promptuarium 8.4.1.2, the first release pushed to nuget.org by the release workflow.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
