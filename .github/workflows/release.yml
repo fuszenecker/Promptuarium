@@ -1,6 +1,6 @@
 name: Release
 
-# A new version tag (e.g. 7.1.0, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
+# A new version tag (e.g. 7.1.0, 7.1.0.1 for a packaging-only release, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
 # with the NuGet packages, the symbol packages, and PStudio with pedit, pcfg, ppak and ppakz: the Windows installer, the Debian package and the RPM package (built on Rocky Linux 9).
 # It can also be started by hand for an existing tag.
 
@@ -8,6 +8,7 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+.[0-9]+-*'
   workflow_dispatch:
     inputs:
