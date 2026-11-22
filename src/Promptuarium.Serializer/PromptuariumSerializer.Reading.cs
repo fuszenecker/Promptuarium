@@ -208,6 +208,9 @@ public static partial class PromptuariumSerializer
                 byte[] bytes = ScalarValue(content).ToArray();
                 return conversion is { StoredType: CfgFormat.Blob } ? conversion.Decode(bytes) : FitBlob(bytes, target, options);
 
+            case CfgFormat.Container:
+                return ReadContainer(ScalarValue(content), target, depth, options);
+
             case byte code when CfgFormat.IsSupported(code):
                 // The numbers, DECIMAL, UUID, the dates and times
                 return Scalars.Decode(code, ScalarValue(content), target);
@@ -459,7 +462,7 @@ public static partial class PromptuariumSerializer
 
     private static bool IsScalar(Type type, PromptuariumSerializerOptions options)
     {
-        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || ScalarText.Handles(type)
+        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(byte[]) || type == typeof(Element) || ScalarText.Handles(type)
             || type == typeof(Half) || type == typeof(Int128) || type == typeof(UInt128) || type == typeof(System.Numerics.BigInteger)
             || options.ConversionForType(type) is not null;
     }
@@ -501,6 +504,27 @@ public static partial class PromptuariumSerializer
     private static object Fit(object value, Type target)
     {
         return target.IsInstanceOfType(value) ? value : throw new InvalidDataException($"A {value.GetType().Name} does not fit a {target.Name}.");
+    }
+
+    // A nested tree (SERIALIZER_FORMAT.md, 6.6): an Element (or an object), or its bytes for a byte[]; decoded within the
+    // limits of the options, and counted with the depth of the file (its root is one level below the holder)
+    private static object ReadContainer(ReadOnlyMemory<byte> value, Type target, int depth, PromptuariumSerializerOptions options)
+    {
+        Element tree = Containers.Decode(value, options.LoadOptions);
+
+        // The depth of a holder is one more here than when it is written (ReadObject counts the root as 1), so the
+        // root of the nested tree is at depth, as at depth + 1 when written
+        if (Containers.DeepestLevel(tree, depth) > options.MaxDepth)
+        {
+            throw new InvalidDataException($"The file is nested deeper than {options.MaxDepth} levels (with the nodes of a nested tree).");
+        }
+
+        if (target == typeof(Element) || target == typeof(object))
+        {
+            return tree;
+        }
+
+        return target == typeof(byte[]) ? value.ToArray() : throw new InvalidDataException($"A CONTAINER does not fit a {target.Name}.");
     }
 
     // Bytes for a type registered as bytes in the options, or else for a byte[] (or an object)

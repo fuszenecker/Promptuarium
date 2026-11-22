@@ -40,13 +40,14 @@ internal static class CfgFormat
     public const byte DateTime = 0xD2;
     public const byte Timestamp = 0xD3;
     public const byte Duration = 0xD4;
+    public const byte Container = 0xF1;
 
     /// <summary>Whether <paramref name="type"/> is a type code of version 1.</summary>
     public static bool IsVersion1(byte type) => type is Null or Boolean or Object or Array or Float64 or Utf8String or Blob;
 
     /// <summary>Whether <paramref name="type"/> is a type code of version 2 (the ones of version 1 included).</summary>
     public static bool IsSupported(byte type) => IsVersion1(type) || IsInteger(type) || type is Float16 or Float32
-        or Decimal or Uuid or Date or Time or DateTime or Timestamp or Duration;
+        or Decimal or Uuid or Date or Time or DateTime or Timestamp or Duration or Container;
 
     /// <summary>Whether <paramref name="type"/> is an integer type: INT8 ... INT128, UINT8 ... UINT128, BIGINT.</summary>
     public static bool IsInteger(byte type) => type is (>= Int8 and <= Int128) or (>= UInt8 and <= UInt128) or BigInt;

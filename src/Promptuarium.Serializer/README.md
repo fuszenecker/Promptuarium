@@ -5,7 +5,8 @@ every value is a holder node with a TYPE child and, for scalars, a VALUE child. 
 (no JSON): a `byte[]` is a BLOB, the bytes as they are. The files are signed with `PRMT:GEN1-LE` or `PRMT:GEN2-LE`
 (general objects) by default; configuration files have `PRMT:CFG1-LE` or `PRMT:CFG2-LE`
 (`PromptuariumSerializerOptions.ConfigurationSignature`). It writes **version 2** of the layout: every number, date,
-time and UUID has a type of its own; a file is signed with the lowest version that holds it (see [Versions](#versions)).
+time and UUID has a type of its own, and an `Element` is a nested tree (`CONTAINER`); a file is signed with the lowest
+version that holds it (see [Versions](#versions)).
 
 The serializer is **experimental**: the API and the format can still change. The assembly is marked
 `[Experimental("PRMTSER000")]`, so using it needs an opt-in, e.g. in the project file:
@@ -44,6 +45,7 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 | `DateTimeOffset` | `TIMESTAMP`, the instant and the offset |
 | `Version`, `Uri`, `IPAddress`, `IPNetwork` | `UTF8_STRING`, e.g. `"8.2.2"`, the original string of the `Uri` (absolute or relative), `"2001:db8::1"`, `"10.0.0.0/8"` (default types, see [Text types](#text-types-addtexttype)) |
 | `byte[]` | `BLOB` |
+| `Element` | `CONTAINER`, a nested tree (see [Nested trees](#nested-trees-container)) |
 | string-keyed dictionaries (`Dictionary<string, T>`, `IReadOnlyDictionary<string, T>`, …) | `OBJECT` |
 | objects and structs: their public properties with a public getter | `OBJECT` |
 | other collections (`T[]`, `List<T>`, `IReadOnlyList<T>`, `HashSet<T>`, …) | `ARRAY` |
@@ -51,8 +53,39 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 
 Read into `object`, a file gives `Dictionary<string, object?>`, `List<object?>`, `bool`, `long` (`ulong`, `Int128`,
 `UInt128`, `BigInteger` for `UINT64`, `INT128`, `UINT128`, `BIGINT`), `double` (`float`, `Half`), `decimal`, `string`,
-`Guid`, `DateOnly`, `TimeOnly`, `DateTime`, `DateTimeOffset`, `TimeSpan`, `byte[]` or `null`, so a file of any shape can
-be read without a type.
+`Guid`, `DateOnly`, `TimeOnly`, `DateTime`, `DateTimeOffset`, `TimeSpan`, `byte[]`, `Element` or `null`, so a file of
+any shape can be read without a type.
+
+## Nested trees: `CONTAINER`
+
+An `Element` property is stored as a `CONTAINER` (SERIALIZER_FORMAT.md, 6.6): the bytes of the whole tree, as in a file
+of its own. The nested tree can be any Promptuarium tree: a file of this layout, a ppak archive, a tree built by hand;
+the serializer does not look into it.
+
+```csharp
+public sealed class Envelope
+{
+    public string Sender { get; set; } = "";
+    public Element? Payload { get; set; }        // CONTAINER
+}
+
+var payload = PromptuariumSerializer.ToElement(new Order { Id = 42 });   // a file of its own, PRMT:GEN1-LE
+byte[] bytes = PromptuariumSerializer.Serialize(new Envelope { Sender = "shop", Payload = payload });
+
+Envelope envelope = PromptuariumSerializer.Deserialize<Envelope>(bytes);
+Order order = PromptuariumSerializer.Deserialize<Order>(envelope.Payload!);   // the nested file, when it is needed
+```
+
+* Reading decodes the nested tree into an `Element` right away (into `object` too): the value is checked anyway, so it
+  is decoded once. It is not read further: what the tree means is told by its own signature, and the application
+  reads it (e.g. with `Deserialize<T>(element)`) when it needs it.
+* The value must be one complete stream: a value that ends without its terminator, has bytes after it, or is empty is
+  rejected (`InvalidDataException`).
+* The limits of the options cover the nested tree: it is decoded within `LoadOptions`, and its depth counts with the
+  depth of the file (its root is one level below the member, `MaxDepth`), when written and when read.
+* `[PromptuariumType(PromptuariumType.Container)]` on a `byte[]` stores bytes that are already a tree, checked when
+  written, and gives them back as they are (checked) when read.
+* A file with a `CONTAINER` is of version 2, whatever the version of the nested file.
 
 ## Versions
 
@@ -86,7 +119,7 @@ The root is always an `OBJECT`: an object or a dictionary.
   otherwise (see [Signatures](#signatures)).
 * Everything the specification requires a reader to reject is rejected with `InvalidDataException`: unknown metadata, reserved or unknown type codes, invalid booleans, wrongly sized values,
   a `DECIMAL` that is not canonical, a `BIGINT` that is not in its shortest form, dates and times out of range, a type
-  of version 2 in a file of version 1, invalid UTF-8, malformed holders. So is a file that does not fit the type (a string for an `int`, `1.5` for an `int`,
+  of version 2 in a file of version 1, a `CONTAINER` that is not one complete stream, invalid UTF-8, malformed holders. So is a file that does not fit the type (a string for an `int`, `1.5` for an `int`,
   `256` for a `byte`, ...).
 
 ## Layering

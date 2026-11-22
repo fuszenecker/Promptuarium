@@ -18,6 +18,7 @@ namespace Promptuarium.Serializer;
 /// <item><term><c>Guid</c></term><description>UUID (version 2)</description></item>
 /// <item><term><c>DateOnly</c>, <c>TimeOnly</c>, <c>DateTime</c>, <c>DateTimeOffset</c>, <c>TimeSpan</c></term><description>DATE, TIME, DATETIME (an unspecified <c>DateTime</c>) or TIMESTAMP, DURATION (version 2)</description></item>
 /// <item><term><c>byte[]</c></term><description>BLOB, the bytes as they are</description></item>
+/// <item><term><see cref="Element"/></term><description>CONTAINER, the nested tree (version 2)</description></item>
 /// <item><term>string-keyed dictionaries, objects (their public properties)</term><description>OBJECT</description></item>
 /// <item><term>other collections (arrays, lists, ...)</term><description>ARRAY</description></item>
 /// <item><term><c>null</c></term><description>NULL</description></item>
@@ -25,7 +26,7 @@ namespace Promptuarium.Serializer;
 /// Read into <see cref="object"/>, a file gives <see cref="Dictionary{TKey,TValue}"/> (string to object),
 /// <see cref="List{T}"/> (of object), <see cref="bool"/>, <see cref="long"/> (or a wider integer type),
 /// <see cref="double"/> (<see cref="float"/>, <see cref="Half"/>), <see cref="decimal"/>, <see cref="string"/>,
-/// <see cref="Guid"/>, the date and time types, <c>byte[]</c> or <c>null</c>. Unknown members are validated and ignored.
+/// <see cref="Guid"/>, the date and time types, <c>byte[]</c>, <see cref="Element"/> or <c>null</c>. Unknown members are validated and ignored.
 /// <c>[PromptuariumType]</c> declares another form for a property, e.g. FLOAT64 (the form of version 1) for an
 /// <c>int</c>, or UTF8_STRING for a <c>Guid</c>.
 /// </summary>
@@ -142,6 +143,12 @@ public static partial class PromptuariumSerializer
 
         if (TryScalar(value, out byte type, out ReadOnlyMemory<byte> content))
         {
+            // A nested tree counts with the depth of the file: its root is one level below the holder
+            if (value is Element tree && Containers.DeepestLevel(tree, depth + 1) > options.MaxDepth)
+            {
+                throw new NotSupportedException($"The value is nested deeper than {options.MaxDepth} levels (with the nodes of a nested tree).");
+            }
+
             return holder.Add(TypeNode(type), ValueNode(content));
         }
 

@@ -97,6 +97,9 @@ public enum PromptuariumType : byte
 
     /// <summary>Raw bytes.</summary>
     Blob = 0xF0,
+
+    /// <summary>Version 2: a nested tree, the bytes of a whole Promptuarium stream (an <see cref="Element"/>).</summary>
+    Container = 0xF1,
 }
 
 /// <summary>

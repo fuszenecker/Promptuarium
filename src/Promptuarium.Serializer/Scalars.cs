@@ -27,6 +27,7 @@ internal static partial class Scalars
             bool flag => (CfgFormat.Boolean, Data.FromBool(flag)),
             string text => (CfgFormat.Utf8String, Data.FromUtf8String(text)),
             byte[] blob => (CfgFormat.Blob, blob),
+            Element tree => (CfgFormat.Container, tree.ToBytes()),
             char character => (CfgFormat.Utf8String, Data.FromUtf8String(character.ToString())),
             Enum name => (CfgFormat.Utf8String, Data.FromUtf8String(name.ToString())),
             sbyte number => (CfgFormat.Int8, new[] { (byte)number }),
@@ -78,6 +79,14 @@ internal static partial class Scalars
         if (CfgFormat.IsFloat(type) && IsNumber(value))
         {
             content = EncodeFloat(type, ExactFloat(type, value));
+            return true;
+        }
+
+        // The bytes of a tree, checked
+        if (type == CfgFormat.Container && value is byte[] stream)
+        {
+            Containers.Decode(stream, limits: null);
+            content = stream;
             return true;
         }
 

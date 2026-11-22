@@ -71,7 +71,7 @@ internal sealed class ValueConversion
     public static bool IsTextOfItsOwn(Type type) => type == typeof(string) || type == typeof(object) || ScalarText.Handles(type);
 
     /// <summary>Whether <paramref name="type"/> has a mapping of its own, so it can not be registered.</summary>
-    public static bool IsStoredAnyway(Type type) => type.IsPrimitive || type == typeof(decimal) || type == typeof(byte[]) || IsTextOfItsOwn(type)
+    public static bool IsStoredAnyway(Type type) => type.IsPrimitive || type == typeof(decimal) || type == typeof(byte[]) || type == typeof(Element) || IsTextOfItsOwn(type)
         || type == typeof(Half) || type == typeof(Int128) || type == typeof(UInt128) || type == typeof(System.Numerics.BigInteger);
 
     /// <summary>The conversion of a type declared as text on the type itself, or null if it is not declared.</summary>
