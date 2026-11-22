@@ -7,6 +7,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Promptuarium;
+using Promptuarium.Tools;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
@@ -60,17 +61,30 @@ internal static partial class Renderer
         }
     }
 
-    /// <summary>A scalar for people and for the command line: a string quoted, a BLOB as hex:..., a number, true, false or null.</summary>
+    /// <summary>
+    /// A scalar for people and for the command line: a string quoted, a BLOB as hex:..., a number, true, false or null;
+    /// a value of version 2 with its type, as it is set (int32:8080, timestamp:2026-11-22T19:30:15+01:00), and so is a
+    /// FLOAT64 NaN or infinity (float64:NaN).
+    /// </summary>
     public static string Scalar(Element holder, int maxBytes)
     {
         Element? value = CfgLayout.ValueOf(holder);
+        byte type = CfgLayout.TypeOf(holder);
 
-        switch (CfgLayout.TypeOf(holder))
+        if (type == CfgLayout.Float64 && double.IsFinite(CfgLayout.ReadNumber(value!)))
+        {
+            return Number(CfgLayout.ReadNumber(value!));
+        }
+
+        if (SerializerValues.TypedValues.Contains(type))
+        {
+            return SerializerValues.Prefix(type) + ":" + SerializerValues.Format(type, value!.Data.Span);
+        }
+
+        switch (type)
         {
             case CfgLayout.Utf8String:
                 return Quote(Encoding.UTF8.GetString(value!.Data.Span));
-            case CfgLayout.Float64:
-                return Number(CfgLayout.ReadNumber(value!));
             case CfgLayout.Boolean:
                 return value!.Data.Span[0] == 1 ? "true" : "false";
             case CfgLayout.Blob:
@@ -88,10 +102,13 @@ internal static partial class Renderer
     {
         Element? value = CfgLayout.ValueOf(holder);
 
-        return CfgLayout.TypeOf(holder) switch
+        byte type = CfgLayout.TypeOf(holder);
+
+        return type switch
         {
             CfgLayout.Utf8String => Encoding.UTF8.GetString(value!.Data.Span),
             CfgLayout.Blob => Convert.ToHexString(value!.Data.Span),
+            _ when SerializerValues.TypedValues.Contains(type) => SerializerValues.Format(type, value!.Data.Span),
             _ => Scalar(holder, int.MaxValue),
         };
     }
@@ -120,7 +137,11 @@ internal static partial class Renderer
         return text.ToString().TrimEnd('\n');
     }
 
-    /// <summary>The value as JSON; a BLOB is a base64 string, the comments are left out.</summary>
+    /// <summary>
+    /// The value as JSON; a BLOB is a base64 string, the comments are left out. The integers and the decimals are numbers
+    /// with all their digits, a NaN or an infinity is the string "NaN", "Infinity" or "-Infinity", a UUID, a date or a
+    /// time is its text.
+    /// </summary>
     public static string Json(Element holder)
     {
         using var buffer = new MemoryStream();
@@ -240,18 +261,35 @@ internal static partial class Renderer
             case CfgLayout.Utf8String:
                 writer.WriteStringValue(Encoding.UTF8.GetString(value!.Data.Span));
                 break;
-            case CfgLayout.Float64:
-                writer.WriteNumberValue(CfgLayout.ReadNumber(value!));
-                break;
             case CfgLayout.Boolean:
                 writer.WriteBooleanValue(value!.Data.Span[0] == 1);
                 break;
             case CfgLayout.Blob:
                 writer.WriteBase64StringValue(value!.Data.Span);
                 break;
+            case byte type when SerializerValues.TypedValues.Contains(type):
+                WriteTypedJson(type, value!.Data.Span, writer);
+                break;
             default:
                 writer.WriteNullValue();
                 break;
+        }
+    }
+
+    // A number of JSON for the numbers (all the digits of the text: JSON has no limit, a reader may have), a string for the rest
+    private static void WriteTypedJson(byte type, ReadOnlySpan<byte> value, Utf8JsonWriter writer)
+    {
+        string text = SerializerValues.Format(type, value);
+        bool number = type is (>= 0x40 and <= 0x44) or (>= 0x50 and <= 0x54) or 0x78 or 0x70
+            || (type is 0x61 or 0x62 or 0x63 && double.IsFinite(double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture)));
+
+        if (number)
+        {
+            writer.WriteRawValue(text);
+        }
+        else
+        {
+            writer.WriteStringValue(text);
         }
     }
 
@@ -296,6 +334,13 @@ internal static partial class Renderer
                 break;
             case CfgLayout.Blob:
                 emitter.Emit(new Scalar(AnchorName.Empty, new TagName(BinaryTag), Convert.ToBase64String(value!.Data.Span), ScalarStyle.Plain, false, false));
+                break;
+            case CfgLayout.Float64 when double.IsFinite(CfgLayout.ReadNumber(value!)):
+                emitter.Emit(new Scalar(AnchorName.Empty, TagName.Empty, Scalar(holder, int.MaxValue), ScalarStyle.Plain, true, false));
+                break;
+            case byte type when SerializerValues.TypedValues.Contains(type):
+                // A value of version 2 (and a FLOAT64 NaN or infinity) with its type as a local tag: !int32 8080
+                emitter.Emit(new Scalar(AnchorName.Empty, new TagName("!" + SerializerValues.Prefix(type)), SerializerValues.Format(type, value!.Data.Span), ScalarStyle.Plain, false, false));
                 break;
             default:
                 emitter.Emit(new Scalar(AnchorName.Empty, TagName.Empty, Scalar(holder, int.MaxValue), ScalarStyle.Plain, true, false));

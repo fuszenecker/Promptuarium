@@ -69,7 +69,7 @@ internal static class Commands
     /// The help text.
     /// </summary>
     public const string Usage = """
-        pcfg - shows and edits Promptuarium configuration files (PRMT:CFG1-LE, SERIALIZER_FORMAT.md)
+        pcfg - shows and edits Promptuarium configuration files (PRMT:CFG1-LE, PRMT:CFG2-LE, SERIALIZER_FORMAT.md)
 
         Usage:
           pcfg new     FILE [--comment TEXT] [--force]
@@ -101,8 +101,11 @@ internal static class Commands
         KEY:     names and indexes separated by ':', e.g. Logging:LogLevel:Default or Hosts:0 ('' is the root);
                  a ':' or a '\' in a name is escaped with '\'.
         VALUE:   string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON
+                 version 2: int8: ... int128:, uint8: ... uint128:, bigint:, float16:, float32:, float64:, decimal:,
+                 uuid:, date:, time:, datetime:, timestamp: (2026-11-22T19:30:15+01:00), duration:
                  Without a form, an existing value keeps its type; a new one is true/false, a number, or a string.
-        --signature SIG  The signature of the file (default PRMT:CFG1-LE), e.g. PRMT:GEN1-LE. Every command takes it.
+        --signature SIG  The signature of the file (default PRMT:CFG1-LE), e.g. PRMT:GEN1-LE; both versions of its kind
+                 are read, a file is saved with the lowest version that holds it. Every command takes it.
         Editing commands save the file in place, or into --output FILE.
 
         Exit codes: 0 success, 1 invalid command line, 2 file or key not found, 3 operation failed or invalid file.
@@ -521,6 +524,7 @@ internal static class Commands
     /// </summary>
     private static async Task SaveAsync(Element root, string file)
     {
+        CfgLayout.SignByContent(root);
         string directory = Path.GetDirectoryName(Path.GetFullPath(file))!;
         string temporary = Path.Combine(directory, $".{Path.GetFileName(file)}.{Guid.NewGuid():N}.tmp");
 

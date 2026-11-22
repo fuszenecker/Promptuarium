@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Promptuarium;
+using Promptuarium.Tools;
 
 namespace PCfg;
 
@@ -14,7 +15,7 @@ namespace PCfg;
 /// </summary>
 internal static class CfgLayout
 {
-    /// <summary>The signature of configuration files.</summary>
+    /// <summary>The signature of configuration files (version 1; a file with a type of version 2 is signed PRMT:CFG2-LE).</summary>
     public const string ConfigurationSignature = "PRMT:CFG1-LE";
 
     /// <summary>Metadata tags (section 3).</summary>
@@ -67,33 +68,10 @@ internal static class CfgLayout
     };
 
     /// <summary>The names of the type codes, the reserved ones too, by code.</summary>
-    public static IReadOnlyDictionary<byte, string> Types { get; } = new Dictionary<byte, string>
-    {
-        [Null] = "NULL",
-        [Boolean] = "BOOLEAN",
-        [Object] = "OBJECT",
-        [Array] = "ARRAY",
-        [0x40] = "INT8",
-        [0x41] = "INT16",
-        [0x42] = "INT32",
-        [0x43] = "INT64",
-        [0x44] = "INT128",
-        [0x50] = "UINT8",
-        [0x51] = "UINT16",
-        [0x52] = "UINT32",
-        [0x53] = "UINT64",
-        [0x54] = "UINT128",
-        [0x60] = "FLOAT8",
-        [0x61] = "FLOAT16",
-        [0x62] = "FLOAT32",
-        [Float64] = "FLOAT64",
-        [0x64] = "FLOAT128",
-        [Utf8String] = "UTF8_STRING",
-        [Blob] = "BLOB",
-    };
+    public static IReadOnlyDictionary<byte, string> Types => SerializerValues.TypeNames;
 
-    /// <summary>The type codes of version 1 of the layout; the others are reserved or unknown.</summary>
-    public static IReadOnlySet<byte> SupportedTypes { get; } = new HashSet<byte> { Null, Boolean, Object, Array, Float64, Utf8String, Blob };
+    /// <summary>Whether a holder of the type has a VALUE node: every type but NULL, OBJECT and ARRAY.</summary>
+    public static bool IsScalarType(byte type) => type is not (Null or Object or Array);
 
     /// <summary>The name of a type code, e.g. "FLOAT64 (0x63)".</summary>
     public static string TypeName(byte code) => $"{Types.GetValueOrDefault(code, "unknown")} (0x{code:X2})";
@@ -154,6 +132,9 @@ internal static class CfgLayout
         return [TypeNode(Float64), Node(ValueTag, bytes)];
     }
 
+    /// <summary>The children of a holder of a typed value of version 2 (a number, DECIMAL, UUID, a date or a time).</summary>
+    public static Element[] TypedContent(byte type, byte[] value) => [TypeNode(type), Node(ValueTag, value)];
+
     /// <summary>The children of a holder of a boolean.</summary>
     public static Element[] BooleanContent(bool value) => [TypeNode(Boolean), Node(ValueTag, new[] { value ? (byte)1 : (byte)0 })];
 
@@ -165,6 +146,48 @@ internal static class CfgLayout
 
     /// <summary>The number in a FLOAT64 VALUE node.</summary>
     public static double ReadNumber(Element value) => BinaryPrimitives.ReadDoubleLittleEndian(value.Data.Span);
+
+    /// <summary>
+    /// Signs the root of a configuration with the lowest version that holds it (SERIALIZER_FORMAT.md, 7): a type of
+    /// version 2, or a NaN or an infinity, needs version 2. Another signature (--signature) is kept as it is.
+    /// </summary>
+    public static void SignByContent(Element root)
+    {
+        string signature = Encoding.Latin1.GetString(root.MetaData.Span);
+
+        if (SerializerValues.IsLayoutSignature(signature))
+        {
+            root.MetaData = Encoding.ASCII.GetBytes(SerializerValues.SignatureFor(signature, NeedsVersion2(root)));
+        }
+    }
+
+    private static bool NeedsVersion2(Element root)
+    {
+        var pending = new Stack<Element>(root.Children);
+
+        while (pending.Count > 0)
+        {
+            Element node = pending.Pop();
+
+            if (Tag(node) == TypeTag && node.Data.Length == 1)
+            {
+                byte type = node.Data.Span[0];
+
+                if (!SerializerValues.Version1Types.Contains(type)
+                    || (type == Float64 && node.Parent is { } holder && ValueOf(holder) is { } value && !SerializerValues.IsFiniteFloat64(value.Data.Span)))
+                {
+                    return true;
+                }
+            }
+
+            foreach (Element child in node.Children)
+            {
+                pending.Push(child);
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Replaces the value of a holder with the content (a TYPE node first, then the VALUE node or the members or the

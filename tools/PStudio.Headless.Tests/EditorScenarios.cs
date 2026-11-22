@@ -300,7 +300,7 @@ public sealed class EditorScenarios
 
         // The tooltip of the message lists every type code
         TextBlock info = editor.Find<ContentEditorView>().Last().GetVisualDescendantsOf<TextBlock>().Single(block => block.Text == editor.ViewModel.Data.Info);
-        StringAssert.Contains((string?)ToolTip.GetTip(info), "UINT128  (0x54), reserved", StringComparison.Ordinal);
+        StringAssert.Contains((string?)ToolTip.GetTip(info), "FLOAT128  (0x64), reserved", StringComparison.Ordinal);
         ToolTip.SetIsOpen(info, true);
         Editor.Pump();
         editor.Screenshot("wrong-type-code-tooltip");

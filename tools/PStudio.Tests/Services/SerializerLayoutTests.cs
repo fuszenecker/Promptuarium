@@ -94,4 +94,99 @@ public sealed class SerializerLayoutTests
 
         Assert.IsNull(SerializerLayout.DataForm(value, holder));
     }
+
+    // SERIALIZER_FORMAT.md, section 9.2: the members of the test vector of version 2, their forms and their texts
+    private static readonly (string Name, ContentForm Form, string Text)[] Version2Values =
+    [
+        ("i8", ContentForm.SByte, "-5"),
+        ("i32", ContentForm.Int32, "-2"),
+        ("i64", ContentForm.Int64, "9007199254740993"),
+        ("i128", ContentForm.Int128, "18446744073709551616"),
+        ("u16", ContentForm.UInt16, "4660"),
+        ("u64", ContentForm.UInt64, "18446744073709551615"),
+        ("f16", ContentForm.Half, "1.5"),
+        ("f32", ContentForm.Single, "0.1"),
+        ("nan", ContentForm.Double, "NaN"),
+        ("dec", ContentForm.Utf8, "12.750"),
+        ("big", ContentForm.BigInteger, "-18446744073709551617"),
+        ("id", ContentForm.Uuid, "00112233-4455-6677-8899-aabbccddeeff"),
+        ("date", ContentForm.Date, "2026-11-22"),
+        ("time", ContentForm.TimeOfDay, "19:30:15.5"),
+        ("dt", ContentForm.UnixDateTime, "2026-11-22T19:30:15"),
+        ("ts", ContentForm.Timestamp, "2026-11-22T19:30:15+01:00"),
+        ("dur", ContentForm.TimeSpan, "-01:30:00"),
+    ];
+
+    private static Element Version2Tree() => PromptuariumSerializer.ToElement(new Dictionary<string, object>
+    {
+        ["i8"] = (sbyte)-5,
+        ["i32"] = -2,
+        ["i64"] = (1L << 53) + 1,
+        ["i128"] = (Int128)ulong.MaxValue + 1,
+        ["u16"] = (ushort)0x1234,
+        ["u64"] = ulong.MaxValue,
+        ["f16"] = (Half)1.5,
+        ["f32"] = 0.1f,
+        ["nan"] = double.NaN,
+        ["dec"] = 12.750m,
+        ["big"] = -(System.Numerics.BigInteger.One << 64) - 1,
+        ["id"] = Guid.Parse("00112233-4455-6677-8899-aabbccddeeff"),
+        ["date"] = new DateOnly(2026, 11, 22),
+        ["time"] = new TimeOnly(19, 30, 15, 500),
+        ["dt"] = new DateTime(2026, 11, 22, 19, 30, 15, DateTimeKind.Unspecified),
+        ["ts"] = new DateTimeOffset(2026, 11, 22, 19, 30, 15, TimeSpan.FromHours(1)),
+        ["dur"] = -TimeSpan.FromMinutes(90),
+    });
+
+    [TestMethod]
+    public void ValuesOfVersion2_AreShownInTheFormOfTheirType()
+    {
+        Element tree = Version2Tree();
+
+        Assert.AreEqual("PRMT:GEN2-LE", tree.MetaData.AsAsciiString());
+
+        foreach ((string name, ContentForm form, string text) in Version2Values)
+        {
+            Element holder = tree.Children.Single(member => member.Data.AsUtf8String() == name);
+            Element value = holder.Children[1];
+
+            Assert.AreEqual(form, SerializerLayout.DataForm(value, holder), name);
+            Assert.AreEqual(text, ContentFormat.Format(value.Data.Span, form), name);
+            Assert.IsTrue(ContentFormat.CanShow(value.Data.Span, form), name + ": the text gives back the bytes");
+        }
+    }
+
+    [TestMethod]
+    public void TypeCodesOfVersion2_HaveNames()
+    {
+        Element tree = Version2Tree();
+
+        foreach ((string name, _, _) in Version2Values)
+        {
+            Element type = tree.Children.Single(member => member.Data.AsUtf8String() == name).Children[0];
+
+            Assert.AreEqual(ContentForm.SerializerType, SerializerLayout.DataForm(type, type.Parent));
+            Assert.IsTrue(ContentFormat.CanShow(type.Data.Span, ContentForm.SerializerType), name);
+        }
+
+        Assert.AreEqual("TIMESTAMP", ContentFormat.Format(new byte[] { 0xD3 }, ContentForm.SerializerType));
+        CollectionAssert.AreEqual(new byte[] { 0x78 }, ContentFormat.Parse("bigint", ContentForm.SerializerType));
+    }
+
+    [TestMethod]
+    public void ARootOfVersion2_IsInTheLayout()
+    {
+        Element root = Version2Tree();
+
+        Assert.AreEqual(ContentForm.SerializerTag, SerializerLayout.MetaDataForm(new Element(), root));
+    }
+
+    [TestMethod]
+    public void InvalidValues_AreNotShownInTheFormsOfVersion2()
+    {
+        Assert.IsFalse(ContentFormat.CanShow(new byte[] { 0x7F, 0x00 }, ContentForm.BigInteger), "not the shortest form");
+        Assert.IsFalse(ContentFormat.CanShow(BitConverter.GetBytes(TimeSpan.TicksPerDay), ContentForm.TimeOfDay), "out of a day");
+        Assert.IsFalse(ContentFormat.CanShow(BitConverter.GetBytes(double.NaN), ContentForm.Double), "the negative NaN of .NET is not the canonical one");
+        Assert.ThrowsExactly<FormatException>(() => ContentFormat.Parse("2026-11-22T19:30:15", ContentForm.Timestamp), "a timestamp has an offset");
+    }
 }

@@ -5,6 +5,11 @@
     <ProjectReference Include="..\..\src\Promptuarium.Serializer\Promptuarium.Serializer.csproj" />
   </ItemGroup>
 
+  <!-- The type codes and the typed values of SERIALIZER_FORMAT.md, shared with pcfg -->
+  <ItemGroup>
+    <Compile Include="..\Shared\SerializerValues.cs" Link="Shared\SerializerValues.cs" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>

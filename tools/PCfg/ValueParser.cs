@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Promptuarium;
+using Promptuarium.Tools;
 
 namespace PCfg;
 
@@ -16,7 +17,8 @@ namespace PCfg;
 internal static partial class ValueParser
 {
     /// <summary>The accepted forms, for the help text.</summary>
-    public const string Forms = "string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON";
+    public const string Forms = "string:TEXT | number:1.5 | bool:true | null | {} | [] | hex:DEADBEEF | base64:3q2+7w== | file:PATH | yaml:YAML | json:JSON"
+        + " | int8: ... int128:, uint8: ... uint128:, bigint:, float16:, float32:, float64:, decimal:, uuid:, date:, time:, datetime:, timestamp:, duration:";
 
     private static readonly JsonDocumentOptions JsonOptions = new()
     {
@@ -68,6 +70,8 @@ internal static partial class ValueParser
                     return YamlReader.Read(value, "the value").Content;
                 case "json":
                     return FromJson(value, "the value");
+                case string prefix when SerializerValues.TypeOfPrefix(prefix) is { } type:
+                    return CfgLayout.TypedContent(type, SerializerValues.Parse(type, value));
             }
         }
         catch (FormatException ex)
@@ -83,7 +87,19 @@ internal static partial class ValueParser
             throw new PCfgException(ExitCodes.NotFound, $"Can not read the content file: {ex.Message}");
         }
 
-        // No form: the text as a whole
+        // No form: the text as a whole, of the type of the existing value
+        if (existingType is { } typed && SerializerValues.TypedValues.Contains(typed) && typed != CfgLayout.Float64)
+        {
+            try
+            {
+                return CfgLayout.TypedContent(typed, SerializerValues.Parse(typed, text));
+            }
+            catch (FormatException ex)
+            {
+                throw Invalid(text, ex.Message);
+            }
+        }
+
         return existingType switch
         {
             CfgLayout.Utf8String => CfgLayout.StringContent(text),

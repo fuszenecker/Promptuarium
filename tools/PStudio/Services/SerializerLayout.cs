@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using PStudio.Models;
 using Promptuarium;
+using Promptuarium.Tools;
 
 namespace PStudio.Services;
 
@@ -30,33 +31,10 @@ public static class SerializerLayout
     };
 
     /// <summary>The type codes (section 4), the reserved ones too, by code.</summary>
-    public static IReadOnlyDictionary<byte, string> Types { get; } = new Dictionary<byte, string>
-    {
-        [0x00] = "NULL",
-        [0x01] = "BOOLEAN",
-        [0x20] = "OBJECT",
-        [0x21] = "ARRAY",
-        [0x40] = "INT8",
-        [0x41] = "INT16",
-        [0x42] = "INT32",
-        [0x43] = "INT64",
-        [0x44] = "INT128",
-        [0x50] = "UINT8",
-        [0x51] = "UINT16",
-        [0x52] = "UINT32",
-        [0x53] = "UINT64",
-        [0x54] = "UINT128",
-        [0x60] = "FLOAT8",
-        [0x61] = "FLOAT16",
-        [0x62] = "FLOAT32",
-        [0x63] = "FLOAT64",
-        [0x64] = "FLOAT128",
-        [0x80] = "UTF8_STRING",
-        [0xF0] = "BLOB",
-    };
+    public static IReadOnlyDictionary<byte, string> Types => SerializerValues.TypeNames;
 
-    /// <summary>The type codes that version 1 of the format supports; the others are reserved.</summary>
-    public static IReadOnlySet<byte> SupportedTypes { get; } = new HashSet<byte> { 0x00, 0x01, 0x20, 0x21, 0x63, 0x80, 0xF0 };
+    /// <summary>The type codes that version 2 of the format supports; FLOAT8 and FLOAT128 are reserved.</summary>
+    public static IReadOnlySet<byte> SupportedTypes => SerializerValues.Version2Types;
 
     /// <summary>Every tag, one per line, with its code.</summary>
     public static string TagList { get; } = "The tags:\n" + string.Join("\n", Tags.Select(tag => $"{tag.Value}  (0x{tag.Key:X2})"));
@@ -70,13 +48,30 @@ public static class SerializerLayout
     private static readonly Dictionary<byte, ContentForm> ValueForms = new()
     {
         [0x01] = ContentForm.Bool,
+        [0x40] = ContentForm.SByte,
+        [0x41] = ContentForm.Int16,
+        [0x42] = ContentForm.Int32,
+        [0x43] = ContentForm.Int64,
+        [0x44] = ContentForm.Int128,
+        [0x50] = ContentForm.Byte,
+        [0x51] = ContentForm.UInt16,
+        [0x52] = ContentForm.UInt32,
+        [0x53] = ContentForm.UInt64,
+        [0x54] = ContentForm.UInt128,
+        [0x61] = ContentForm.Half,
+        [0x62] = ContentForm.Single,
         [0x63] = ContentForm.Double,
+        [0x70] = ContentForm.Utf8,
+        [0x78] = ContentForm.BigInteger,
         [0x80] = ContentForm.Utf8,
+        [0x90] = ContentForm.Uuid,
+        [0xD0] = ContentForm.Date,
+        [0xD1] = ContentForm.TimeOfDay,
+        [0xD2] = ContentForm.UnixDateTime,
+        [0xD3] = ContentForm.Timestamp,
+        [0xD4] = ContentForm.TimeSpan,
         [0xF0] = ContentForm.Hex,
     };
-
-    // The signatures of Promptuarium.Serializer: general objects and configurations
-    private static readonly string[] Signatures = ["PRMT:GEN1-LE", "PRMT:CFG1-LE"];
 
     /// <summary>
     /// The default form of the metadata: the tag, if it is one byte, or if it is empty and the node is in the layout
@@ -98,7 +93,7 @@ public static class SerializerLayout
     private static bool IsSerializerRoot(Element node)
     {
         return node.Data.IsEmpty && node.MetaData.Length is > 0 and <= ElementBuilder.MaxSignatureLength
-            && Signatures.Contains(System.Text.Encoding.Latin1.GetString(node.MetaData.Span));
+            && SerializerValues.IsLayoutSignature(System.Text.Encoding.Latin1.GetString(node.MetaData.Span));
     }
 
     /// <summary>

@@ -77,9 +77,39 @@ public enum ContentForm
     /// <summary>TimeSpan (ticks), 8 bytes.</summary>
     TimeSpan,
 
+    /// <summary>sbyte, 1 byte (INT8 of SERIALIZER_FORMAT.md).</summary>
+    SByte,
+
+    /// <summary>Int128, 16 bytes (INT128).</summary>
+    Int128,
+
+    /// <summary>UInt128, 16 bytes (UINT128).</summary>
+    UInt128,
+
+    /// <summary>Half, 2 bytes (FLOAT16).</summary>
+    Half,
+
+    /// <summary>An integer of any size, two's complement, in its shortest form (BIGINT).</summary>
+    BigInteger,
+
+    /// <summary>A UUID, 16 bytes in the order of RFC 9562, the order of its text (UUID).</summary>
+    Uuid,
+
+    /// <summary>A date, days since 1970-01-01, 4 bytes (DATE).</summary>
+    Date,
+
+    /// <summary>A time of a day, ticks since midnight, 8 bytes (TIME).</summary>
+    TimeOfDay,
+
+    /// <summary>A date and a time without an offset, ticks since 1970-01-01T00:00, 8 bytes (DATETIME).</summary>
+    UnixDateTime,
+
+    /// <summary>An instant with its offset, ticks since 1970-01-01T00:00Z and the offset in minutes, 10 bytes (TIMESTAMP).</summary>
+    Timestamp,
+
     /// <summary>A metadata tag of SERIALIZER_FORMAT.md (NAME, TYPE, ITEM, VALUE, COMMENT), 1 byte.</summary>
     SerializerTag,
 
-    /// <summary>A type code of SERIALIZER_FORMAT.md (NULL, BOOLEAN, ..., FLOAT64, UTF8_STRING, BLOB), 1 byte.</summary>
+    /// <summary>A type code of SERIALIZER_FORMAT.md (NULL, BOOLEAN, INT32, ..., TIMESTAMP, BLOB), 1 byte.</summary>
     SerializerType,
 }

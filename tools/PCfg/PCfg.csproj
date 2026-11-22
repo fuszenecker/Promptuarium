@@ -28,4 +28,9 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
+  <!-- The type codes and the typed values of SERIALIZER_FORMAT.md, shared with PStudio -->
+  <ItemGroup>
+    <Compile Include="..\Shared\SerializerValues.cs" Link="Shared\SerializerValues.cs" />
+  </ItemGroup>
+
 </Project>

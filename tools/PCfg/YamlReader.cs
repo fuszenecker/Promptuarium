@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Promptuarium;
+using Promptuarium.Tools;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
@@ -178,6 +179,17 @@ internal sealed partial class YamlReader
                 return Binary(scalar.Value);
             case TagPrefix + "null" or TagPrefix + "bool" or TagPrefix + "int" or TagPrefix + "float":
                 return Plain(scalar.Value);
+            case ['!', .. string prefix] when SerializerValues.TypeOfPrefix(prefix) is { } type:
+                // A value of version 2 with its type: !int32 8080, !timestamp 2026-11-22T19:30:15+01:00
+                try
+                {
+                    return CfgLayout.TypedContent(type, SerializerValues.Parse(type, scalar.Value));
+                }
+                catch (FormatException ex)
+                {
+                    throw Invalid(ex.Message);
+                }
+
             default:
                 throw Invalid($"the tag {scalar.Tag.Value} is not supported");
         }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using PStudio.Models;
 using Promptuarium;
+using Promptuarium.Tools;
 
 namespace PStudio.Services;
 
@@ -43,6 +44,14 @@ public static class ContentFormat
         ContentForm.Single => "float",
         ContentForm.Double => "double",
         ContentForm.Decimal => "decimal",
+        ContentForm.SByte => "sbyte",
+        ContentForm.Half => "Half",
+        ContentForm.BigInteger => "BigInteger",
+        ContentForm.Uuid => "UUID (RFC 9562)",
+        ContentForm.Date => "date (since 1970)",
+        ContentForm.TimeOfDay => "time of day",
+        ContentForm.UnixDateTime => "date-time (since 1970)",
+        ContentForm.Timestamp => "timestamp (with offset)",
         ContentForm.SerializerTag => "serializer tag",
         ContentForm.SerializerType => "serializer type",
         _ => form.ToString(),
@@ -116,6 +125,7 @@ public static class ContentFormat
             ContentForm.DateTime => memory.AsDateTime().ToString("o", Invariant),
             ContentForm.DateTimeOffset => memory.AsDateTimeOffset().ToString("o", Invariant),
             ContentForm.TimeSpan => memory.AsTimeSpan().ToString("c", Invariant),
+            _ when TypeOf(form) is { } type => SerializerValues.Format(type, content),
             ContentForm.SerializerTag => FormatCode(content, SerializerLayout.Tags, "tag"),
             ContentForm.SerializerType => FormatCode(content, SerializerLayout.Types, "type code"),
             _ => throw new ArgumentOutOfRangeException(nameof(form), form, null),
@@ -159,13 +169,15 @@ public static class ContentFormat
                 ContentForm.UInt64 => Data.FromULong(ulong.Parse(value, Invariant)),
                 ContentForm.VarInt => Data.FromVarInt(long.Parse(value, Invariant)),
                 ContentForm.VarUInt => Data.FromVarUInt(ulong.Parse(value, Invariant)),
-                ContentForm.Single => Data.FromFloat(float.Parse(value, Invariant)),
-                ContentForm.Double => Data.FromDouble(double.Parse(value, Invariant)),
+                // A NaN is the canonical quiet NaN (SERIALIZER_FORMAT.md, 6.2), not the negative one of .NET
+                ContentForm.Single => SerializerValues.Parse(0x62, value),
+                ContentForm.Double => SerializerValues.Parse(0x63, value),
                 ContentForm.Decimal => Data.FromDecimal(decimal.Parse(value, Invariant)),
                 ContentForm.Guid => Data.FromGuid(System.Guid.Parse(value)),
                 ContentForm.DateTime => Data.FromDateTime(System.DateTime.Parse(value, Invariant, DateTimeStyles.RoundtripKind)),
                 ContentForm.DateTimeOffset => Data.FromDateTimeOffset(System.DateTimeOffset.Parse(value, Invariant)),
                 ContentForm.TimeSpan => Data.FromTimeSpan(System.TimeSpan.Parse(value, Invariant)),
+                _ when TypeOf(form) is { } type => SerializerValues.Parse(type, value),
                 ContentForm.SerializerTag => ParseCode(value, SerializerLayout.Tags, "Not a tag: NAME, TYPE, ITEM, VALUE or COMMENT."),
                 ContentForm.SerializerType => ParseCode(value, SerializerLayout.Types, "Not a type code, e.g. FLOAT64, UTF8_STRING or BLOB."),
                 _ => throw new ArgumentOutOfRangeException(nameof(form), form, null),
@@ -186,6 +198,23 @@ public static class ContentFormat
     {
         ContentForm.SerializerTag => SerializerLayout.TagList,
         ContentForm.SerializerType => SerializerLayout.TypeList,
+        _ when TypeOf(form) is { } type => SerializerValues.Example(type),
+        _ => null,
+    };
+
+    // The forms of the values of version 2 of SERIALIZER_FORMAT.md that the Data class has no conversion for: their type codes
+    private static byte? TypeOf(ContentForm form) => form switch
+    {
+        ContentForm.SByte => 0x40,
+        ContentForm.Int128 => 0x44,
+        ContentForm.UInt128 => 0x54,
+        ContentForm.Half => 0x61,
+        ContentForm.BigInteger => 0x78,
+        ContentForm.Uuid => 0x90,
+        ContentForm.Date => 0xD0,
+        ContentForm.TimeOfDay => 0xD1,
+        ContentForm.UnixDateTime => 0xD2,
+        ContentForm.Timestamp => 0xD3,
         _ => null,
     };
 

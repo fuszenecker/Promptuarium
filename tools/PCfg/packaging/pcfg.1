@@ -64,9 +64,12 @@ pcfg \- show and edit Promptuarium configuration files
 .B pcfg
 shows and edits configuration files of Promptuarium: containers signed
 .B PRMT:CFG1\-LE
-in the layout of the serializer (SERIALIZER_FORMAT.md). It knows the tags (NAME, TYPE, ITEM, VALUE, COMMENT) and the
-type codes (NULL, BOOLEAN, OBJECT, ARRAY, FLOAT64, UTF8_STRING, BLOB), so a configuration is shown by its values, not
-by its nodes:
+or
+.B PRMT:CFG2\-LE
+(version 2) in the layout of the serializer (SERIALIZER_FORMAT.md). It knows the tags (NAME, TYPE, ITEM, VALUE,
+COMMENT) and the type codes (NULL, BOOLEAN, OBJECT, ARRAY, FLOAT64, UTF8_STRING, BLOB, and those of version 2: the
+integers, FLOAT16, FLOAT32, DECIMAL, BIGINT, UUID, DATE, TIME, DATETIME, TIMESTAMP, DURATION), so a configuration is
+shown by its values, not by its nodes:
 .PP
 .nf
 .RS
@@ -201,12 +204,34 @@ Any YAML value, e.g. an object with its members.
 .TP
 .BI json: JSON
 Any JSON value, e.g. an object with its members.
+.TP
+.BI int8: \-5 "\fR ... \fPint128:, uint8: 255 \fR... \fPuint128:, bigint: \-18446744073709551617"
+An integer of a type of version 2.
+.TP
+.BI float16: 1.5 "\fR, \fPfloat32: 0.1 \fR, \fPfloat64: NaN"
+A floating point number; also NaN, Infinity, \-Infinity.
+.TP
+.BI decimal: 12.750
+A decimal number, its canonical text.
+.TP
+.BI uuid: 00112233\-4455\-6677\-8899\-aabbccddeeff
+A UUID.
+.TP
+.BI date: 2026\-11\-22 "\fR, \fPtime: 19:30:15.5 \fR, \fPdatetime: 2026\-11\-22T19:30:15"
+A date, a time of a day, a date and a time without an offset.
+.TP
+.BI timestamp: 2026\-11\-22T19:30:15+01:00
+An instant, as the local time with its offset.
+.TP
+.BI duration: \-01:30:00
+A length of time.
 .PP
 A value without a form keeps the type of the existing value (so
 .B set app.cfg Port 9090
 stays a number, and a string stays a string). A new value is a boolean
 .RB ( true ", " false ),
-a number (as in JSON, e.g. 8080), or else a string.
+a number (as in JSON, e.g. 8080), or else a string. JSON numbers are FLOAT64. A value of version 2 is shown with its
+type (int32:8080), and is a local tag in YAML (!int32 8080).
 .SH OPTIONS
 .TP
 .B \-\-signature \fISIG\fR
@@ -214,7 +239,8 @@ The signature of the file (every command takes it):
 .B PRMT:CFG1\-LE
 by default, e.g.
 .B PRMT:GEN1\-LE
-for general objects.
+for general objects. Both versions of the kind are read; a file is saved with the lowest version that holds it
+.RB ( PRMT:CFG2\-LE " with a value of version 2)."
 .TP
 .B \-\-output \fIFILE\fR
 An editing command saves the file there, not in place. A file is always written into a temporary file first.

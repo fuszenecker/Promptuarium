@@ -326,10 +326,10 @@ namespace PromptuariumTests
         [TestMethod]
         public async Task CheckReportsEveryProblem()
         {
-            // A reserved type (INT32), a BOOLEAN that is not 00 or 01, a repeated name and a stray TYPE node
+            // A reserved type (FLOAT8), a BOOLEAN that is not 00 or 01, a repeated name and a stray TYPE node
             Element root = new ElementBuilder().WithSignature(System.Text.Encoding.ASCII.GetBytes("PRMT:CFG1-LE")).Build();
             root.Add(
-                Holder("a", 0x42, new byte[] { 1, 0, 0, 0 }),
+                Holder("a", 0x60, new byte[] { 1 }),
                 Holder("b", 0x01, new byte[] { 2 }),
                 Holder("c", 0x01, new byte[] { 1 }),
                 Holder("c", 0x01, new byte[] { 0 }),
@@ -340,7 +340,7 @@ namespace PromptuariumTests
 
             Assert.AreEqual(ExitCodes.Failed, exitCode);
             StringAssert.Contains(output, "3 errors, 1 warnings");
-            StringAssert.Contains(error, "a: the type INT32 (0x42) is reserved");
+            StringAssert.Contains(error, "a: the type FLOAT8 (0x60) is reserved");
             StringAssert.Contains(error, "b: the BOOLEAN value 02 is not 00 or 01");
             StringAssert.Contains(error, "warning: c: the name is repeated 2 times");
             Assert.AreEqual(ExitCodes.Failed, (await Run("show", file).ConfigureAwait(false)).ExitCode);
@@ -364,6 +364,134 @@ namespace PromptuariumTests
 
             Assert.AreEqual(@"a\:b = 1" + Environment.NewLine, await Ok("show", file, "--flat").ConfigureAwait(false));
             Assert.AreEqual(ExitCodes.Usage, (await Run("get", file, @"a\b").ConfigureAwait(false)).ExitCode);
+        }
+
+        // SERIALIZER_FORMAT.md, section 9.2: a general object of version 2 with every new kind of value
+        private const string Version2Vector =
+            "6c50524d543a47454e322d4c4542693821004140210" + "1c1fb2103836933322100414221" + "01c4feffffff2103836936342100414321" +
+            "01c80100000000002000210384693132382100414421" + "01d0000000000000000001000000000000002103837531362100415121" +
+            "01c234122103837536342100415321" + "01c8ffffffffffffffff2103836631362100416121" + "01c2003e2103836633322100416221" +
+            "01c4cdcccc3d2103836e616e2100416321" + "01c8000000000000f87f2103836465632100417021" + "01c631322e3735302103836269672100417821" +
+            "01c9fffffffffffffffffe2103826964210041902101d000112233445566778899aabbccddeeff210384646174652100" +
+            "41d02101c42b51000021038474696d652100" + "41d12101c8c008b37ba30000002103826474210041d22101c880fde910d9c83f00" +
+            "2103827473210041d32101ca809525afd0c83f003c0021038364757221004" + "1d42101c80064596df3ffffff210300";
+
+        [TestMethod]
+        public async Task ShowsTheTestVectorOfVersion2()
+        {
+            await File.WriteAllBytesAsync(file, Convert.FromHexString(Version2Vector)).ConfigureAwait(false);
+
+            string shown = await Ok("show", file, "--signature", "PRMT:GEN2-LE").ConfigureAwait(false);
+
+            string expected = string.Join(Environment.NewLine,
+                "i8 = int8:-5",
+                "i32 = int32:-2",
+                "i64 = int64:9007199254740993",
+                "i128 = int128:18446744073709551616",
+                "u16 = uint16:4660",
+                "u64 = uint64:18446744073709551615",
+                "f16 = float16:1.5",
+                "f32 = float32:0.1",
+                "nan = float64:NaN",
+                "dec = decimal:12.750",
+                "big = bigint:-18446744073709551617",
+                "id = uuid:00112233-4455-6677-8899-aabbccddeeff",
+                "date = date:2026-11-22",
+                "time = time:19:30:15.5",
+                "dt = datetime:2026-11-22T19:30:15",
+                "ts = timestamp:2026-11-22T19:30:15+01:00",
+                "dur = duration:-01:30:00") + Environment.NewLine;
+            Assert.AreEqual(expected, shown);
+            await Ok("check", file, "--signature", "PRMT:GEN1-LE", "--strict").ConfigureAwait(false);
+        }
+
+        [TestMethod]
+        public async Task TypedValuesAreSetAndTheVersionFollowsTheContent()
+        {
+            await Ok("new", file).ConfigureAwait(false);
+            await Ok("set", file, "Name", "x").ConfigureAwait(false);
+            Assert.AreEqual("PRMT:CFG1-LE", Element.FromBytes(await File.ReadAllBytesAsync(file).ConfigureAwait(false)).MetaData.AsAsciiString());
+
+            await Ok("set", file, "Port", "int32:8080").ConfigureAwait(false);
+            await Ok("set", file, "When", "timestamp:2026-11-22T19:30:15+01:00").ConfigureAwait(false);
+            Assert.AreEqual("PRMT:CFG2-LE", Element.FromBytes(await File.ReadAllBytesAsync(file).ConfigureAwait(false)).MetaData.AsAsciiString());
+            Assert.AreEqual("int32:8080", await Show("Port").ConfigureAwait(false));
+            Assert.AreEqual("2026-11-22T19:30:15+01:00" + Environment.NewLine, await Ok("get", file, "When").ConfigureAwait(false));
+
+            // Without a form, the type of the existing value is kept
+            await Ok("set", file, "Port", "9090").ConfigureAwait(false);
+            Assert.AreEqual("int32:9090", await Show("Port").ConfigureAwait(false));
+            Assert.AreEqual(ExitCodes.Usage, (await Run("set", file, "Port", "x").ConfigureAwait(false)).ExitCode);
+            Assert.AreEqual(ExitCodes.Usage, (await Run("set", file, "Port", "int8:300").ConfigureAwait(false)).ExitCode);
+
+            // Without a value of version 2, the file is of version 1 again
+            await Ok("delete", file, "Port").ConfigureAwait(false);
+            await Ok("delete", file, "When").ConfigureAwait(false);
+            Assert.AreEqual("PRMT:CFG1-LE", Element.FromBytes(await File.ReadAllBytesAsync(file).ConfigureAwait(false)).MetaData.AsAsciiString());
+        }
+
+        [TestMethod]
+        public async Task TypedValuesAreExportedAndImportedByteForByte()
+        {
+            await File.WriteAllBytesAsync(file, Convert.FromHexString(Version2Vector)).ConfigureAwait(false);
+            string yaml = Path.Combine(directory, "app.yaml");
+            string copy = Path.Combine(directory, "copy.cfg");
+
+            await Ok("export", file, "--output", yaml, "--signature", "PRMT:GEN2-LE").ConfigureAwait(false);
+            await Ok("import", copy, yaml, "--signature", "PRMT:GEN2-LE").ConfigureAwait(false);
+
+            StringAssert.Contains(await File.ReadAllTextAsync(yaml).ConfigureAwait(false), "ts: !timestamp 2026-11-22T19:30:15+01:00");
+            CollectionAssert.AreEqual(await File.ReadAllBytesAsync(file).ConfigureAwait(false), await File.ReadAllBytesAsync(copy).ConfigureAwait(false));
+        }
+
+        [TestMethod]
+        public async Task TypedValuesAreExportedToJson()
+        {
+            await File.WriteAllBytesAsync(file, Convert.FromHexString(Version2Vector)).ConfigureAwait(false);
+
+            string exported = await Ok("export", file, "--json", "--signature", "PRMT:GEN2-LE").ConfigureAwait(false);
+
+            StringAssert.Contains(exported, "\"i64\": 9007199254740993,");
+            StringAssert.Contains(exported, "\"big\": -18446744073709551617,");
+            StringAssert.Contains(exported, "\"dec\": 12.750,");
+            StringAssert.Contains(exported, "\"nan\": \"NaN\",");
+            StringAssert.Contains(exported, "\"ts\": \"2026-11-22T19:30:15+01:00\",");
+            StringAssert.Contains(exported, "\"id\": \"00112233-4455-6677-8899-aabbccddeeff\",");
+        }
+
+        [TestMethod]
+        public async Task AFileOfVersion1WithATypeOfVersion2_IsAnError()
+        {
+            Element root = new ElementBuilder().WithSignature(System.Text.Encoding.ASCII.GetBytes("PRMT:CFG1-LE")).Build();
+            root.Add(Holder("a", 0x42, new byte[] { 1, 0, 0, 0 }), Holder("b", 0x63, BitConverter.GetBytes(double.NaN)));
+            await root.SaveAsync(file).ConfigureAwait(false);
+
+            (int exitCode, _, string error) = await Run("check", file).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Failed, exitCode);
+            StringAssert.Contains(error, "a: the type INT32 (0x42) is of version 2, but the file is signed 'PRMT:CFG1-LE'");
+            StringAssert.Contains(error, "b: the FLOAT64 value is NaN or infinite");
+        }
+
+        [TestMethod]
+        public async Task InvalidTypedValues_AreErrors()
+        {
+            Element root = new ElementBuilder().WithSignature(System.Text.Encoding.ASCII.GetBytes("PRMT:CFG2-LE")).Build();
+            root.Add(
+                Holder("a", 0x42, new byte[] { 1, 0, 0 }),
+                Holder("b", 0x78, new byte[] { 0x7F, 0x00 }),
+                Holder("c", 0x70, System.Text.Encoding.UTF8.GetBytes("-0")),
+                Holder("d", 0xD1, BitConverter.GetBytes(TimeSpan.TicksPerDay)));
+            await root.SaveAsync(file).ConfigureAwait(false);
+
+            (int exitCode, string output, string error) = await Run("check", file).ConfigureAwait(false);
+
+            Assert.AreEqual(ExitCodes.Failed, exitCode);
+            StringAssert.Contains(output, "4 errors");
+            StringAssert.Contains(error, "a: the INT32 value has 3 bytes, not 4");
+            StringAssert.Contains(error, "b: the BIGINT value is not in its shortest form");
+            StringAssert.Contains(error, "c: the DECIMAL value \"-0\" is not in the canonical form");
+            StringAssert.Contains(error, "d: the TIME value is out of a day");
         }
 
         private static Element Holder(string name, byte type, byte[] value)

@@ -296,7 +296,8 @@ public sealed class ContentEditorViewModelTests
         }
 
         StringAssert.Contains(sut.InfoDetail, "FLOAT64  (0x63)\n", StringComparison.Ordinal);
-        StringAssert.Contains(sut.InfoDetail, "INT32  (0x42), reserved", StringComparison.Ordinal);
+        StringAssert.Contains(sut.InfoDetail, "INT32  (0x42)\n", StringComparison.Ordinal);
+        StringAssert.Contains(sut.InfoDetail, "FLOAT8  (0x60), reserved", StringComparison.Ordinal);
         Assert.AreEqual(SerializerLayout.Types.Count + 3, sut.InfoDetail!.Split('\n').Length, "the message, a blank line, the title, a line for each code");
     }
 
