@@ -1,6 +1,6 @@
 # Promptuarium Serializer Format
 
-This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs; in version 2 also typed integers and floating point numbers, decimals, big integers, UUIDs, dates and times), with comments, are stored in a Promptuarium container.
+This document specifies how structured values (objects, arrays, strings, numbers, booleans, binary data and null: a JSON-like value with BLOBs; in version 2 also typed integers and floating point numbers, decimals, big integers, UUIDs, dates and times, and nested trees), with comments, are stored in a Promptuarium container.
 [Promptuarium.Serializer](src/Promptuarium.Serializer/README.md) writes and reads it, mapping .NET objects to it and back (the mapping is described in its README).
 The same layout is used for general objects (`PRMT:GEN1-LE`), for configurations (`PRMT:CFG1-LE`, e.g. the content of an `appsettings.json`) and for the files of applications that give them a signature of their own; only the signature differs.
 It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the metadata and the data of its nodes.
@@ -25,6 +25,7 @@ There are two versions of the layout (see [section 7](#7-versions)). **Version 2
    3. [Decimal](#63-decimal)
    4. [UUID](#64-uuid)
    5. [Dates and times](#65-dates-and-times)
+   6. [Container](#66-container)
 7. [Versions](#7-versions)
 8. [Example](#8-example)
 9. [Test vectors](#9-test-vectors)
@@ -97,7 +98,7 @@ The high nibble of a type code is its **family**; in the families of the binary 
 | `0x8_` | text | 1 |
 | `0x9_` | identifiers | 2 |
 | `0xD_` | dates and times | 2 |
-| `0xF_` | raw bytes | 1 |
+| `0xF_` | raw bytes, nested trees | 1 (`BLOB`), 2 (`CONTAINER`) |
 
 The other families (`0x1_`, `0x3_`, `0xA_` ... `0xC_`, `0xE_`) are free for later versions.
 
@@ -132,11 +133,12 @@ The other families (`0x1_`, `0x3_`, `0xA_` ... `0xC_`, `0xE_`) are free for late
 | `TIMESTAMP`   | `0xD3` | 2 | 10 bytes: ticks since 1970-01-01T00:00Z, and the offset in minutes | — |
 | `DURATION`    | `0xD4` | 2 | 8 bytes: ticks | — |
 | `BLOB`        | `0xF0` | 1 | raw bytes, may be empty | — |
+| `CONTAINER`   | `0xF1` | 2 | a whole Promptuarium tree, the bytes of its stream ([6.6](#66-container)) | — |
 
 All multi-byte numbers are little-endian. Rules:
 
 * A `BOOLEAN` value MUST be `0x00` or `0x01`.
-* A value of a fixed size (every type above but `DECIMAL`, `BIGINT`, `UTF8_STRING` and `BLOB`) MUST have exactly that size.
+* A value of a fixed size (every type above but `DECIMAL`, `BIGINT`, `UTF8_STRING`, `BLOB` and `CONTAINER`) MUST have exactly that size.
 * A `FLOAT64` value MUST NOT be NaN or ±Infinity **in version 1** (JSON can not represent them); in version 2 they are allowed ([6.2](#62-binary-floating-point)).
 * A `UTF8_STRING` value MUST be valid UTF-8.
 * A `BLOB` value is any byte sequence, taken as is (a `byte[]` in .NET); it is never re-encoded as text (e.g. base64).
@@ -199,6 +201,7 @@ TIMESTAMP   = 0xD3   (2)
 DURATION    = 0xD4   (2)
 
 BLOB        = 0xF0   (1)
+CONTAINER   = 0xF1   (2)
 ```
 
 ## 5. Tree structure
@@ -209,7 +212,7 @@ A holder has exactly one TYPE child, as its **first** child, followed by (beside
 
 | Type | Further children |
 |------|------------------|
-| `BOOLEAN`, the numbers, `DECIMAL`, `UTF8_STRING`, `UUID`, the dates and times, `BLOB` (every type but `NULL`, `OBJECT` and `ARRAY`) | exactly one VALUE node |
+| `BOOLEAN`, the numbers, `DECIMAL`, `UTF8_STRING`, `UUID`, the dates and times, `BLOB`, `CONTAINER` (every type but `NULL`, `OBJECT` and `ARRAY`) | exactly one VALUE node |
 | `NULL` | none |
 | `OBJECT` | zero or more NAME nodes |
 | `ARRAY` | zero or more ITEM nodes |
@@ -312,6 +315,24 @@ All little-endian. A reader MUST reject a value out of its range.
 
 A `TIMESTAMP` is an instant with the offset it was observed at: `2026-11-22T19:30:15+01:00` is the instant `2026-11-22T18:30:15Z` and the offset 60. (.NET maps: `DateOnly` to `DATE`, `TimeOnly` to `TIME`, `DateTime` of `Kind` `Unspecified` to `DATETIME`, of `Kind` `Utc` and `Local` to `TIMESTAMP` with its offset, `DateTimeOffset` to `TIMESTAMP`, `TimeSpan` to `DURATION`.)
 
+### 6.6 Container
+
+A `CONTAINER` value is a **nested tree**: the bytes of a whole Promptuarium stream ([BINARY_FORMAT.md](BINARY_FORMAT.md)), its chunks and its terminator, as they would be in a file of their own. The type is in the TYPE node, as for every other value; the VALUE node is the stream and nothing else.
+
+```text
+[m: NAME] [d: inner]
+├── [m: TYPE] [d: CONTAINER]
+└── [m: VALUE] [d: 6C 50 52 4D 54 3A 47 45 4E 31 2D 4C 45 41 61 … 00]
+```
+
+* The value MUST be one complete stream: it ends with its terminator, and no byte follows it. (A stream in a file may end without a terminator, or be followed by other data, [BINARY_FORMAT.md, 7](BINARY_FORMAT.md#7-streaming); a nested one may not, so that the value has a clear end.) An empty value is not a stream: the smallest value is `60 00`, an empty tree.
+* A reader MUST decode the stream and reject the value if it is not valid ([BINARY_FORMAT.md, 8](BINARY_FORMAT.md#8-errors)). The chunks need not be split as a writer of the canonical encoding splits them; any valid encoding of the tree is accepted.
+* The nested tree is **any** Promptuarium tree: this layout does not apply to it. It may be signed ([BINARY_FORMAT.md, 10](BINARY_FORMAT.md#10-file-identification-optional-convention)), e.g. a file of this layout (`PRMT:GEN1-LE`), a `PRMT:PPAK1-LE` archive, or a tree of an application; its signature tells what it is, and a reader that reads it as such applies the rules of that kind. A reader of this layout validates only the stream, not its meaning.
+* The limits of a reader cover the nested trees too: their bytes are a part of the file, and their nodes and their depth SHOULD be counted with the nodes and the depth of the file (the root of a nested tree is one level below its holder), so that a file can not get around the limits by nesting.
+* It is not a `BLOB`: a `BLOB` is any bytes, a `CONTAINER` is a tree that a reader has checked, and that tools can open (PStudio, pedit, pcfg).
+
+(.NET: `Element` maps to `CONTAINER`: written with `Element.ToBytes()`, read with `Element.Load`, requiring the whole value to be consumed.)
+
 ## 7. Versions
 
 **Version 1** has the types `NULL`, `BOOLEAN`, `OBJECT`, `ARRAY`, `FLOAT64` (finite), `UTF8_STRING` and `BLOB`. **Version 2** has every type of [section 4.2](#42-supported-types), and allows NaN and the infinities in `FLOAT64` too.
@@ -319,6 +340,7 @@ A `TIMESTAMP` is an instant with the offset it was observed at: `2026-11-22T19:3
 Writing:
 
 * A writer SHOULD sign a file with the **lowest version that holds it**: a tree with only the types of version 1, and no NaN or infinity, is signed with the signature of version 1 (`PRMT:GEN1-LE`, `PRMT:CFG1-LE`), so that a reader of version 1 still reads it; any other tree with the signature of version 2 (`PRMT:GEN2-LE`, `PRMT:CFG2-LE`).
+* The trees nested in a `CONTAINER` do not count: they are not of this layout. A file with a `CONTAINER` is of version 2, whatever the signature of the nested tree.
 * So a writer that writes the values of an application in the form of version 1 (e.g. an integer as `FLOAT64`, a UUID as `UTF8_STRING`) produces a file of version 1.
 * A signature of an application (section 2) is written as it is: the application tells which version of the layout it means.
 
@@ -491,3 +513,28 @@ ff 21 03 00
 ```
 
 A reader of version 1 rejects this file (its signature, and its type codes); with the signature `PRMT:GEN1-LE` (bytes 6 to 9 `47 45 4e 31`) it is invalid for every reader, because a file of version 1 can not hold these types. The example of [section 8](#8-example) has only types of version 1, so a writer of version 2 signs it with the signature of version 1, and writes the 160 bytes of [9.1](#91-version-1).
+
+A general object (`PRMT:GEN2-LE`) with one `CONTAINER` member, `inner`, whose value is a whole file of this layout: `{"a": "b"}` as a general object of version 1 (26 bytes):
+
+```text
+6c 50 52 4d 54 3a 47 45 4e 31 2d 4c 45 41 61 21
+00 41 80 21 01 c1 62 21 03 00
+```
+
+```text
+[m: PRMT:GEN2-LE]
+└── [m: NAME] [d: inner]
+    ├── [m: TYPE] [d: CONTAINER]
+    └── [m: VALUE] [d: 6C 50 52 4D 54 3A 47 45 4E 31 2D 4C 45 41 61 21 00 41 80 21 01 C1 62 21 03 00]
+```
+
+The canonical encoding (56 bytes); the value is longer than 15 bytes, so it is a chunk of 16 bytes (`d0`) and an Append chunk of the remaining 10 (`0a`), as [BINARY_FORMAT.md, 6.2](BINARY_FORMAT.md#62-splitting-a-content-into-chunks) splits it:
+
+```text
+6c 50 52 4d 54 3a 47 45 4e 32 2d 4c 45 45 69 6e
+6e 65 72 21 00 41 f1 21 01 d0 6c 50 52 4d 54 3a
+47 45 4e 31 2d 4c 45 41 61 21 0a 00 41 80 21 01
+c1 62 21 03 00 21 03 00
+```
+
+The value is rejected if a byte is cut from its end (`… 21 03` without the terminator `00`), or a byte is appended to it (`… 21 03 00 00`), even though both are valid streams in a file of their own. The nested file is signed `PRMT:GEN1-LE`, and the outer file is of version 2 anyway: the version of a file is the version of its own types.
