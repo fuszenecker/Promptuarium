@@ -1,7 +1,7 @@
 name: Release
 
 # A new version tag (e.g. 7.1.0, or 7.1.0-beta.1 for a pre-release) creates a GitHub release
-# with the NuGet packages, the symbol packages, and PStudio with pedit, pcfg, ppak and ppakz: the Windows installer, the Debian package and the RPM package.
+# with the NuGet packages, the symbol packages, and PStudio with pedit, pcfg, ppak and ppakz: the Windows installer, the Debian package and the RPM package (built on Rocky Linux 9).
 # It can also be started by hand for an existing tag.
 
 on:
@@ -54,9 +54,56 @@ jobs:
           path: installer/*-setup.exe
           if-no-files-found: error
 
+  # The RPM package is built on Rocky Linux 9 (RHEL compatible) with its own rpmbuild and macros, and it is installed
+  # and removed there: the dependencies, the scriptlets (/etc/magic) and the tools are tried on a real RPM system
+  rpm:
+    name: PStudio RPM package (Rocky Linux 9)
+    runs-on: ubuntu-latest
+    container: quay.io/rockylinux/rockylinux:9
+
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      # git for a real checkout, libicu for .NET, file for the /etc/magic of the scriptlets
+      - name: Install the build tools
+        run: dnf install -y -q git rpm-build gzip findutils tar libicu file
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      # A pre-release (8.0.0-rc1) is 8.0.0~rc1 for RPM (the script converts it)
+      - name: Build the RPM package
+        run: tools/PStudio/packaging/build-rpm.sh --version "$TAG" --output rpm-build
+
+      - name: Install, try and remove the package
+        run: |
+          dnf install -y -q ./rpm-build/pstudio-*.rpm
+          pedit --version
+          pcfg --version
+          ppak --version
+          ppakz --version
+          grep -q '^# BEGIN pstudio' /etc/magic
+          dnf remove -y -q pstudio
+          if grep -q '^# BEGIN pstudio' /etc/magic; then
+            echo "::error::The rules of the containers are left in /etc/magic."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pstudio-rpm
+          path: rpm-build/*.rpm
+          if-no-files-found: error
+
   release:
     name: Release
-    needs: windows
+    needs: [windows, rpm]
     runs-on: ubuntu-latest
 
     env:
@@ -104,13 +151,11 @@ jobs:
           tools/PStudio/packaging/build-deb.sh --version "${TAG/-/\~}" --output deb-build
           mv deb-build/*.deb artifacts/
 
-      # A pre-release (8.0.0-rc1) is 8.0.0~rc1 for RPM too (the script converts it)
-      - name: RPM package
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q rpm
-          tools/PStudio/packaging/build-rpm.sh --version "$TAG" --output rpm-build
-          mv rpm-build/*.rpm artifacts/
+      - name: The RPM package of PStudio
+        uses: actions/download-artifact@v4
+        with:
+          name: pstudio-rpm
+          path: artifacts
 
       - name: Release notes
         run: |
