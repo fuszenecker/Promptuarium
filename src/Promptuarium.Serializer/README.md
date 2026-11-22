@@ -37,7 +37,7 @@ Settings loaded = await PromptuariumSerializer.DeserializeAsync<Settings>(stream
 | `Half`, `float`, `double` | `FLOAT16`, `FLOAT32`, `FLOAT64`; NaN and the infinities too |
 | `decimal` | `DECIMAL`, its canonical text (`"12.750"`, the scale kept) |
 | `string`, `char` | `UTF8_STRING` |
-| enums | `UTF8_STRING`, the name (`"Read, Write"` for flags); read from a name in any case, or a number |
+| enums | `UTF8_STRING`, the name (`"Read, Write"` for flags), or the number with `[PromptuariumType]` (see below); read from a name in any case, or a number |
 | `Guid` | `UUID`, 16 bytes in the order of RFC 9562 |
 | `DateOnly`, `TimeOnly`, `TimeSpan` | `DATE`, `TIME`, `DURATION` |
 | `DateTime` | `DATETIME` (`Kind` `Unspecified`), or `TIMESTAMP` (`Utc` with offset 0, `Local` with its offset); the kind comes back |
@@ -178,7 +178,8 @@ is always allowed). It chooses another form than the natural one:
 * a floating point type for a number (`Float64` on an `int`, a `long`, a `decimal`, a `float`: the form of version 1;
   `Float32` on a `double`), if the type holds the value exactly (a `long` beyond 2⁵³ as `Float64` is rejected);
 * `Utf8String` for a date, a time or a `Guid`: the text of version 1 (`"O"` for the dates, `"c"` for a `TimeSpan`,
-  `"D"` for a `Guid`); for another type, see below.
+  `"D"` for a `Guid`); for another type, see below;
+* an integer type or `Float64` for an enum: its number instead of its name (see below).
 
 A value that does not fit the declared type is rejected (`NotSupportedException`), and so is a reserved type. Both
 types are marked `[Experimental("PRMTSER001")]`, so using them needs an opt-in:
@@ -189,6 +190,36 @@ public sealed class Counter
 {
     [PromptuariumType(PromptuariumType.Float64)]   // FLOAT64, the form of version 1
     public long Value { get; set; }
+}
+```
+
+#### Enums: by name or by number
+
+An enum is stored by its name by default (`UTF8_STRING`, `"Read, Write"` for flags). An integer type (`Int32`,
+`UInt8`, ...) or `Float64` (the form of version 1) stores its number instead; the number must fit the type:
+
+* on a property, for that property;
+* on the enum type itself, for every value of the type: as a member, and in collections and dictionaries too;
+* a property can declare another form than its type, e.g. `Utf8String` (the name) on a property of an enum declared
+  as `Int32`.
+
+The name survives the renumbering of the enum, the number survives its renaming (and is shorter). Reading takes both
+forms anyway, so a file can move from one to the other.
+
+```csharp
+#pragma warning disable PRMTSER001
+[PromptuariumType(PromptuariumType.UInt8)]       // every Color is a UINT8
+public enum Color { Red, Green, Blue }
+
+public sealed class Pixel
+{
+    public Color Color { get; set; }             // UINT8 2
+
+    [PromptuariumType(PromptuariumType.Utf8String)]
+    public Color Background { get; set; }        // "Blue"
+
+    [PromptuariumType(PromptuariumType.Int32)]
+    public DayOfWeek Day { get; set; }           // INT32 5
 }
 ```
 
@@ -206,7 +237,8 @@ public sealed class Counter
   so a lossy text is never stored; records and the .NET types have such an `Equals`.
 
 On a class or a struct, every value of the type is stored as its text: as a member, and in collections and
-dictionaries too (such a value can not be the root). Only `Utf8String` can be declared on a type.
+dictionaries too (such a value can not be the root). Only `Utf8String` can be declared on a type (on an enum, its
+forms, see above).
 
 ```csharp
 #pragma warning disable PRMTSER001

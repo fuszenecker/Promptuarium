@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Numerics;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace Promptuarium.Serializer;
@@ -13,6 +15,7 @@ internal static partial class Scalars
 {
     private static readonly long EpochTicks = System.DateTime.UnixEpoch.Ticks;
     private static readonly int EpochDayNumber = DateOnly.FromDateTime(System.DateTime.UnixEpoch).DayNumber;
+    private static readonly ConcurrentDictionary<Type, byte?> EnumForms = new();
 
     // ---------------------------------------------------------------- writing
 
@@ -78,13 +81,45 @@ internal static partial class Scalars
             return true;
         }
 
-        if (type == CfgFormat.Utf8String && value is not (string or char or Enum) && ScalarText.TryFormat(value, out string? text))
+        // An enum by its name, also when its type declares a number
+        if (type == CfgFormat.Utf8String && value is Enum name)
+        {
+            content = Data.FromUtf8String(name.ToString());
+            return true;
+        }
+
+        if (type == CfgFormat.Utf8String && value is not (string or char) && ScalarText.TryFormat(value, out string? text))
         {
             content = Data.FromUtf8String(text);
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The form declared on an enum type with <see cref="PromptuariumTypeAttribute"/>: an integer type (its number),
+    /// FLOAT64 (its number, the form of version 1) or UTF8_STRING (its name, the default); null if the type declares
+    /// none.
+    /// </summary>
+    public static byte? EnumForm(Type enumType)
+    {
+        return EnumForms.GetOrAdd(enumType, static type =>
+        {
+            if (type.GetCustomAttribute<PromptuariumTypeAttribute>(inherit: false) is not { } attribute)
+            {
+                return null;
+            }
+
+            var form = (byte)attribute.Type;
+
+            if (!CfgFormat.IsInteger(form) && form is not (CfgFormat.Float64 or CfgFormat.Utf8String))
+            {
+                throw new NotSupportedException($"An enum is stored by its name (Utf8String) or by its number (an integer type or Float64): {type.Name} is declared as {attribute.Type}.");
+            }
+
+            return form;
+        });
     }
 
     private static byte[] Write(int size, Action<Span<byte>> write)
@@ -135,7 +170,15 @@ internal static partial class Scalars
         nuint number => number,
         UInt128 number => number,
         BigInteger number => number,
+        Enum => EnumNumber(value),
         _ => null,
+    };
+
+    // The number of an enum, by its underlying type
+    private static BigInteger EnumNumber(object value) => Convert.GetTypeCode(value) switch
+    {
+        TypeCode.Byte or TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => new BigInteger(Convert.ToUInt64(value, CultureInfo.InvariantCulture)),
+        _ => new BigInteger(Convert.ToInt64(value, CultureInfo.InvariantCulture)),
     };
 
     private static bool IsNumber(object value) => AsInteger(value) is not null || value is Half or float or double or decimal;

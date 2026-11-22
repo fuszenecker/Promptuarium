@@ -14,7 +14,7 @@ namespace Promptuarium.Serializer;
 /// <item><term><c>sbyte</c> ... <c>long</c>, <c>Int128</c>; <c>byte</c> ... <c>ulong</c>, <c>UInt128</c>; <c>BigInteger</c></term><description>INT8 ... INT128, UINT8 ... UINT128, BIGINT (version 2)</description></item>
 /// <item><term><c>Half</c>, <c>float</c>, <c>double</c></term><description>FLOAT16, FLOAT32 (version 2), FLOAT64</description></item>
 /// <item><term><c>decimal</c></term><description>DECIMAL, its canonical text (version 2)</description></item>
-/// <item><term><c>string</c>, <c>char</c>, enums (by name)</term><description>UTF8_STRING</description></item>
+/// <item><term><c>string</c>, <c>char</c>, enums (by name; by number with <c>[PromptuariumType]</c>, e.g. Int32)</term><description>UTF8_STRING</description></item>
 /// <item><term><c>Guid</c></term><description>UUID (version 2)</description></item>
 /// <item><term><c>DateOnly</c>, <c>TimeOnly</c>, <c>DateTime</c>, <c>DateTimeOffset</c>, <c>TimeSpan</c></term><description>DATE, TIME, DATETIME (an unspecified <c>DateTime</c>) or TIMESTAMP, DURATION (version 2)</description></item>
 /// <item><term><c>byte[]</c></term><description>BLOB, the bytes as they are</description></item>
@@ -132,6 +132,12 @@ public static partial class PromptuariumSerializer
         if (value is null)
         {
             return holder.Add(TypeNode(CfgFormat.Null));
+        }
+
+        // An enum whose type declares a number: that form (a property declaring another one is handled by the caller)
+        if (value is Enum && Scalars.EnumForm(value.GetType()) is { } enumForm && Scalars.TryEncodeAs(value, enumForm, out ReadOnlyMemory<byte> number))
+        {
+            return holder.Add(TypeNode(enumForm), ValueNode(number));
         }
 
         if (TryScalar(value, out byte type, out ReadOnlyMemory<byte> content))

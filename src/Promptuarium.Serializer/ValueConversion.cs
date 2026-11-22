@@ -81,7 +81,8 @@ internal sealed class ValueConversion
         {
             PromptuariumTypeAttribute? attribute = type.GetCustomAttribute<PromptuariumTypeAttribute>(inherit: false);
 
-            if (attribute is null)
+            // The form of an enum (its name or its number) is a scalar, not a conversion: Scalars.EnumForm
+            if (attribute is null || type.IsEnum)
             {
                 return null;
             }

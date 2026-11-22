@@ -116,6 +116,13 @@ public enum PromptuariumType : byte
 /// <see cref="PromptuariumSerializerOptions.AddBlobType{T}"/>.
 /// </para>
 /// <para>
+/// An enum is stored by its name (UTF8_STRING) by default. An integer type (e.g. <see cref="PromptuariumType.Int32"/>)
+/// or <see cref="PromptuariumType.Float64"/> stores its number instead, which must fit; on a property it applies to that
+/// property, on the enum type to every value of the type (in collections and dictionaries too), and a property can
+/// declare another form than its type (e.g. <see cref="PromptuariumType.Utf8String"/>: the name). Reading takes both
+/// forms anyway.
+/// </para>
+/// <para>
 /// Otherwise it can only state the type the value maps to anyway (an <c>int</c> is a
 /// <see cref="PromptuariumType.Float64"/>), and the reserved types are rejected. It is the place where e.g.
 /// <see cref="PromptuariumType.Int64"/> instead of <see cref="PromptuariumType.Float64"/> will be chosen once the
@@ -124,7 +131,7 @@ public enum PromptuariumType : byte
 /// </remarks>
 /// <param name="type">The type code the property is stored as.</param>
 [Experimental(DiagnosticId)]
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Enum)]
 public sealed class PromptuariumTypeAttribute(PromptuariumType type) : Attribute
 {
     /// <summary>The diagnostic that a use of the experimental type control reports.</summary>
