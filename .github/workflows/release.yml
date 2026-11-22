@@ -18,6 +18,8 @@ on:
 
 permissions:
   contents: write
+  # Trusted publishing to nuget.org: the workflow gets a short-lived API key for its OIDC token
+  id-token: write
 
 jobs:
   # Only a build on Windows puts the icon and the version into pstudio.exe, so the installer is built on Windows
@@ -171,7 +173,7 @@ jobs:
             echo "### Attachments"
             echo
 
-            echo "- The NuGet packages (Promptuarium, Promptuarium.Serializer) and their symbol packages (upload all of them to nuget.org)."
+            echo "- The NuGet packages (Promptuarium, Promptuarium.Serializer) and their symbol packages (also pushed to nuget.org)."
 
             if [ -f "artifacts/pstudio-$TAG-win-x64-setup.exe" ]; then
               echo "- PStudio, pedit, pcfg, ppak and ppakz for Windows (x64, no .NET needed): the installer \`pstudio-$TAG-win-x64-setup.exe\` (Start Menu entries, \`.prmt\` file association, uninstall in Apps)."
@@ -198,3 +200,17 @@ jobs:
           else
             gh release create "$TAG" artifacts/* --title "$TAG" --notes-file release-notes.md --generate-notes --verify-tag "${KIND[@]}"
           fi
+
+      # Trusted publishing: nuget.org has a policy for this repository and release.yml, NUGET_USER is the nuget.org
+      # user name. The GitHub release comes first, so it is made even if the push fails; a version already on
+      # nuget.org is skipped, so the workflow can be run again for a tag
+      - name: Log in to nuget.org
+        id: nuget
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
