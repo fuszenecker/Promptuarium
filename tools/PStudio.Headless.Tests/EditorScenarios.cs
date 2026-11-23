@@ -29,10 +29,10 @@ public sealed class EditorScenarios
         Assert.AreEqual($"tree.prmt - Promptuarium Studio {MainWindowViewModel.AppVersion}", editor.Window.Title);
         Assert.AreEqual(
             "root  [\"PRMT\"] | #0  [0102]  \"hello\" | #1  00FF",
-            string.Join(" | ", editor.Find<TreeViewItem>().Select(item => ((NodeViewModel)item.DataContext!).Header)));
+            string.Join(" | ", editor.TreeItems.Select(item => ((NodeViewModel)item.DataContext!).Header)));
 
         // Selecting in the tree view selects in the view model
-        TreeView treeView = editor.Find<TreeView>().Single();
+        TreeView treeView = editor.Tree;
         treeView.SelectedItem = editor.ViewModel.Root.Children[0];
         Editor.Pump();
 
@@ -55,8 +55,8 @@ public sealed class EditorScenarios
     [TestMethod]
     public Task KeysOfTheTreeView_EditTheTree() => Scenario.Run(editor =>
     {
-        TreeView treeView = editor.Find<TreeView>().Single();
-        editor.Find<TreeViewItem>().First().Focus();
+        TreeView treeView = editor.Tree;
+        editor.TreeItems.First().Focus();
         Editor.Pump();
         Assert.IsTrue(treeView.IsKeyboardFocusWithin, editor.Window.FocusManager?.GetFocusedElement()?.ToString() ?? "nothing is focused");
 
@@ -113,7 +113,7 @@ public sealed class EditorScenarios
         Assert.AreEqual("/0/0", moved.Path);
         Assert.AreSame(moved, treeView.SelectedItem);
         AssertFocused(editor, moved);
-        Assert.AreEqual(4, editor.Find<TreeViewItem>().Count());
+        Assert.AreEqual(4, editor.TreeItems.Count());
 
         editor.Window.KeyPress(Key.Left, RawInputModifiers.Shift, PhysicalKey.ArrowLeft, null);
         Editor.Pump();
@@ -236,7 +236,7 @@ public sealed class EditorScenarios
         Border child = editor.Find<Border>().Where(border => border.Classes.Contains("nodeHeader")).ElementAt(1);
         ClickAt(editor, child, new Point(10, 5), MouseButton.Right);
 
-        ContextMenu menu = editor.Find<TreeView>().Single().ContextMenu!;
+        ContextMenu menu = editor.Tree.ContextMenu!;
         Assert.IsTrue(menu.IsOpen);
         Assert.AreSame(editor.ViewModel.Root.Children[0], editor.ViewModel.SelectedNode);
         editor.Screenshot("context-menu");

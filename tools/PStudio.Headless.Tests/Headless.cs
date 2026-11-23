@@ -118,6 +118,15 @@ internal sealed class Editor : IDisposable
         Dispatcher.UIThread.RunJobs();
     }
 
+    /// <summary>The raw tree (the serializer view has a tree view too).</summary>
+    public TreeView Tree => Window.FindControl<TreeView>("Tree")!;
+
+    /// <summary>The items of the raw tree.</summary>
+    public IEnumerable<TreeViewItem> TreeItems => Tree.GetVisualDescendants().OfType<TreeViewItem>();
+
+    /// <summary>The serializer view.</summary>
+    public TreeView SerializerTree => Window.FindControl<TreeView>("SerializerTree")!;
+
     public IEnumerable<T> Find<T>()
         where T : Visual
     {

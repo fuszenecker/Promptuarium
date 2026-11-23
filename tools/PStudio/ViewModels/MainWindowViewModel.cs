@@ -99,6 +99,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         this.formMemory = formMemory ?? throw new ArgumentNullException(nameof(formMemory));
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         isChunkPanelVisible = settings.Settings.View.IsChunkPanelVisible;
+        isSerializerPanelVisible = settings.Settings.View.IsSerializerPanelVisible;
         settings.Saved += OnSettingsSaved;
         RefreshRecentFiles();
 
@@ -614,6 +615,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Data.Load(value?.Element.Data ?? ReadOnlyMemory<byte>.Empty, value is not null, DataFormOf(value));
         MetaData.Load(value?.Element.MetaData ?? ReadOnlyMemory<byte>.Empty, value is not null, MetaDataFormOf(value));
         HighlightChunks();
+        SyncSerializerSelection();
     }
 
     partial void OnSelectedChunkChanged(ChunkRowViewModel? value)
@@ -809,6 +811,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(DocumentName));
         OnPropertyChanged(nameof(Title));
         RefreshChunks();
+        RefreshSerializer();
     }
 
     // The form the user chose, otherwise the one of the serializer layout (a one-byte metadata is a tag)
@@ -937,7 +940,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(NodePath));
         OnPropertyChanged(nameof(NodeSummary));
         RefreshChunks();
-        ShowStatus(status, error: false);
+        bool closed = RefreshSerializer();
+        NotifySerializerCommands();
+
+        if (closed && IsSerializerPanelVisible)
+        {
+            ShowStatus($"{status}; the tree is not serializable any more, so the serializer view is closed: {SerializerProblem}", error: true);
+        }
+        else
+        {
+            ShowStatus(status, error: false);
+        }
     }
 
     private void RefreshChunks()

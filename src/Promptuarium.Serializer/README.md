@@ -122,6 +122,26 @@ The root is always an `OBJECT`: an object or a dictionary.
   of version 2 in a file of version 1, a `CONTAINER` that is not one complete stream, invalid UTF-8, malformed holders. So is a file that does not fit the type (a string for an `int`, `1.5` for an `int`,
   `256` for a `byte`, ...).
 
+## Validation
+
+`PromptuariumSerializer.Validate(root)` checks the structure of a tree without reading it into a type: a root without
+data, the tags, the type codes, the holders and their children, the values (sizes, canonical forms, ranges, UTF-8,
+nested trees) and the comments, within the `MaxDepth` and the `LoadOptions` of the options. It reports every problem
+(not only the first one) with the path of its node, as `pedit` writes it:
+
+```csharp
+foreach (ValidationProblem problem in PromptuariumSerializer.Validate(root))
+{
+    Console.WriteLine(problem); // error: /1/1: the INT32 value is not valid: ...
+}
+
+bool serializable = PromptuariumSerializer.IsValid(root); // no error; warnings are allowed
+```
+
+The **signature is not checked**: a tree without errors can be read with any signature its reader accepts (an
+unsigned one too). A repeated name (the last one wins) and a type of version 2 in a tree signed with a signature of
+version 1 are warnings. PStudio shows its serializer view for the trees that pass this check.
+
 ## Layering
 
 `Populate` applies a file onto an existing object: the members in the file overwrite, nested objects and dictionaries

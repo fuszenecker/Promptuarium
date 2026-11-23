@@ -25,4 +25,7 @@ public sealed class ViewSettings
 {
     /// <summary>Whether the chunk panel is shown (View / Chunks).</summary>
     public bool IsChunkPanelVisible { get; set; } = true;
+
+    /// <summary>Whether the serializer view is shown (View / Serializer), when the tree is serializable.</summary>
+    public bool IsSerializerPanelVisible { get; set; } = true;
 }

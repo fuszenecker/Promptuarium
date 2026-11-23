@@ -6,7 +6,7 @@
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Icon="/Assets/pstudio.ico"
-        Width="1200" Height="800"
+        Width="1440" Height="860"
         MinWidth="640" MinHeight="480">
 
   <Window.KeyBindings>
@@ -15,6 +15,7 @@
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}" />
     <KeyBinding Gesture="F6" Command="{Binding ToggleChunkPanelCommand}" />
+    <KeyBinding Gesture="F7" Command="{Binding ToggleSerializerPanelCommand}" />
   </Window.KeyBindings>
 
   <DockPanel>
@@ -57,6 +58,8 @@
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="_Chunks" ToggleType="CheckBox" IsChecked="{Binding IsChunkPanelVisible, Mode=OneWay}" Command="{Binding ToggleChunkPanelCommand}" InputGesture="F6" />
+        <MenuItem Header="_Serializer" ToggleType="CheckBox" IsChecked="{Binding IsSerializerPanelVisible, Mode=OneWay}" Command="{Binding ToggleSerializerPanelCommand}" InputGesture="F7"
+                  ToolTip.Tip="The tree as the values of the serializer format; shown when the tree is serializable" />
         <Separator />
         <MenuItem Header="_Reset Types" Command="{Binding ResetTypesCommand}" ToolTip.Tip="Forget the forms chosen for the metadata and the data of the nodes of this tree" />
       </MenuItem>
@@ -70,7 +73,7 @@
     </Border>
 
     <Grid x:Name="MainGrid" RowDefinitions="*,Auto,220">
-      <Grid Grid.Row="0" ColumnDefinitions="2*,Auto,3*">
+      <Grid x:Name="UpperGrid" Grid.Row="0" ColumnDefinitions="2*,Auto,3*,Auto,3*">
         <TreeView x:Name="Tree"
                   Grid.Column="0"
                   Margin="6"
@@ -123,9 +126,84 @@
           </TreeView.ItemTemplate>
         </TreeView>
 
-        <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
+        <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" IsVisible="{Binding IsSerializerPanelShown}" />
 
-        <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
+        <DockPanel x:Name="SerializerPanel" Grid.Column="2" Margin="6" IsVisible="{Binding IsSerializerPanelShown}">
+          <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,4">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="Serializer" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <TextBlock Classes="dim" Text="{Binding SerializerSummary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding SerializerSummary}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <Button Classes="tool" Content="Add" Command="{Binding SerializerAddCommand}" ToolTip.Tip="Add a member or an element into the selected object or array, or after the selected value (Insert)" />
+              <Button Classes="tool" Content="Add After" Command="{Binding SerializerAddAfterCommand}" ToolTip.Tip="Add a member or an element after the selected value (Shift+Insert)" />
+              <Button Classes="tool" Content="Delete" Command="{Binding SerializerDeleteCommand}" ToolTip.Tip="Delete the selected value (Delete)" />
+              <Button Classes="tool" Content="Up" Command="{Binding SerializerMoveUpCommand}" ToolTip.Tip="Move the selected value up (Shift+Up)" />
+              <Button Classes="tool" Content="Down" Command="{Binding SerializerMoveDownCommand}" ToolTip.Tip="Move the selected value down (Shift+Down)" />
+            </StackPanel>
+          </StackPanel>
+
+          <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="0,6,0,0" IsVisible="{Binding SelectedSerializerNode, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Grid.Column="0" Text="Comment" VerticalAlignment="Top" Margin="0,6,8,0" />
+            <TextBox x:Name="SerializerComment" Grid.Column="1" Tag="comment"
+                     DataContext="{Binding SelectedSerializerNode}"
+                     x:DataType="vm:SerializerNodeViewModel"
+                     Text="{Binding CommentText}"
+                     AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="90"
+                     PlaceholderText="No comment"
+                     ToolTip.Tip="The comment of the selected value (COMMENT nodes); Ctrl+Enter or leaving the box applies it, Escape reverts it" />
+          </Grid>
+
+          <TreeView x:Name="SerializerTree"
+                    ItemsSource="{Binding SerializerRoots}"
+                    SelectedItem="{Binding SelectedSerializerNode}">
+            <TreeView.KeyBindings>
+              <KeyBinding Gesture="Insert" Command="{Binding SerializerAddCommand}" />
+              <KeyBinding Gesture="Shift+Insert" Command="{Binding SerializerAddAfterCommand}" />
+              <KeyBinding Gesture="Delete" Command="{Binding SerializerDeleteCommand}" />
+              <KeyBinding Gesture="Shift+Up" Command="{Binding SerializerMoveUpCommand}" />
+              <KeyBinding Gesture="Shift+Down" Command="{Binding SerializerMoveDownCommand}" />
+            </TreeView.KeyBindings>
+            <TreeView.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Add" Command="{Binding SerializerAddCommand}" InputGesture="Insert" />
+                <MenuItem Header="Add After" Command="{Binding SerializerAddAfterCommand}" InputGesture="Shift+Insert" />
+                <Separator />
+                <MenuItem Header="Move Up" Command="{Binding SerializerMoveUpCommand}" InputGesture="Shift+Up" />
+                <MenuItem Header="Move Down" Command="{Binding SerializerMoveDownCommand}" InputGesture="Shift+Down" />
+                <Separator />
+                <MenuItem Header="Open Container as Nested Tree…" Command="{Binding SerializerOpenContainerCommand}" />
+                <Separator />
+                <MenuItem Header="Delete" Command="{Binding SerializerDeleteCommand}" InputGesture="Delete" />
+              </ContextMenu>
+            </TreeView.ContextMenu>
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:SerializerNodeViewModel">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate x:DataType="vm:SerializerNodeViewModel" ItemsSource="{Binding Children}">
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
+                  <TextBlock Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" />
+                  <TextBox Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsMember}"
+                           MinWidth="110" ToolTip.Tip="The name of the member; Enter applies, Escape reverts" />
+                  <ComboBox Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
+                            IsVisible="{Binding HasType}" Width="140" ToolTip.Tip="The type; another one converts the value" />
+                  <CheckBox IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBool}" VerticalAlignment="Center" />
+                  <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValue}"
+                           Classes.invalid="{Binding HasValueError}" MinWidth="160" MaxWidth="480" ToolTip.Tip="{Binding ValueTip}" />
+                  <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
+                  <TextBlock Classes="comment" Text="{Binding CommentPreview}" IsVisible="{Binding HasComment}" VerticalAlignment="Center" MaxWidth="320" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </DockPanel>
+
+        <GridSplitter Grid.Column="3" Width="4" ResizeDirection="Columns" />
+
+        <Grid Grid.Column="4" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
           <Border Grid.Row="0" Classes="card" Margin="0,0,0,12">
             <StackPanel Spacing="2">
               <TextBlock Classes="path" Text="{Binding NodePath}" />
@@ -197,6 +275,37 @@
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="FontSize" Value="18" />
       <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBox.inline">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.name">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBox.invalid">
+      <Setter Property="BorderBrush" Value="OrangeRed" />
+    </Style>
+    <Style Selector="TextBox.invalid:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="OrangeRed" />
+    </Style>
+    <Style Selector="ComboBox.type">
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.comment">
+      <Setter Property="FontStyle" Value="Italic" />
+      <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="Button.tool">
+      <Setter Property="Padding" Value="10,3" />
     </Style>
     <Style Selector="DataGridRow.ofSelectedNode">
       <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
