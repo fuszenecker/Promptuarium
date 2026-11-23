@@ -105,6 +105,30 @@ public sealed class SerializerScenarios
         Assert.IsFalse(countNode.IsEditing);
         Assert.AreEqual("42", countNode.ValueDisplay);
 
+        // The comment is edited in the row too, above it; there is no other comment box
+        Assert.IsFalse(editor.SerializerPanel().GetVisualDescendants().OfType<TextBox>().Any(box => Equals(box.Tag, "comment") && box.IsEffectivelyVisible));
+        ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(countNode)!).Focus();
+        Editor.Pump();
+        editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Editor.Pump();
+        TextBox comment = RowBox(editor, countNode, "comment");
+        comment.Focus();
+        comment.Text = "the total";
+        editor.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Editor.Pump();
+        Assert.IsFalse(countNode.IsEditing);
+        Assert.AreEqual("the total", editor.ViewModel.Root.Element[1][1].Data.AsUtf8String());
+        Assert.IsTrue(editor.SerializerTree.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Classes.Contains("comment") && block.Text == "the total" && block.IsEffectivelyVisible));
+
+        // Leaving an edited row applies it
+        editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Editor.Pump();
+        RowBox(editor, countNode, "value").Text = "7";
+        ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(editor.ViewModel.SerializerRoots[0].Children[0])!).Focus();
+        Editor.Pump();
+        Assert.IsFalse(countNode.IsEditing);
+        Assert.AreEqual(7, editor.ViewModel.Root.Element[1].Children.Single(child => child.MetaData.Span[0] == 0x03).Data.AsInt());
+
         // A node selected in the raw tree selects its holder in the serializer view
         editor.Tree.SelectedItem = editor.ViewModel.Root.Children[4].Children[1];
         Editor.Pump();

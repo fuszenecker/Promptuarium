@@ -124,6 +124,9 @@ internal sealed class Editor : IDisposable
     /// <summary>The items of the raw tree.</summary>
     public IEnumerable<TreeViewItem> TreeItems => Tree.GetVisualDescendants().OfType<TreeViewItem>();
 
+    /// <summary>The panel of the serializer view (its buttons and its tree).</summary>
+    public DockPanel SerializerPanel() => Window.FindControl<DockPanel>("SerializerPanel")!;
+
     /// <summary>The serializer view.</summary>
     public TreeView SerializerTree => Window.FindControl<TreeView>("SerializerTree")!;
 

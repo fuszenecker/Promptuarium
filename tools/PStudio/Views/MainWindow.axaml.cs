@@ -184,30 +184,13 @@ public partial class MainWindow : Window
     }
 
     // Enter applies the edited name or value (Ctrl+Enter the comment), Escape reverts the edits of the value
-    // F2 edits the selected row; in an edited row Enter applies and Escape reverts it, and so do they in the comment
-    // (Ctrl+Enter there, as it has lines)
+    // F2 edits the selected row; in an edited row (its comment, name, type and value) Enter applies and Escape reverts it
     private void OnSerializerKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.F2 && e.Source is TreeViewItem { DataContext: SerializerNodeViewModel row })
         {
             BeginEdit(row);
             e.Handled = true;
-            return;
-        }
-
-        if (e.Source is TextBox { Tag: "comment", DataContext: SerializerNodeViewModel commented })
-        {
-            if (e.Key == Key.Escape)
-            {
-                commented.Revert();
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Control))
-            {
-                commented.CommitComment();
-                e.Handled = true;
-            }
-
             return;
         }
 
@@ -234,15 +217,9 @@ public partial class MainWindow : Window
         }
     }
 
-    // Leaving an edited row (not into the list of its types) applies it; leaving the comment applies the comment
+    // Leaving an edited row (not into the list of its types) applies it
     private void OnSerializerLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is TextBox { Tag: "comment", DataContext: SerializerNodeViewModel commented })
-        {
-            commented.CommitComment();
-            return;
-        }
-
         if (e.Source is not Control { DataContext: SerializerNodeViewModel { IsEditing: true } node })
         {
             return;
@@ -272,11 +249,6 @@ public partial class MainWindow : Window
 
     private void BeginEdit(SerializerNodeViewModel node)
     {
-        if (node.IsRoot)
-        {
-            return;
-        }
-
         node.IsEditing = true;
         OnSerializerEditRequested(node);
     }
@@ -322,9 +294,9 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // The name, otherwise the value, otherwise the type
+            // The name, otherwise the value, otherwise the type, otherwise the comment (of the root)
             Control? first = RowControls(node).Where(control => control.IsEffectivelyVisible && control is TextBox or ComboBox or CheckBox)
-                .OrderBy(control => control is TextBox { Tag: "name" } ? 0 : control is TextBox or CheckBox ? 1 : 2)
+                .OrderBy(control => control is TextBox { Tag: "name" } ? 0 : control is TextBox { Tag: "value" } or CheckBox ? 1 : control is ComboBox ? 2 : 3)
                 .FirstOrDefault();
 
             if (first is not null)

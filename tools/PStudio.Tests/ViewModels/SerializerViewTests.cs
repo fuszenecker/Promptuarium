@@ -257,6 +257,130 @@ public sealed class SerializerViewTests
     }
 
     [TestMethod]
+    public void Rows_AreTexts_UntilEdited()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        SerializerNodeViewModel count = sut.SerializerRoots[0].Children[1];
+        SerializerNodeViewModel enabled = sut.SerializerRoots[0].Children[2];
+
+        Assert.IsTrue(count.IsNameShown && count.IsTypeShown && count.IsValueShown);
+        Assert.IsFalse(count.IsNameEdited || count.IsTypeEdited || count.IsTextValueEdited);
+        Assert.AreEqual("3", count.ValueDisplay);
+        Assert.AreEqual("true", enabled.ValueDisplay);
+        Assert.IsFalse(enabled.IsBoolEdited);
+
+        count.IsEditing = true;
+        enabled.IsEditing = true;
+
+        Assert.IsTrue(count.IsNameEdited && count.IsTypeEdited && count.IsTextValueEdited);
+        Assert.IsFalse(count.IsNameShown || count.IsTypeShown || count.IsValueShown);
+        Assert.IsTrue(enabled.IsBoolEdited);
+    }
+
+    [TestMethod]
+    public void CommitEdit_AppliesTheName_TheValue_AndTheComment_Together()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        SerializerNodeViewModel count = sut.SerializerRoots[0].Children[1];
+
+        count.IsEditing = true;
+        count.NameText = "Total";
+        count.ValueText = "42";
+        count.CommentText = "the total";
+
+        Assert.IsTrue(count.CommitEdit());
+
+        Element holder = sut.Root.Element[1];
+        Assert.AreEqual("Total", holder.Data.AsUtf8String());
+        Assert.AreEqual("the total", holder[1].Data.AsUtf8String());
+        Assert.AreEqual(42, holder.Children.Single(child => child.MetaData.Span[0] == 0x03).Data.AsInt());
+        Assert.IsFalse(count.IsEditing);
+        Assert.IsTrue(count.IsCommentShown);
+        Assert.AreSame(count, sut.SerializerRoots[0].Children[1]);
+        Assert.IsTrue(PromptuariumSerializer.IsValid(sut.Root.Element));
+    }
+
+    [TestMethod]
+    public void CommitEdit_WithAnInvalidValue_ChangesNothing_AndTheRowStaysEdited()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        SerializerNodeViewModel count = sut.SerializerRoots[0].Children[1];
+        byte[] before = sut.Root.Element.ToBytes();
+
+        count.IsEditing = true;
+        count.NameText = "Total";
+        count.ValueText = "forty";
+
+        Assert.IsFalse(count.CommitEdit());
+        Assert.IsTrue(count.IsEditing);
+        Assert.IsTrue(count.HasValueError);
+        CollectionAssert.AreEqual(before, sut.Root.Element.ToBytes());
+        Assert.IsTrue(sut.IsStatusError);
+    }
+
+    [TestMethod]
+    public void CancelEdit_DropsTheEdits()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        SerializerNodeViewModel count = sut.SerializerRoots[0].Children[1];
+        byte[] before = sut.Root.Element.ToBytes();
+
+        count.IsEditing = true;
+        count.NameText = "Total";
+        count.ValueText = "42";
+        count.CommentText = "x";
+        count.CancelEdit();
+
+        Assert.IsFalse(count.IsEditing);
+        Assert.AreEqual("Count", count.NameText);
+        Assert.AreEqual("3", count.ValueText);
+        Assert.AreEqual(string.Empty, count.CommentText);
+        CollectionAssert.AreEqual(before, sut.Root.Element.ToBytes());
+        Assert.IsFalse(sut.IsModified);
+    }
+
+    [TestMethod]
+    public void RootComment_IsEditedWithTheRoot_AndAnEmptyCommentIsRemoved()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        SerializerNodeViewModel root = sut.SerializerRoots[0];
+
+        root.IsEditing = true;
+        root.CommentText = "the file";
+        Assert.IsTrue(root.CommitEdit());
+        Assert.AreEqual("the file", sut.Root.Element[0].Data.AsUtf8String());
+
+        root.IsEditing = true;
+        root.CommentText = string.Empty;
+        Assert.IsTrue(root.CommitEdit());
+        Assert.IsFalse(root.HasComment);
+        Assert.IsTrue(PromptuariumSerializer.IsValid(sut.Root.Element));
+    }
+
+    [TestMethod]
+    public void NewMember_IsEdited()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        sut.SelectedSerializerNode = sut.SerializerRoots[0];
+
+        sut.SerializerAddCommand.Execute(null);
+
+        Assert.IsTrue(sut.SelectedSerializerNode!.IsEditing);
+    }
+
+    [TestMethod]
+    public void NameColumn_IsNarrowerByTheIndentation()
+    {
+        MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
+        SerializerNodeViewModel tags = sut.SerializerRoots[0].Children[3];
+
+        double member = tags.NameWidth.Value;
+        double item = tags.Children[0].NameWidth.Value;
+
+        Assert.AreEqual(SerializerNodeViewModel.Indent, member - item, 0.001);
+    }
+
+    [TestMethod]
     public void BoolValue_IsStored()
     {
         MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));

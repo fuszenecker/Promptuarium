@@ -146,17 +146,6 @@
             </DockPanel>
           </StackPanel>
 
-          <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="0,6,0,0" IsVisible="{Binding SelectedSerializerNode, Converter={x:Static ObjectConverters.IsNotNull}}">
-            <TextBlock Grid.Column="0" Text="Comment" VerticalAlignment="Top" Margin="0,6,8,0" />
-            <TextBox x:Name="SerializerComment" Grid.Column="1" Tag="comment"
-                     DataContext="{Binding SelectedSerializerNode}"
-                     x:DataType="vm:SerializerNodeViewModel"
-                     Text="{Binding CommentText}"
-                     AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="90"
-                     PlaceholderText="No comment"
-                     ToolTip.Tip="The comment of the selected value (COMMENT nodes); Ctrl+Enter or leaving the box applies it, Escape reverts it" />
-          </Grid>
-
           <TreeView x:Name="SerializerTree"
                     ItemsSource="{Binding SerializerRoots}"
                     SelectedItem="{Binding SelectedSerializerNode}">
@@ -194,8 +183,10 @@
                 <!-- The comment in small letters above the row; the name column is narrower by the indentation of the
                      value, so that the names end, and the types and the values begin, in one column at every depth -->
                 <StackPanel Margin="0,2">
-                  <TextBlock Classes="comment" Text="{Binding CommentPreview}" IsVisible="{Binding HasComment}"
+                  <TextBlock Classes="comment" Text="{Binding CommentPreview}" IsVisible="{Binding IsCommentShown}"
                              TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CommentText}" Margin="2,0,0,1" />
+                  <TextBox Classes="comment" Tag="comment" Text="{Binding CommentText}" IsVisible="{Binding IsEditing}"
+                           PlaceholderText="comment" Margin="0,0,0,2" HorizontalAlignment="Left" MinWidth="300" />
                   <Grid>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="{Binding NameWidth}" />
@@ -357,6 +348,12 @@
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Padding" Value="7,0" />
+    </Style>
+    <Style Selector="TextBox.comment">
+      <Setter Property="FontStyle" Value="Italic" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Padding" Value="6,1" />
     </Style>
     <Style Selector="TextBlock.typeText">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />

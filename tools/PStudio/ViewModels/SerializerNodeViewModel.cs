@@ -34,7 +34,7 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(
         nameof(IsNameShown), nameof(IsNameEdited), nameof(IsTypeShown), nameof(IsTypeEdited),
-        nameof(IsValueShown), nameof(IsBoolEdited), nameof(IsTextValueEdited))]
+        nameof(IsValueShown), nameof(IsBoolEdited), nameof(IsTextValueEdited), nameof(IsCommentShown))]
     private bool isEditing;
 
     [ObservableProperty]
@@ -79,6 +79,9 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
 
     /// <summary>Whether the name is shown as a text (the row is not edited).</summary>
     public bool IsNameShown => IsMember && !IsEditing;
+
+    /// <summary>Whether the comment is shown as a text (edited with the row, in a box above it).</summary>
+    public bool IsCommentShown => HasComment && !IsEditing;
 
     /// <summary>Whether the name is edited.</summary>
     public bool IsNameEdited => IsMember && IsEditing;
@@ -265,8 +268,9 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
             return true;
         }
 
-        // Applying one refreshes the row from the tree, so the edited name is kept while the value is applied
+        // Applying one refreshes the row from the tree, so the edited name and comment are kept while the others are applied
         string name = NameText;
+        string comment = CommentText;
 
         if (!CommitValue())
         {
@@ -275,6 +279,8 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
 
         NameText = name;
         CommitName();
+        CommentText = comment;
+        CommitComment();
         IsEditing = false;
         return true;
     }
