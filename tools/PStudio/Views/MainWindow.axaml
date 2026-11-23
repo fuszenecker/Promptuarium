@@ -203,16 +203,19 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                    <TextBlock Grid.Column="0" Classes="name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
-                               VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="The name of the member; a double click (or F2) renames it" />
-                    <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsEditingName}"
-                             HorizontalAlignment="Stretch" Margin="0,0,6,0" ToolTip.Tip="The name of the member; Enter applies, Escape reverts" />
+                    <!-- Shown as texts; a double click or F2 edits the whole row (Enter applies, Escape reverts) -->
+                    <TextBlock Grid.Column="0" Classes="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
+                               VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis" />
+                    <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameEdited}"
+                             HorizontalAlignment="Stretch" Margin="0,0,6,0" />
+                    <TextBlock Grid.Column="1" Classes="typeText" Text="{Binding SelectedType.Name}" IsVisible="{Binding IsTypeShown}" VerticalAlignment="Center" />
                     <ComboBox Grid.Column="1" Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
-                              IsVisible="{Binding HasType}" HorizontalAlignment="Stretch" ToolTip.Tip="The type; another one converts the value" />
+                              IsVisible="{Binding IsTypeEdited}" HorizontalAlignment="Stretch" ToolTip.Tip="The type; another one converts the value" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
-                      <CheckBox IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBool}" VerticalAlignment="Center" />
-                      <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValue}"
+                      <TextBlock Classes="valueText" Text="{Binding ValueDisplay}" IsVisible="{Binding IsValueShown}" VerticalAlignment="Center"
+                                 MaxWidth="420" TextTrimming="CharacterEllipsis" />
+                      <CheckBox IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBoolEdited}" VerticalAlignment="Center" />
+                      <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValueEdited}"
                                Classes.invalid="{Binding HasValueError}" Width="260" ToolTip.Tip="{Binding ValueTip}" />
                       <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
                     </StackPanel>
@@ -353,6 +356,15 @@
     <Style Selector="TextBlock.name">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="7,0" />
+    </Style>
+    <Style Selector="TextBlock.typeText">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="Padding" Value="9,0" />
+    </Style>
+    <Style Selector="TextBlock.valueText">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="Padding" Value="7,0" />
     </Style>
     <Style Selector="TextBlock.label">

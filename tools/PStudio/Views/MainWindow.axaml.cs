@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -182,95 +184,123 @@ public partial class MainWindow : Window
     }
 
     // Enter applies the edited name or value (Ctrl+Enter the comment), Escape reverts the edits of the value
-    // F2 on a member of the tree renames it
+    // F2 edits the selected row; in an edited row Enter applies and Escape reverts it, and so do they in the comment
+    // (Ctrl+Enter there, as it has lines)
     private void OnSerializerKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F2 && e.Source is TreeViewItem { DataContext: SerializerNodeViewModel { IsMember: true } member })
+        if (e.Key == Key.F2 && e.Source is TreeViewItem { DataContext: SerializerNodeViewModel row })
         {
-            EditName(member);
+            BeginEdit(row);
             e.Handled = true;
             return;
         }
 
-        if (e.Source is not TextBox { Tag: string field } box || box.DataContext is not SerializerNodeViewModel node)
+        if (e.Source is TextBox { Tag: "comment", DataContext: SerializerNodeViewModel commented })
+        {
+            if (e.Key == Key.Escape)
+            {
+                commented.Revert();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            {
+                commented.CommitComment();
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (e.Source is not Control { DataContext: SerializerNodeViewModel { IsEditing: true } node } control
+            || (control as ComboBox ?? control.FindAncestorOfType<ComboBox>()) is { IsDropDownOpen: true })
         {
             return;
         }
 
         if (e.Key == Key.Escape)
         {
-            bool wasEditingName = field == "name";
-            node.Revert();
-            EndNameEdit(node, wasEditingName);
+            node.CancelEdit();
+            FocusRow(node);
             e.Handled = true;
         }
-        else if (e.Key == Key.Enter && (field != "comment" || e.KeyModifiers.HasFlag(KeyModifiers.Control)))
+        else if (e.Key == Key.Enter)
         {
-            Commit(node, field);
-            EndNameEdit(node, field == "name");
+            if (node.CommitEdit())
+            {
+                FocusRow(node);
+            }
+
             e.Handled = true;
         }
     }
 
+    // Leaving an edited row (not into the list of its types) applies it; leaving the comment applies the comment
     private void OnSerializerLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is TextBox { Tag: string field } box && box.DataContext is SerializerNodeViewModel node)
+        if (e.Source is TextBox { Tag: "comment", DataContext: SerializerNodeViewModel commented })
         {
-            Commit(node, field);
-
-            if (field == "name")
-            {
-                node.IsEditingName = false;
-            }
+            commented.CommitComment();
+            return;
         }
-    }
 
-    // A double click on a name renames the member
-    private void OnSerializerDoubleTapped(object? sender, TappedEventArgs e)
-    {
-        if (e.Source is Visual visual && (visual as TextBlock ?? visual.FindAncestorOfType<TextBlock>()) is { Tag: "name", DataContext: SerializerNodeViewModel node })
-        {
-            EditName(node);
-            e.Handled = true;
-        }
-    }
-
-    private void EditName(SerializerNodeViewModel node)
-    {
-        node.IsEditingName = true;
-        OnSerializerEditRequested(node);
-    }
-
-    // After Enter or Escape in a name: the name is a text again, and the keyboard goes back to the row
-    private void EndNameEdit(SerializerNodeViewModel node, bool name)
-    {
-        if (!name || !node.IsEditingName)
+        if (e.Source is not Control { DataContext: SerializerNodeViewModel { IsEditing: true } node })
         {
             return;
         }
 
-        node.IsEditingName = false;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!node.IsEditing || IsWithinRow(node, FocusManager?.GetFocusedElement() as Visual) || RowControls(node).OfType<ComboBox>().Any(box => box.IsDropDownOpen))
+            {
+                return;
+            }
 
+            node.CommitEdit();
+        }, DispatcherPriority.Background);
+    }
+
+    // A double click on a row edits it (not on the arrow that expands it)
+    private void OnSerializerDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Source is Visual visual && visual.FindAncestorOfType<ToggleButton>(includeSelf: true) is null
+            && (visual as Control ?? visual.FindAncestorOfType<Control>())?.DataContext is SerializerNodeViewModel node)
+        {
+            BeginEdit(node);
+            e.Handled = true;
+        }
+    }
+
+    private void BeginEdit(SerializerNodeViewModel node)
+    {
+        if (node.IsRoot)
+        {
+            return;
+        }
+
+        node.IsEditing = true;
+        OnSerializerEditRequested(node);
+    }
+
+    // The keyboard goes back to the row after its editing
+    private void FocusRow(SerializerNodeViewModel node)
+    {
         if (SerializerTree.TreeContainerFromItem(node) is TreeViewItem item)
         {
             item.Focus(NavigationMethod.Directional);
         }
     }
 
-    private static void Commit(SerializerNodeViewModel node, string field)
+    // The controls of the row of a value (not of the rows of its members, which are in its item too)
+    private IEnumerable<Control> RowControls(SerializerNodeViewModel node)
     {
-        switch (field)
-        {
-            case "name":
-                node.CommitName();
-                break;
-            case "value":
-                node.CommitValue();
-                break;
-            case "comment":
-                node.CommitComment();
-                break;
-        }
+        return SerializerTree.TreeContainerFromItem(node) is TreeViewItem item
+            ? item.GetVisualDescendants().OfType<Control>().Where(control => control.DataContext == node)
+            : [];
+    }
+
+    private static bool IsWithinRow(SerializerNodeViewModel node, Visual? focused)
+    {
+        return focused is Control { DataContext: SerializerNodeViewModel focusedNode } && focusedNode == node && focused is not TreeViewItem;
     }
 
     // A control of a row (a name, a type, a value) selects its value, as a click on the row does
@@ -282,7 +312,7 @@ public partial class MainWindow : Window
         }
     }
 
-    // A new member gets the focus in its name, a new element in its value
+    // An edited row gets the focus in its name (an element in its value)
     private void OnSerializerEditRequested(SerializerNodeViewModel node)
     {
         Dispatcher.UIThread.Post(() =>
@@ -292,13 +322,15 @@ public partial class MainWindow : Window
                 return;
             }
 
-            string field = node.IsMember ? "name" : "value";
-            TextBox? box = item.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(text => Equals(text.Tag, field) && text.DataContext == node && text.IsVisible);
+            // The name, otherwise the value, otherwise the type
+            Control? first = RowControls(node).Where(control => control.IsEffectivelyVisible && control is TextBox or ComboBox or CheckBox)
+                .OrderBy(control => control is TextBox { Tag: "name" } ? 0 : control is TextBox or CheckBox ? 1 : 2)
+                .FirstOrDefault();
 
-            if (box is not null)
+            if (first is not null)
             {
-                box.Focus(NavigationMethod.Tab);
-                box.SelectAll();
+                first.Focus(NavigationMethod.Tab);
+                (first as TextBox)?.SelectAll();
             }
         }, DispatcherPriority.Loaded);
     }

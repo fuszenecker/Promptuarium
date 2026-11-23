@@ -63,42 +63,47 @@ public sealed class SerializerScenarios
 
         editor.Screenshot("serializer");
 
-        // A value typed into its row, applied with Enter
-        TextBox count = ValueBox(editor, "Count");
-        count.Focus();
+        // The rows are texts: nothing can be typed into them until a row is edited
+        Assert.IsFalse(editor.SerializerTree.GetVisualDescendants().OfType<TextBox>().Any(box => box.IsEffectivelyVisible));
+        Assert.IsFalse(editor.SerializerTree.GetVisualDescendants().OfType<ComboBox>().Any(box => box.IsEffectivelyVisible));
+
+        // F2 edits the whole row: its name gets the focus; Enter applies the name and the value
+        SerializerNodeViewModel countNode = editor.ViewModel.SerializerRoots[0].Children[1];
+        ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(countNode)!).Focus();
         Editor.Pump();
         Assert.AreSame(editor.ViewModel.Root.Children[1], editor.ViewModel.SelectedNode);
+        editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Editor.Pump();
+        Assert.IsTrue(countNode.IsEditing);
+        TextBox name = RowBox(editor, countNode, "name");
+        Assert.IsTrue(name.IsFocused);
+        Assert.IsTrue(editor.SerializerTree.GetVisualDescendants().OfType<ComboBox>().Single(box => box.IsEffectivelyVisible).DataContext == countNode);
 
+        name.Text = "Total";
+        TextBox count = RowBox(editor, countNode, "value");
         count.Text = "42";
         editor.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
         Editor.Pump();
+        Assert.AreEqual("Total", editor.ViewModel.Root.Element[1].Data.AsUtf8String());
         Assert.AreEqual(42, editor.ViewModel.Root.Element[1][1].Data.AsInt());
+        Assert.IsFalse(countNode.IsEditing);
 
-        // An invalid value is not applied
+        // An invalid value is not applied, and the row stays edited; Escape drops the edits
+        editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Editor.Pump();
+        count = RowBox(editor, countNode, "value");
+        count.Focus();
         count.Text = "forty";
         editor.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
         Editor.Pump();
+        Assert.IsTrue(countNode.IsEditing);
         Assert.IsTrue(count.Classes.Contains("invalid"));
         Assert.AreEqual(42, editor.ViewModel.Root.Element[1][1].Data.AsInt());
         editor.Screenshot("serializer-invalid");
         editor.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
         Editor.Pump();
-        Assert.AreEqual("42", count.Text);
-
-        // A name is a text; F2 (or a double click) makes it a box, Enter renames the member
-        Assert.IsFalse(editor.SerializerTree.GetVisualDescendants().OfType<TextBox>().Any(box => Equals(box.Tag, "name") && box.IsEffectivelyVisible));
-        SerializerNodeViewModel title = editor.ViewModel.SerializerRoots[0].Children[0];
-        ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(title)!).Focus();
-        Editor.Pump();
-        editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
-        Editor.Pump();
-        TextBox name = editor.SerializerTree.GetVisualDescendants().OfType<TextBox>().Single(box => Equals(box.Tag, "name") && box.IsEffectivelyVisible);
-        Assert.IsTrue(name.IsFocused);
-        name.Text = "Caption";
-        editor.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-        Editor.Pump();
-        Assert.AreEqual("Caption", editor.ViewModel.Root.Element[0].Data.AsUtf8String());
-        Assert.IsFalse(title.IsEditingName);
+        Assert.IsFalse(countNode.IsEditing);
+        Assert.AreEqual("42", countNode.ValueDisplay);
 
         // A node selected in the raw tree selects its holder in the serializer view
         editor.Tree.SelectedItem = editor.ViewModel.Root.Children[4].Children[1];
@@ -116,9 +121,9 @@ public sealed class SerializerScenarios
         editor.Screenshot("serializer-closed");
     });
 
-    private static TextBox ValueBox(Editor editor, string name)
+    private static TextBox RowBox(Editor editor, SerializerNodeViewModel node, string field)
     {
         return editor.SerializerTree.GetVisualDescendants().OfType<TextBox>()
-            .Single(box => Equals(box.Tag, "value") && box.DataContext is SerializerNodeViewModel node && node.NameText == name);
+            .Single(box => Equals(box.Tag, field) && box.DataContext == node && box.IsEffectivelyVisible);
     }
 }

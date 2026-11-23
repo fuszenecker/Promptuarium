@@ -486,7 +486,7 @@ public sealed partial class MainWindowViewModel
 
         if (serializerNodes.TryGetValue(node, out SerializerNodeViewModel? added))
         {
-            added.IsEditingName = added.IsMember;
+            added.IsEditing = true;
             SerializerEditRequested?.Invoke(added);
         }
     }

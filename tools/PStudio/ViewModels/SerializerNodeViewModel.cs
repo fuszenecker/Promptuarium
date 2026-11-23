@@ -30,10 +30,12 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     [ObservableProperty]
     private string nameText = string.Empty;
 
-    // The name is shown as a text, and edited in a box after a double click (or F2)
+    // The row is shown as texts, and edited (the name, the type, the value) after a double click or F2
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNameShown))]
-    private bool isEditingName;
+    [NotifyPropertyChangedFor(
+        nameof(IsNameShown), nameof(IsNameEdited), nameof(IsTypeShown), nameof(IsTypeEdited),
+        nameof(IsValueShown), nameof(IsBoolEdited), nameof(IsTextValueEdited))]
+    private bool isEditing;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasValueError), nameof(ValueTip))]
@@ -75,8 +77,29 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     /// <summary>Whether this is a member of an object (it has a name).</summary>
     public bool IsMember => !IsRoot && Tag(Holder.Element) == NameTag;
 
-    /// <summary>Whether the name is shown as a text (it is not edited).</summary>
-    public bool IsNameShown => IsMember && !IsEditingName;
+    /// <summary>Whether the name is shown as a text (the row is not edited).</summary>
+    public bool IsNameShown => IsMember && !IsEditing;
+
+    /// <summary>Whether the name is edited.</summary>
+    public bool IsNameEdited => IsMember && IsEditing;
+
+    /// <summary>Whether the type is shown as a text.</summary>
+    public bool IsTypeShown => HasType && !IsEditing;
+
+    /// <summary>Whether the type is chosen.</summary>
+    public bool IsTypeEdited => HasType && IsEditing;
+
+    /// <summary>Whether the value is shown as a text (a BOOLEAN as true or false).</summary>
+    public bool IsValueShown => (IsTextValue || IsBool) && !IsEditing;
+
+    /// <summary>Whether a BOOLEAN is edited (a check box).</summary>
+    public bool IsBoolEdited => IsBool && IsEditing;
+
+    /// <summary>Whether the value is edited as a text.</summary>
+    public bool IsTextValueEdited => IsTextValue && IsEditing;
+
+    /// <summary>The value as a text, when the row is not edited.</summary>
+    public string ValueDisplay => IsBool ? (BoolValue ? "true" : "false") : ValueText;
 
     /// <summary>Whether this is not a member: the root, or an element of an array (it has a label instead of a name).</summary>
     public bool HasLabel => !IsMember;
@@ -232,6 +255,35 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
             editor.SerializerValueRejected(this, exception.Message);
             return false;
         }
+    }
+
+    /// <summary>Applies the edited name and value, and ends the editing of the row; false (it stays edited) if the value is not valid.</summary>
+    internal bool CommitEdit()
+    {
+        if (!IsEditing)
+        {
+            return true;
+        }
+
+        // Applying one refreshes the row from the tree, so the edited name is kept while the value is applied
+        string name = NameText;
+
+        if (!CommitValue())
+        {
+            return false;
+        }
+
+        NameText = name;
+        CommitName();
+        IsEditing = false;
+        return true;
+    }
+
+    /// <summary>Drops the edits of the row, and ends its editing.</summary>
+    internal void CancelEdit()
+    {
+        IsEditing = false;
+        Refresh();
     }
 
     /// <summary>Applies the edited comment.</summary>
