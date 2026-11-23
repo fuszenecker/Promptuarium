@@ -7,6 +7,19 @@
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
   </Application.Styles>
   <Application.Resources>
-    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
+    <ResourceDictionary>
+      <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
+      <!-- The raw tree is set off from the serializer view by its background; the groups of the two views -->
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="RawTreeBackground" Color="#101010" />
+          <SolidColorBrush x:Key="GroupBackground" Color="#1C1C1C" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="RawTreeBackground" Color="#EDEDED" />
+          <SolidColorBrush x:Key="GroupBackground" Color="#F9F9F9" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
   </Application.Resources>
 </Application>

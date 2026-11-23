@@ -33,6 +33,38 @@ public sealed partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(IsSerializerPanelShown))]
     private bool isSerializable;
 
+    // The tab of the tree: the raw view or the serializer view
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRawViewSelected))]
+    private int selectedViewIndex;
+
+    /// <summary>
+    /// Whether the raw tree is shown, with the editors of the metadata and the data beside it; the serializer view edits
+    /// in its tree, and the tree is shown beside it as YAML or JSON.
+    /// </summary>
+    public bool IsRawViewSelected => SelectedViewIndex == RawView;
+
+    // The text beside the serializer view: YAML or JSON (the choice is kept), made only while it is shown
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsJsonShown))]
+    private bool isYamlShown = true;
+
+    [ObservableProperty]
+    private string serializerText = string.Empty;
+
+    /// <summary>Whether the text beside the serializer view is JSON.</summary>
+    public bool IsJsonShown
+    {
+        get => !IsYamlShown;
+        set => IsYamlShown = !value;
+    }
+
+    /// <summary>The index of the tab of the raw tree.</summary>
+    public const int RawView = 0;
+
+    /// <summary>The index of the tab of the serializer view.</summary>
+    public const int SerializerView = 1;
+
     [ObservableProperty]
     private string serializerProblem = string.Empty;
 
@@ -48,6 +80,12 @@ public sealed partial class MainWindowViewModel
     /// <summary>Raised when the name (or the value) of a new member or element should get the keyboard focus.</summary>
     public event Action<SerializerNodeViewModel>? SerializerEditRequested;
 
+    /// <summary>
+    /// The width of the names of the members of the root in the serializer view: the longest name (or label) of the view
+    /// fits at its depth, and the deeper names are narrower by their indentation.
+    /// </summary>
+    public double SerializerNameWidth { get; private set; }
+
     /// <summary>The root of the serializer view, as its only item (none if the tree does not follow the format).</summary>
     public ObservableCollection<SerializerNodeViewModel> SerializerRoots { get; } = [];
 
@@ -59,7 +97,12 @@ public sealed partial class MainWindowViewModel
     {
         IsSerializerPanelVisible = !IsSerializerPanelVisible;
 
-        if (IsSerializerPanelVisible && !IsSerializable)
+        // Switched on, the view comes to the front
+        if (IsSerializerPanelShown)
+        {
+            SelectedViewIndex = SerializerView;
+        }
+        else if (IsSerializerPanelVisible)
         {
             ShowStatus($"The serializer view opens when the tree is serializable; now it is not: {SerializerProblem}", error: true);
         }
@@ -68,8 +111,58 @@ public sealed partial class MainWindowViewModel
     // The choice is kept for the next windows and sessions
     partial void OnIsSerializerPanelVisibleChanged(bool value)
     {
+        ShowRawViewIfNeeded();
         settings.Settings.View.IsSerializerPanelVisible = value;
         settings.Save();
+    }
+
+    partial void OnIsSerializableChanged(bool value) => ShowRawViewIfNeeded();
+
+    // The editors of the metadata and the data are hidden with the raw tree: their edits are applied first (an invalid one is dropped)
+    partial void OnIsYamlShownChanged(bool value)
+    {
+        settings.Settings.View.IsYamlShown = value;
+        settings.Save();
+        RefreshSerializerText();
+    }
+
+    // The tree as YAML or JSON (a BLOB is !!binary or base64, the comments are # lines in YAML)
+    private void RefreshSerializerText()
+    {
+        if (IsRawViewSelected || !IsSerializable)
+        {
+            return;
+        }
+
+        try
+        {
+            SerializerText = IsYamlShown ? Services.SerializerText.Yaml(Root.Element) : Services.SerializerText.Json(Root.Element);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidOperationException or ArgumentException)
+        {
+            SerializerText = $"The tree can not be shown as {(IsYamlShown ? "YAML" : "JSON")}: {ex.Message}";
+        }
+    }
+
+    partial void OnSelectedViewIndexChanged(int value)
+    {
+        RefreshSerializerText();
+
+        if (value == SerializerView && !CommitEdits() && editedNode is not null)
+        {
+            ShowStatus($"The edit of {editedNode.Path} is not valid, it was dropped", error: true);
+            Data.Load(editedNode.Element.Data, preferredForm: DataFormOf(editedNode));
+            MetaData.Load(editedNode.Element.MetaData, preferredForm: MetaDataFormOf(editedNode));
+        }
+    }
+
+    // The tab of a hidden serializer view is hidden too, so the raw tree is shown
+    private void ShowRawViewIfNeeded()
+    {
+        if (!IsSerializerPanelShown)
+        {
+            SelectedViewIndex = RawView;
+        }
     }
 
     partial void OnSelectedSerializerNodeChanged(SerializerNodeViewModel? value)
@@ -159,6 +252,23 @@ public sealed partial class MainWindowViewModel
                 serializerNodes[node.Holder] = node;
             }
 
+            // The names end in one column: wide enough for the longest one at its depth (in the monospaced font of the
+            // names, with the padding of their boxes)
+            double width = Math.Clamp(
+                serializerNodes.Values.Max(node => ((node.IsMember ? node.NameText.Length : node.Label.Length) * 8.6) + 26 + ((node.Depth - 1) * SerializerNodeViewModel.Indent)),
+                90,
+                360);
+
+            if (width != SerializerNameWidth)
+            {
+                SerializerNameWidth = width;
+
+                foreach (SerializerNodeViewModel node in serializerNodes.Values)
+                {
+                    node.NotifyAlignment();
+                }
+            }
+
             SerializerSummary = warnings == 0 ? "serializable"
                 : $"serializable, {warnings} {(warnings == 1 ? "warning" : "warnings")}: {string.Join("; ", problems.Select(problem => $"{problem.Path}: {problem.Message}"))}";
         }
@@ -169,6 +279,7 @@ public sealed partial class MainWindowViewModel
         }
 
         IsSerializable = error is null;
+        RefreshSerializerText();
         SyncSerializerSelection();
         return was && !IsSerializable;
     }
@@ -375,6 +486,7 @@ public sealed partial class MainWindowViewModel
 
         if (serializerNodes.TryGetValue(node, out SerializerNodeViewModel? added))
         {
+            added.IsEditingName = added.IsMember;
             SerializerEditRequested?.Invoke(added);
         }
     }

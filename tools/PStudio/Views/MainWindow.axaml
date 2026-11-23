@@ -6,7 +6,7 @@
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Icon="/Assets/pstudio.ico"
-        Width="1440" Height="860"
+        Width="1200" Height="800"
         MinWidth="640" MinHeight="480">
 
   <Window.KeyBindings>
@@ -73,10 +73,12 @@
     </Border>
 
     <Grid x:Name="MainGrid" RowDefinitions="*,Auto,220">
-      <Grid x:Name="UpperGrid" Grid.Row="0" ColumnDefinitions="2*,Auto,3*,Auto,3*">
+      <Grid x:Name="UpperGrid" Grid.Row="0" ColumnDefinitions="5*,Auto,4*">
+        <TabControl x:Name="Views" Grid.Column="0" Margin="6,2,6,6" Padding="0" SelectedIndex="{Binding SelectedViewIndex}">
+          <TabItem Header="Raw" ToolTip.Tip="The nodes, with their metadata and data">
         <TreeView x:Name="Tree"
-                  Grid.Column="0"
-                  Margin="6"
+                  Background="{DynamicResource RawTreeBackground}"
+                  Padding="2,4"
                   ItemsSource="{Binding Roots}"
                   SelectedItem="{Binding SelectedNode}">
           <TreeView.KeyBindings>
@@ -125,15 +127,15 @@
             </TreeDataTemplate>
           </TreeView.ItemTemplate>
         </TreeView>
+          </TabItem>
 
-        <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" IsVisible="{Binding IsSerializerPanelShown}" />
-
-        <DockPanel x:Name="SerializerPanel" Grid.Column="2" Margin="6" IsVisible="{Binding IsSerializerPanelShown}">
-          <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,4">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-              <TextBlock Text="Serializer" FontWeight="SemiBold" VerticalAlignment="Center" />
-              <TextBlock Classes="dim" Text="{Binding SerializerSummary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding SerializerSummary}" />
-            </StackPanel>
+          <TabItem x:Name="SerializerTab" Header="Serializer" IsVisible="{Binding IsSerializerPanelShown}"
+                   ToolTip.Tip="The tree as the values of the serializer format; shown when the tree is serializable (F7)">
+        <DockPanel x:Name="SerializerPanel" Margin="8,6,8,8">
+          <StackPanel DockPanel.Dock="Top" Classes="groupHeader">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Right" Classes="dim" Text="{Binding SerializerSummary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                         ToolTip.Tip="{Binding SerializerSummary}" Margin="12,0,0,0" />
             <StackPanel Orientation="Horizontal" Spacing="4">
               <Button Classes="tool" Content="Add" Command="{Binding SerializerAddCommand}" ToolTip.Tip="Add a member or an element into the selected object or array, or after the selected value (Insert)" />
               <Button Classes="tool" Content="Add After" Command="{Binding SerializerAddAfterCommand}" ToolTip.Tip="Add a member or an element after the selected value (Shift+Insert)" />
@@ -141,6 +143,7 @@
               <Button Classes="tool" Content="Up" Command="{Binding SerializerMoveUpCommand}" ToolTip.Tip="Move the selected value up (Shift+Up)" />
               <Button Classes="tool" Content="Down" Command="{Binding SerializerMoveDownCommand}" ToolTip.Tip="Move the selected value down (Shift+Down)" />
             </StackPanel>
+            </DockPanel>
           </StackPanel>
 
           <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="0,6,0,0" IsVisible="{Binding SelectedSerializerNode, Converter={x:Static ObjectConverters.IsNotNull}}">
@@ -157,6 +160,10 @@
           <TreeView x:Name="SerializerTree"
                     ItemsSource="{Binding SerializerRoots}"
                     SelectedItem="{Binding SelectedSerializerNode}">
+            <TreeView.Resources>
+              <!-- The indentation of a level, made up for by SerializerNodeViewModel.NameWidth -->
+              <x:Double x:Key="TreeViewItemIndent">20</x:Double>
+            </TreeView.Resources>
             <TreeView.KeyBindings>
               <KeyBinding Gesture="Insert" Command="{Binding SerializerAddCommand}" />
               <KeyBinding Gesture="Shift+Insert" Command="{Binding SerializerAddAfterCommand}" />
@@ -184,26 +191,62 @@
             </TreeView.Styles>
             <TreeView.ItemTemplate>
               <TreeDataTemplate x:DataType="vm:SerializerNodeViewModel" ItemsSource="{Binding Children}">
-                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
-                  <TextBlock Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" />
-                  <TextBox Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsMember}"
-                           MinWidth="110" ToolTip.Tip="The name of the member; Enter applies, Escape reverts" />
-                  <ComboBox Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
-                            IsVisible="{Binding HasType}" Width="140" ToolTip.Tip="The type; another one converts the value" />
-                  <CheckBox IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBool}" VerticalAlignment="Center" />
-                  <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValue}"
-                           Classes.invalid="{Binding HasValueError}" MinWidth="160" MaxWidth="480" ToolTip.Tip="{Binding ValueTip}" />
-                  <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
-                  <TextBlock Classes="comment" Text="{Binding CommentPreview}" IsVisible="{Binding HasComment}" VerticalAlignment="Center" MaxWidth="320" TextTrimming="CharacterEllipsis" />
+                <!-- The comment in small letters above the row; the name column is narrower by the indentation of the
+                     value, so that the names end, and the types and the values begin, in one column at every depth -->
+                <StackPanel Margin="0,2">
+                  <TextBlock Classes="comment" Text="{Binding CommentPreview}" IsVisible="{Binding HasComment}"
+                             TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CommentText}" Margin="2,0,0,1" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="{Binding NameWidth}" />
+                      <ColumnDefinition Width="150" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Grid.Column="0" Classes="name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
+                               VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="The name of the member; a double click (or F2) renames it" />
+                    <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsEditingName}"
+                             HorizontalAlignment="Stretch" Margin="0,0,6,0" ToolTip.Tip="The name of the member; Enter applies, Escape reverts" />
+                    <ComboBox Grid.Column="1" Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
+                              IsVisible="{Binding HasType}" HorizontalAlignment="Stretch" ToolTip.Tip="The type; another one converts the value" />
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
+                      <CheckBox IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBool}" VerticalAlignment="Center" />
+                      <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValue}"
+                               Classes.invalid="{Binding HasValueError}" Width="260" ToolTip.Tip="{Binding ValueTip}" />
+                      <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Grid>
                 </StackPanel>
               </TreeDataTemplate>
             </TreeView.ItemTemplate>
           </TreeView>
         </DockPanel>
+          </TabItem>
+        </TabControl>
 
-        <GridSplitter Grid.Column="3" Width="4" ResizeDirection="Columns" />
+        <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
 
-        <Grid Grid.Column="4" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
+        <!-- Beside the serializer view, which edits in its tree: the tree as YAML or JSON, read-only -->
+        <DockPanel x:Name="TextPanel" Grid.Column="2" Margin="6,6,8,6" IsVisible="{Binding !IsRawViewSelected}">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,6">
+            <RadioButton Classes="format" Content="YAML" GroupName="TextFormat" IsChecked="{Binding IsYamlShown}" />
+            <RadioButton Classes="format" Content="JSON" GroupName="TextFormat" IsChecked="{Binding IsJsonShown}" />
+            <TextBlock Classes="dim" Text="read-only" VerticalAlignment="Center" Margin="12,0,0,0" />
+          </StackPanel>
+          <TextBox x:Name="SerializerTextBox"
+                   Text="{Binding SerializerText}"
+                   IsReadOnly="True"
+                   AcceptsReturn="True"
+                   TextWrapping="NoWrap"
+                   FontFamily="{StaticResource MonoFont}"
+                   Background="{DynamicResource RawTreeBackground}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   VerticalContentAlignment="Top" />
+        </DockPanel>
+
+        <Grid Grid.Column="2" IsVisible="{Binding IsRawViewSelected}" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
           <Border Grid.Row="0" Classes="card" Margin="0,0,0,12">
             <StackPanel Spacing="2">
               <TextBlock Classes="path" Text="{Binding NodePath}" />
@@ -276,6 +319,17 @@
       <Setter Property="FontSize" Value="18" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <Style Selector="TabControl#Views">
+      <Setter Property="Background" Value="{DynamicResource GroupBackground}" />
+    </Style>
+    <Style Selector="TabControl#Views > TabItem">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="Padding" Value="12,0" />
+    </Style>
+    <Style Selector="StackPanel.groupHeader">
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
     <Style Selector="TextBox.inline">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="MinHeight" Value="26" />
@@ -296,13 +350,19 @@
       <Setter Property="Padding" Value="8,2" />
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
     </Style>
+    <Style Selector="TextBlock.name">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="7,0" />
+    </Style>
     <Style Selector="TextBlock.label">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="TextBlock.comment">
       <Setter Property="FontStyle" Value="Italic" />
-      <Setter Property="Opacity" Value="0.6" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Opacity" Value="0.65" />
     </Style>
     <Style Selector="Button.tool">
       <Setter Property="Padding" Value="10,3" />

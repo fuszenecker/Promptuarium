@@ -106,6 +106,21 @@ public sealed class SerializerViewTests
     }
 
     [TestMethod]
+    public void TabOfTheSerializerView_ComesToTheFront_AndGoesAwayWithIt()
+    {
+        MainWindowViewModel sut = Create();
+        sut.ToggleSerializerPanelCommand.Execute(null);
+        Assert.AreEqual(MainWindowViewModel.RawView, sut.SelectedViewIndex);
+
+        sut.ToggleSerializerPanelCommand.Execute(null);
+        Assert.AreEqual(MainWindowViewModel.SerializerView, sut.SelectedViewIndex);
+
+        // A tree that is not serializable any more shows the raw tree
+        sut.AddChildCommand.Execute(null);
+        Assert.AreEqual(MainWindowViewModel.RawView, sut.SelectedViewIndex);
+    }
+
+    [TestMethod]
     public void Selections_FollowEachOther()
     {
         MainWindowViewModel sut = Open(PromptuariumSerializer.ToElement(new Sample()));
@@ -169,7 +184,7 @@ public sealed class SerializerViewTests
         Element holder = sut.Root.Element[0];
         Assert.AreEqual("Title", holder.Data.AsUtf8String());
         Assert.AreEqual("the title", holder[1].Data.AsUtf8String());
-        Assert.AreEqual("// the title", name.CommentPreview);
+        Assert.AreEqual("the title", name.CommentPreview);
         Assert.IsTrue(PromptuariumSerializer.IsValid(sut.Root.Element));
     }
 

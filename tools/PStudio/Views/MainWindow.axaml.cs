@@ -26,10 +26,6 @@ public partial class MainWindow : Window
     private MainWindowViewModel? viewModel;
     private bool closeConfirmed;
     private GridLength chunkPanelHeight = new(220);
-    private GridLength serializerPanelWidth = new(3, GridUnitType.Star);
-
-    // Whether the keyboard was last in the serializer view (not in the raw tree): the focus follows the selection there
-    private bool serializerFocused;
 
     private NodeViewModel? dragged;
     private Point dragStart;
@@ -49,11 +45,11 @@ public partial class MainWindow : Window
         Tree.AddHandler(PointerMovedEvent, OnTreePointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
         Tree.AddHandler(PointerReleasedEvent, OnTreePointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
         Tree.AddHandler(PointerCaptureLostEvent, (_, _) => EndDrag(), RoutingStrategies.Bubble, handledEventsToo: true);
-        Tree.AddHandler(GotFocusEvent, (_, _) => serializerFocused = false, RoutingStrategies.Bubble, handledEventsToo: true);
 
         SerializerPanel.AddHandler(KeyDownEvent, OnSerializerKeyDown, RoutingStrategies.Tunnel);
         SerializerPanel.AddHandler(LostFocusEvent, OnSerializerLostFocus, RoutingStrategies.Bubble, handledEventsToo: true);
         SerializerTree.AddHandler(GotFocusEvent, OnSerializerGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
+        SerializerTree.AddHandler(DoubleTappedEvent, OnSerializerDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
     /// <inheritdoc/>
@@ -74,9 +70,8 @@ public partial class MainWindow : Window
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.SerializerEditRequested += OnSerializerEditRequested;
 
-            // The panels may be hidden from the start (the setting of the previous session, or a tree that is not serializable)
+            // The panel may be hidden from the start (the setting of the previous session)
             ShowChunkPanel(viewModel.IsChunkPanelVisible);
-            ShowSerializerPanel(viewModel.IsSerializerPanelShown);
         }
 
         base.OnDataContextChanged(e);
@@ -128,11 +123,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.IsSerializerPanelShown))
-        {
-            ShowSerializerPanel(viewModel.IsSerializerPanelShown);
-            return;
-        }
 
         // NodePath is refreshed after every change of the tree too (a node moved, indented, added), not only after a new selection
         if (e.PropertyName is nameof(MainWindowViewModel.SelectedNode) or nameof(MainWindowViewModel.NodePath))
@@ -143,8 +133,8 @@ public partial class MainWindow : Window
 
     // The keyboard focus follows the selection of the tree view, so that the next key goes to the selected node
     // (and not to the menu, where the focus falls when the focused container of a moved node is removed).
-    // It is never taken from an editor or from the chunk panel. If the keyboard is in the serializer view, the focus
-    // follows its selection there.
+    // It is never taken from an editor or from the chunk panel. On the tab of the serializer view, the focus follows
+    // its selection there.
     private void FocusSelectedNode()
     {
         object? focusedElement = FocusManager?.GetFocusedElement();
@@ -158,7 +148,7 @@ public partial class MainWindow : Window
         // The container of a moved or a new node is created by the next layout pass
         Dispatcher.UIThread.Post(() =>
         {
-            if (serializerFocused && viewModel is { IsSerializerPanelShown: true, SelectedSerializerNode: { } value })
+            if (viewModel is { SelectedViewIndex: MainWindowViewModel.SerializerView, SelectedSerializerNode: { } value })
             {
                 if (SerializerTree.TreeContainerFromItem(value) is TreeViewItem serializerItem && !serializerItem.IsFocused)
                 {
@@ -172,25 +162,17 @@ public partial class MainWindow : Window
         }, DispatcherPriority.Loaded);
     }
 
-    // The hidden serializer view gives its column back to the trees and the editors (and gets its width back when it is shown again)
-    private void ShowSerializerPanel(bool visible)
-    {
-        ColumnDefinition column = UpperGrid.ColumnDefinitions[2];
-
-        if (visible)
-        {
-            column.Width = serializerPanelWidth;
-        }
-        else if (column.Width.Value > 0)
-        {
-            serializerPanelWidth = column.Width;
-            column.Width = new GridLength(0);
-        }
-    }
-
     // Enter applies the edited name or value (Ctrl+Enter the comment), Escape reverts the edits of the value
+    // F2 on a member of the tree renames it
     private void OnSerializerKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.F2 && e.Source is TreeViewItem { DataContext: SerializerNodeViewModel { IsMember: true } member })
+        {
+            EditName(member);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Source is not TextBox { Tag: string field } box || box.DataContext is not SerializerNodeViewModel node)
         {
             return;
@@ -198,12 +180,15 @@ public partial class MainWindow : Window
 
         if (e.Key == Key.Escape)
         {
+            bool wasEditingName = field == "name";
             node.Revert();
+            EndNameEdit(node, wasEditingName);
             e.Handled = true;
         }
         else if (e.Key == Key.Enter && (field != "comment" || e.KeyModifiers.HasFlag(KeyModifiers.Control)))
         {
             Commit(node, field);
+            EndNameEdit(node, field == "name");
             e.Handled = true;
         }
     }
@@ -213,6 +198,43 @@ public partial class MainWindow : Window
         if (e.Source is TextBox { Tag: string field } box && box.DataContext is SerializerNodeViewModel node)
         {
             Commit(node, field);
+
+            if (field == "name")
+            {
+                node.IsEditingName = false;
+            }
+        }
+    }
+
+    // A double click on a name renames the member
+    private void OnSerializerDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Source is Visual visual && (visual as TextBlock ?? visual.FindAncestorOfType<TextBlock>()) is { Tag: "name", DataContext: SerializerNodeViewModel node })
+        {
+            EditName(node);
+            e.Handled = true;
+        }
+    }
+
+    private void EditName(SerializerNodeViewModel node)
+    {
+        node.IsEditingName = true;
+        OnSerializerEditRequested(node);
+    }
+
+    // After Enter or Escape in a name: the name is a text again, and the keyboard goes back to the row
+    private void EndNameEdit(SerializerNodeViewModel node, bool name)
+    {
+        if (!name || !node.IsEditingName)
+        {
+            return;
+        }
+
+        node.IsEditingName = false;
+
+        if (SerializerTree.TreeContainerFromItem(node) is TreeViewItem item)
+        {
+            item.Focus(NavigationMethod.Directional);
         }
     }
 
@@ -235,8 +257,6 @@ public partial class MainWindow : Window
     // A control of a row (a name, a type, a value) selects its value, as a click on the row does
     private void OnSerializerGotFocus(object? sender, FocusChangedEventArgs e)
     {
-        serializerFocused = true;
-
         if (e.Source is Control { DataContext: SerializerNodeViewModel node } && viewModel is not null && viewModel.SelectedSerializerNode != node)
         {
             viewModel.SelectedSerializerNode = node;
@@ -246,8 +266,6 @@ public partial class MainWindow : Window
     // A new member gets the focus in its name, a new element in its value
     private void OnSerializerEditRequested(SerializerNodeViewModel node)
     {
-        serializerFocused = true;
-
         Dispatcher.UIThread.Post(() =>
         {
             if (SerializerTree.TreeContainerFromItem(node) is not TreeViewItem item)

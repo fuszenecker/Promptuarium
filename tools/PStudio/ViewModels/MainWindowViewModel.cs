@@ -100,6 +100,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
         isChunkPanelVisible = settings.Settings.View.IsChunkPanelVisible;
         isSerializerPanelVisible = settings.Settings.View.IsSerializerPanelVisible;
+        isYamlShown = settings.Settings.View.IsYamlShown;
         settings.Saved += OnSettingsSaved;
         RefreshRecentFiles();
 

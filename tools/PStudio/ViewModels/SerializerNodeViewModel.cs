@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PStudio.Services;
 using Promptuarium;
@@ -28,6 +29,11 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
 
     [ObservableProperty]
     private string nameText = string.Empty;
+
+    // The name is shown as a text, and edited in a box after a double click (or F2)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNameShown))]
+    private bool isEditingName;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasValueError), nameof(ValueTip))]
@@ -68,6 +74,9 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
 
     /// <summary>Whether this is a member of an object (it has a name).</summary>
     public bool IsMember => !IsRoot && Tag(Holder.Element) == NameTag;
+
+    /// <summary>Whether the name is shown as a text (it is not edited).</summary>
+    public bool IsNameShown => IsMember && !IsEditingName;
 
     /// <summary>Whether this is not a member: the root, or an element of an array (it has a label instead of a name).</summary>
     public bool HasLabel => !IsMember;
@@ -131,8 +140,20 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     /// <summary>The tooltip of the value: the error, or how the value is written.</summary>
     public string ValueTip => ValueError ?? $"{TypeOf(Type).Name}{(SerializerValues.Example(Type) is { Length: > 0 } example ? $": {example}" : string.Empty)}. Enter applies, Escape reverts.";
 
+    /// <summary>The indentation of a level of the serializer view, in pixels (TreeViewItemIndent of its tree).</summary>
+    public const double Indent = 20;
+
+    /// <summary>The depth of the value: 0 for the root, 1 for its members.</summary>
+    public int Depth => Parent is null ? 0 : Parent.Depth + 1;
+
+    /// <summary>
+    /// The width of the name (or of the label): the one of the members of the root, narrower by the indentation of a
+    /// deeper value, so that the names end, and the types begin, in one column.
+    /// </summary>
+    public GridLength NameWidth => new(Math.Max(Indent, editor.SerializerNameWidth - ((Depth - 1) * Indent)));
+
     /// <summary>The comments of the value, in one line, for the tree.</summary>
-    public string CommentPreview => Comments.Count == 0 ? string.Empty : "// " + string.Join("  // ", Comments.Select(comment => comment.ReplaceLineEndings(" ")));
+    public string CommentPreview => string.Join("  ·  ", Comments.Select(comment => comment.ReplaceLineEndings(" ")));
 
     /// <summary>Whether the value has a comment.</summary>
     public bool HasComment => Comments.Count > 0;
@@ -167,9 +188,7 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
         ValueText = IsTextValue ? SerializerEditing.Format(Type, value.Span) : string.Empty;
         Summary = Type switch
         {
-            _ when IsRoot => Signature(element) is { } signature ? $"{signature}  ·  {Count(element, NameTag, "member", "members")}" : Count(element, NameTag, "member", "members"),
-            ObjectType => "{ " + Count(element, NameTag, "member", "members") + " }",
-            ArrayType => "[ " + Count(element, ItemTag, "item", "items") + " ]",
+            _ when IsRoot => Signature(element) ?? string.Empty,
             NullType => "null",
             ContainerType => $"nested tree: {SerializerValues.ContainerSummary(value.Span)}",
             BlobType when !IsTextValue => $"{value.Length:N0} bytes, edit them in the Data editor",
@@ -224,6 +243,9 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Tells the view that the padding of the alignment changed.</summary>
+    internal void NotifyAlignment() => OnPropertyChanged(nameof(NameWidth));
+
     /// <summary>Drops the edits of the name, the value and the comment.</summary>
     internal void Revert() => Refresh();
 
@@ -276,11 +298,5 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
         return root.MetaData.Length is > 0 and <= ElementBuilder.MaxSignatureLength && System.Text.Ascii.IsValid(root.MetaData.Span)
             ? Encoding.ASCII.GetString(root.MetaData.Span)
             : null;
-    }
-
-    private static string Count(Element holder, byte tag, string one, string many)
-    {
-        int count = holder.Children.Count(child => Tag(child) == tag);
-        return $"{count} {(count == 1 ? one : many)}";
     }
 }

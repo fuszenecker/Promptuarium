@@ -28,4 +28,7 @@ public sealed class ViewSettings
 
     /// <summary>Whether the serializer view is shown (View / Serializer), when the tree is serializable.</summary>
     public bool IsSerializerPanelVisible { get; set; } = true;
+
+    /// <summary>Whether the text beside the serializer view is YAML (otherwise JSON).</summary>
+    public bool IsYamlShown { get; set; } = true;
 }
