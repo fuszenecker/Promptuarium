@@ -6,7 +6,7 @@
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Icon="/Assets/pstudio.ico"
-        Width="1200" Height="800"
+        Width="1200" Height="680"
         MinWidth="640" MinHeight="480">
 
   <Window.KeyBindings>

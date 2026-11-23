@@ -78,6 +78,25 @@ public partial class MainWindow : Window
     }
 
     /// <inheritdoc/>
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        // The window fits the screen: at most 90% of its working area (without the panels of the desktop)
+        if (Screens.ScreenFromWindow(this) is { } screen)
+        {
+            double width = screen.WorkingArea.Width / screen.Scaling * 0.9;
+            double height = screen.WorkingArea.Height / screen.Scaling * 0.9;
+
+            if (Width > width || Height > height)
+            {
+                Width = Math.Max(MinWidth, Math.Min(Width, width));
+                Height = Math.Max(MinHeight, Math.Min(Height, height));
+            }
+        }
+    }
+
+    /// <inheritdoc/>
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         base.OnClosing(e);
