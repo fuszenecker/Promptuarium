@@ -107,6 +107,13 @@ public partial class MainWindow : Window
 
         if (closeConfirmed || viewModel is null || !viewModel.HasUnsavedChanges)
         {
+            // The window closes: its layout is stored while it still has its place (after closing it has none)
+            if (!e.Cancel && viewModel is not null)
+            {
+                StoreLayout(viewModel.Layout);
+                viewModel.SaveSettings();
+            }
+
             return;
         }
 
@@ -122,12 +129,6 @@ public partial class MainWindow : Window
     /// <inheritdoc/>
     protected override void OnClosed(EventArgs e)
     {
-        if (viewModel is not null)
-        {
-            StoreLayout(viewModel.Layout);
-            viewModel.SaveSettings();
-        }
-
         viewModel?.Closed();
         base.OnClosed(e);
     }
@@ -211,6 +212,10 @@ public partial class MainWindow : Window
                 BeginEdit(row);
                 e.Handled = true;
             }
+            else if (e.Key is Key.Insert or Key.Delete)
+            {
+                Execute(e.Key == Key.Insert ? viewModel?.SerializerAddCommand : viewModel?.SerializerDeleteCommand, e);
+            }
             else if (JumpOf(e.Key) is { } jump && viewModel is not null)
             {
                 viewModel.JumpSerializerRow(jump, PageOf(SerializerTree, viewModel.ShownSerializerRows().Count));
@@ -218,6 +223,18 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
 
+            return;
+        }
+
+        if (e.Source is TreeViewItem { DataContext: SerializerNodeViewModel } && e.KeyModifiers == KeyModifiers.Shift)
+        {
+            Execute(e.Key switch
+            {
+                Key.Insert => viewModel?.SerializerAddAfterCommand,
+                Key.Up => viewModel?.SerializerMoveUpCommand,
+                Key.Down => viewModel?.SerializerMoveDownCommand,
+                _ => null,
+            }, e);
             return;
         }
 
@@ -304,6 +321,22 @@ public partial class MainWindow : Window
     {
         node.IsEditing = true;
         OnSerializerEditRequested(node);
+    }
+
+    // A command of a key of a row; the key is handled even when the command can not run now (e.g. Shift+Up on the first row)
+    private static void Execute(System.Windows.Input.ICommand? command, KeyEventArgs e)
+    {
+        if (command is null)
+        {
+            return;
+        }
+
+        if (command.CanExecute(null))
+        {
+            command.Execute(null);
+        }
+
+        e.Handled = true;
     }
 
     // The boxes of an edited row, in the order of Tab: the name, the type, the value (or its check box), the comment

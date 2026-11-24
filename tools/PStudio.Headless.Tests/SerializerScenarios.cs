@@ -125,7 +125,8 @@ public sealed class SerializerScenarios
         TextBox valueBox = RowBox(editor, countNode, "value");
         Point commentLeft = comment.TranslatePoint(default, editor.SerializerTree)!.Value;
         Assert.AreEqual(nameBox.TranslatePoint(default, editor.SerializerTree)!.Value.X, commentLeft.X, 1);
-        Assert.AreEqual(valueBox.TranslatePoint(new Point(valueBox.Bounds.Width, 0), editor.SerializerTree)!.Value.X, commentLeft.X + comment.Bounds.Width, 1);
+        double valueRight = valueBox.TranslatePoint(new Point(valueBox.Bounds.Width, 0), editor.SerializerTree)!.Value.X;
+        Assert.AreEqual(valueRight, commentLeft.X + comment.Bounds.Width, 1, $"the value ends at {valueRight}, the comment at {commentLeft.X + comment.Bounds.Width} ({commentLeft.X} + {comment.Bounds.Width})");
         Assert.AreEqual(TextWrapping.Wrap, comment.TextWrapping);
         Assert.AreEqual(3, comment.MinLines);
         Assert.AreEqual(nameBox.FontSize, comment.FontSize);
@@ -185,7 +186,7 @@ public sealed class SerializerScenarios
 
     private static Grid RowOf(Editor editor, SerializerNodeViewModel node)
     {
-        return editor.SerializerTree.GetVisualDescendants().OfType<Grid>().First(grid => grid.DataContext == node && grid.RowDefinitions.Count == 2);
+        return editor.SerializerTree.GetVisualDescendants().OfType<PStudio.Views.SerializerRow>().First(row => row.DataContext == node);
     }
 
     private static TextBox RowBox(Editor editor, SerializerNodeViewModel node, string field)

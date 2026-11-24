@@ -153,13 +153,8 @@
               <!-- The indentation of a level, made up for by SerializerNodeViewModel.NameWidth -->
               <x:Double x:Key="TreeViewItemIndent">20</x:Double>
             </TreeView.Resources>
-            <TreeView.KeyBindings>
-              <KeyBinding Gesture="Insert" Command="{Binding SerializerAddCommand}" />
-              <KeyBinding Gesture="Shift+Insert" Command="{Binding SerializerAddAfterCommand}" />
-              <KeyBinding Gesture="Delete" Command="{Binding SerializerDeleteCommand}" />
-              <KeyBinding Gesture="Shift+Up" Command="{Binding SerializerMoveUpCommand}" />
-              <KeyBinding Gesture="Shift+Down" Command="{Binding SerializerMoveDownCommand}" />
-            </TreeView.KeyBindings>
+            <!-- Insert, Shift+Insert, Delete, Shift+Up and Shift+Down are keys of the rows (MainWindow.OnSerializerKeyDown),
+                 not of the tree: in the boxes of an edited row they edit the text -->
             <TreeView.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="Add" Command="{Binding SerializerAddCommand}" InputGesture="Insert" />
@@ -183,37 +178,40 @@
                 <!-- The comment is the tooltip of the row; an edited row has it in a box under the name, the type and the value,
                      spanning them. The name column is narrower by the indentation of the value, so that the names end, and
                      the types and the values begin, in one column at every depth -->
-                <Grid Margin="0,2" RowDefinitions="Auto,Auto" Background="Transparent" ToolTip.Tip="{Binding CommentTip}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{Binding NameWidth}" />
-                    <ColumnDefinition Width="150" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <TextBlock Grid.Column="0" Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                  <!-- Shown as texts; a double click or F2 edits the whole row (Enter applies, Escape reverts) -->
-                  <TextBlock Grid.Column="0" Classes="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
-                             VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis" />
-                  <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameEdited}"
-                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,6,0" />
-                  <TextBlock Grid.Column="1" Classes="typeText" Text="{Binding SelectedType.Name}" IsVisible="{Binding IsTypeShown}" VerticalAlignment="Center" />
-                  <ComboBox Grid.Column="1" Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
-                            IsVisible="{Binding IsTypeEdited}" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip.Tip="The type; another one converts the value" />
-                  <Panel Grid.Column="2" Margin="6,0,0,0" MinWidth="260" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                      <TextBlock Classes="valueText" Text="{Binding ValueDisplay}" IsVisible="{Binding IsValueShown}" VerticalAlignment="Center"
-                                 MaxWidth="420" TextTrimming="CharacterEllipsis" />
-                      <CheckBox Classes="inline" IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBoolEdited}" VerticalAlignment="Center" />
-                      <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValueEdited}"
-                               Classes.invalid="{Binding HasValueError}" Width="260" VerticalAlignment="Center" ToolTip.Tip="{Binding ValueTip}" />
-                      <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
-                    </StackPanel>
-                  </Panel>
-                  <!-- Three lines, wrapped, as wide as the name, the type and the value; Shift+Enter breaks a line -->
-                  <TextBox Grid.Row="1" Grid.ColumnSpan="3" Classes="comment" Tag="comment" Text="{Binding CommentText}" IsVisible="{Binding IsEditing}"
-                           PlaceholderText="comment" Margin="0,4,0,0" HorizontalAlignment="Stretch" Width="NaN"
+                <v:SerializerRow Margin="0,2" RowDefinitions="Auto,Auto" Background="Transparent" ToolTip.Tip="{Binding CommentTip}">
+                  <Grid x:Name="RowFields" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="{Binding NameWidth}" />
+                      <ColumnDefinition Width="150" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <!-- Shown as texts; a double click or F2 edits the whole row (Enter applies, Escape reverts) -->
+                    <TextBlock Grid.Column="0" Classes="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
+                               VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis" />
+                    <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameEdited}"
+                             HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Grid.Column="1" Classes="typeText" Text="{Binding SelectedType.Name}" IsVisible="{Binding IsTypeShown}" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
+                              IsVisible="{Binding IsTypeEdited}" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip.Tip="The type; another one converts the value" />
+                    <Panel Grid.Column="2" Margin="6,0,0,0" MinWidth="260" VerticalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Classes="valueText" Text="{Binding ValueDisplay}" IsVisible="{Binding IsValueShown}" VerticalAlignment="Center"
+                                   MaxWidth="420" TextTrimming="CharacterEllipsis" />
+                        <CheckBox Classes="inline" IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBoolEdited}" VerticalAlignment="Center" />
+                        <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValueEdited}"
+                                 Classes.invalid="{Binding HasValueError}" Width="260" VerticalAlignment="Center" ToolTip.Tip="{Binding ValueTip}" />
+                        <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </Panel>
+                  </Grid>
+                  <!-- Three lines, wrapped, exactly as wide as the name, the type and the value (a long comment does not
+                       widen the row); Shift+Enter breaks a line -->
+                  <TextBox Grid.Row="1" Classes="comment" Tag="comment" Text="{Binding CommentText}" IsVisible="{Binding IsEditing}"
+                           PlaceholderText="comment" Margin="0,4,0,0" HorizontalAlignment="Left" Width="{Binding #RowFields.Bounds.Width}"
                            TextWrapping="Wrap" MinLines="3" MaxLines="3" VerticalContentAlignment="Top"
                            ScrollViewer.VerticalScrollBarVisibility="Auto" />
-                </Grid>
+                </v:SerializerRow>
               </TreeDataTemplate>
             </TreeView.ItemTemplate>
           </TreeView>
