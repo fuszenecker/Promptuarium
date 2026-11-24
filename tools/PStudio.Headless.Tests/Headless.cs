@@ -118,6 +118,13 @@ internal sealed class Editor : IDisposable
         Dispatcher.UIThread.RunJobs();
     }
 
+    /// <summary>Shows the tab of the raw tree (a serializable tree, a new one too, is opened in the serializer view).</summary>
+    public void ShowRawView()
+    {
+        ViewModel.SelectedViewIndex = MainWindowViewModel.RawView;
+        Pump();
+    }
+
     /// <summary>The raw tree (the serializer view has a tree view too).</summary>
     public TreeView Tree => Window.FindControl<TreeView>("Tree")!;
 

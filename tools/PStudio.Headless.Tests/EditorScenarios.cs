@@ -55,6 +55,7 @@ public sealed class EditorScenarios
     [TestMethod]
     public Task KeysOfTheTreeView_EditTheTree() => Scenario.Run(editor =>
     {
+        editor.ShowRawView();
         TreeView treeView = editor.Tree;
         editor.TreeItems.First().Focus();
         Editor.Pump();
@@ -286,6 +287,7 @@ public sealed class EditorScenarios
         string path = Path.Combine(editor.Directory, "settings.prmt");
         await Promptuarium.Serializer.PromptuariumSerializer.ToElement(new Dictionary<string, object> { ["rate"] = 1.5 }).SaveAsync(path);
         Assert.IsTrue(await editor.ViewModel.OpenFileAsync(path));
+        editor.ShowRawView();
 
         editor.ViewModel.SelectedNode = editor.ViewModel.Root.Children[0].Children[0];
         Editor.Pump();
@@ -332,6 +334,7 @@ public sealed class EditorScenarios
     [TestMethod]
     public Task TypedForms_CanBeChosenAndEdited() => Scenario.Run(editor =>
     {
+        editor.ShowRawView();
         ComboBox forms = editor.Find<ContentEditorView>().Last().GetVisualDescendantsOf<ComboBox>().Single();
         forms.SelectedItem = forms.Items.OfType<PStudio.Models.FormOption>().Single(option => option.Form == PStudio.Models.ContentForm.Double);
         TextBox data = Editors(editor)[1];

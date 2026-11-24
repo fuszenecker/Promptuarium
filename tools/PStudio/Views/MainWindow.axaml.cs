@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         Tree.AddHandler(PointerReleasedEvent, OnTreePointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
         Tree.AddHandler(PointerCaptureLostEvent, (_, _) => EndDrag(), RoutingStrategies.Bubble, handledEventsToo: true);
 
+        Tree.AddHandler(KeyDownEvent, OnTreeKeyDown, RoutingStrategies.Tunnel);
         SerializerPanel.AddHandler(KeyDownEvent, OnSerializerKeyDown, RoutingStrategies.Tunnel);
         SerializerPanel.AddHandler(LostFocusEvent, OnSerializerLostFocus, RoutingStrategies.Bubble, handledEventsToo: true);
         SerializerTree.AddHandler(GotFocusEvent, OnSerializerGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -152,6 +153,13 @@ public partial class MainWindow : Window
         }
 
 
+        // Another tab: the keyboard goes to the selected row of its tree
+        if (e.PropertyName == nameof(MainWindowViewModel.SelectedViewIndex))
+        {
+            FocusSelectedNode(force: true);
+            return;
+        }
+
         // NodePath is refreshed after every change of the tree too (a node moved, indented, added), not only after a new selection
         if (e.PropertyName is nameof(MainWindowViewModel.SelectedNode) or nameof(MainWindowViewModel.NodePath))
         {
@@ -163,12 +171,12 @@ public partial class MainWindow : Window
     // (and not to the menu, where the focus falls when the focused container of a moved node is removed).
     // It is never taken from an editor or from the chunk panel. On the tab of the serializer view, the focus follows
     // its selection there.
-    private void FocusSelectedNode()
+    private void FocusSelectedNode(bool force = false)
     {
         object? focusedElement = FocusManager?.GetFocusedElement();
         bool inSerializerTree = SerializerTree.IsKeyboardFocusWithin && focusedElement is TreeViewItem;
 
-        if (!Tree.IsKeyboardFocusWithin && !inSerializerTree && focusedElement is Visual focused && MainGrid.IsVisualAncestorOf(focused))
+        if (!force && !Tree.IsKeyboardFocusWithin && !inSerializerTree && focusedElement is Visual focused && MainGrid.IsVisualAncestorOf(focused))
         {
             return;
         }
@@ -195,16 +203,44 @@ public partial class MainWindow : Window
     // Shift+Enter breaks a line of the comment
     private void OnSerializerKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F2 && e.Source is TreeViewItem { DataContext: SerializerNodeViewModel row })
+        // F2 or Enter edits the selected row; Home, End, Page Up and Page Down move the selection
+        if (e.Source is TreeViewItem { DataContext: SerializerNodeViewModel row } && e.KeyModifiers == KeyModifiers.None)
         {
-            BeginEdit(row);
-            e.Handled = true;
+            if (e.Key is Key.F2 or Key.Enter)
+            {
+                BeginEdit(row);
+                e.Handled = true;
+            }
+            else if (JumpOf(e.Key) is { } jump && viewModel is not null)
+            {
+                viewModel.JumpSerializerRow(jump, PageOf(SerializerTree, viewModel.ShownSerializerRows().Count));
+                FocusSelectedNode(force: true);
+                e.Handled = true;
+            }
+
             return;
         }
 
         if (e.Source is not Control { DataContext: SerializerNodeViewModel { IsEditing: true } node } control
             || (control as ComboBox ?? control.FindAncestorOfType<ComboBox>()) is { IsDropDownOpen: true })
         {
+            return;
+        }
+
+        // Tab and Shift+Tab go round the boxes of the edited row: its name, type, value and comment
+        if (e.Key == Key.Tab && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift)
+        {
+            List<Control> fields = EditFields(node);
+            int index = fields.FindIndex(field => field == control || field.IsVisualAncestorOf(control));
+
+            if (fields.Count > 0)
+            {
+                int next = index < 0 ? 0 : (index + (e.KeyModifiers == KeyModifiers.Shift ? fields.Count - 1 : 1)) % fields.Count;
+                fields[next].Focus(NavigationMethod.Tab);
+                (fields[next] as TextBox)?.SelectAll();
+            }
+
+            e.Handled = true;
             return;
         }
 
@@ -268,6 +304,55 @@ public partial class MainWindow : Window
     {
         node.IsEditing = true;
         OnSerializerEditRequested(node);
+    }
+
+    // The boxes of an edited row, in the order of Tab: the name, the type, the value (or its check box), the comment
+    private List<Control> EditFields(SerializerNodeViewModel node)
+    {
+        return RowControls(node)
+            .Where(control => control is TextBox or ComboBox or CheckBox && control.IsEffectivelyVisible && control.IsEffectivelyEnabled)
+            .OrderBy(FieldOrder)
+            .ToList();
+    }
+
+    private static int FieldOrder(Control control) => control switch
+    {
+        TextBox { Tag: "name" } => 0,
+        ComboBox => 1,
+        TextBox { Tag: "value" } or CheckBox => 2,
+        _ => 3,
+    };
+
+    // Home, End, Page Up and Page Down in the raw tree
+    private void OnTreeKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Source is TreeViewItem && e.KeyModifiers == KeyModifiers.None && JumpOf(e.Key) is { } jump && viewModel is not null)
+        {
+            viewModel.JumpRawRow(jump, PageOf(Tree, viewModel.ShownRawRows().Count));
+            FocusSelectedNode(force: true);
+            e.Handled = true;
+        }
+    }
+
+    private static RowJump? JumpOf(Key key) => key switch
+    {
+        Key.Home => RowJump.First,
+        Key.End => RowJump.Last,
+        Key.PageUp => RowJump.PageUp,
+        Key.PageDown => RowJump.PageDown,
+        _ => null,
+    };
+
+    // The rows that fit in the tree (one less, so that a page keeps a row in sight)
+    private static int PageOf(TreeView tree, int rows)
+    {
+        if (tree.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault() is not { } scroll || rows == 0 || scroll.Extent.Height <= 0)
+        {
+            return 10;
+        }
+
+        double row = scroll.Extent.Height / rows;
+        return Math.Max(1, (int)(scroll.Viewport.Height / row) - 1);
     }
 
     // The keyboard goes back to the row after its editing
