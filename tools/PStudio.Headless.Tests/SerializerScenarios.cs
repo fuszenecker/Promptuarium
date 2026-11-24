@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using PStudio.ViewModels;
 using Promptuarium;
@@ -117,12 +118,28 @@ public sealed class SerializerScenarios
         Editor.Pump();
         TextBox comment = RowBox(editor, countNode, "comment");
         comment.Focus();
-        comment.Text = "the total";
+        comment.Text = "the";
+        comment.CaretIndex = 3;
+
+        // The box of the comment spans the name, the type and the value, three lines high; Shift+Enter breaks a line
+        TextBox nameBox = RowBox(editor, countNode, "name");
+        TextBox valueBox = RowBox(editor, countNode, "value");
+        Point commentLeft = comment.TranslatePoint(default, editor.SerializerTree)!.Value;
+        Assert.AreEqual(nameBox.TranslatePoint(default, editor.SerializerTree)!.Value.X, commentLeft.X, 1);
+        Assert.AreEqual(valueBox.TranslatePoint(new Point(valueBox.Bounds.Width, 0), editor.SerializerTree)!.Value.X, commentLeft.X + comment.Bounds.Width, 1);
+        Assert.AreEqual(TextWrapping.Wrap, comment.TextWrapping);
+        Assert.AreEqual(3, comment.MinLines);
+        Assert.AreEqual(nameBox.FontSize, comment.FontSize);
+        editor.Window.KeyPress(Key.Enter, RawInputModifiers.Shift, PhysicalKey.Enter, null);
+        Editor.Pump();
+        Assert.IsTrue(countNode.IsEditing);
+        comment.Text += "total";
+        editor.Screenshot("serializer-comment");
         editor.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
         Editor.Pump();
         Assert.IsFalse(countNode.IsEditing);
-        Assert.AreEqual("the total", editor.ViewModel.Root.Element[1][1].Data.AsUtf8String());
-        Assert.AreEqual("the total", ToolTip.GetTip(RowOf(editor, countNode)));
+        Assert.AreEqual("the\ntotal", editor.ViewModel.Root.Element[1][1].Data.AsUtf8String());
+        Assert.AreEqual("the\ntotal", ToolTip.GetTip(RowOf(editor, countNode)));
 
         // A boolean is edited with a check box in the middle of its row
         SerializerNodeViewModel enabledNode = editor.ViewModel.SerializerRoots[0].Children[2];

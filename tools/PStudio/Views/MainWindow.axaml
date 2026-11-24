@@ -208,8 +208,11 @@
                       <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
                     </StackPanel>
                   </Panel>
+                  <!-- Three lines, wrapped, as wide as the name, the type and the value; Shift+Enter breaks a line -->
                   <TextBox Grid.Row="1" Grid.ColumnSpan="3" Classes="comment" Tag="comment" Text="{Binding CommentText}" IsVisible="{Binding IsEditing}"
-                           PlaceholderText="comment" Margin="0,4,0,0" HorizontalAlignment="Stretch" />
+                           PlaceholderText="comment" Margin="0,4,0,0" HorizontalAlignment="Stretch" Width="NaN"
+                           TextWrapping="Wrap" MinLines="3" MaxLines="3" VerticalContentAlignment="Top"
+                           ScrollViewer.VerticalScrollBarVisibility="Auto" />
                 </Grid>
               </TreeDataTemplate>
             </TreeView.ItemTemplate>
@@ -344,10 +347,7 @@
       <Setter Property="Padding" Value="7,0" />
     </Style>
     <Style Selector="TextBox.comment">
-      <Setter Property="FontStyle" Value="Italic" />
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="MinHeight" Value="20" />
-      <Setter Property="Padding" Value="6,1" />
+      <Setter Property="Padding" Value="6,4" />
     </Style>
     <Style Selector="TextBlock.typeText">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />

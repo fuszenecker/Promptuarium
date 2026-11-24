@@ -184,7 +184,8 @@ public partial class MainWindow : Window
     }
 
     // Enter applies the edited name or value (Ctrl+Enter the comment), Escape reverts the edits of the value
-    // F2 edits the selected row; in an edited row (its comment, name, type and value) Enter applies and Escape reverts it
+    // F2 edits the selected row; in an edited row (its name, type, value and comment) Enter applies and Escape reverts it,
+    // Shift+Enter breaks a line of the comment
     private void OnSerializerKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.F2 && e.Source is TreeViewItem { DataContext: SerializerNodeViewModel row })
@@ -204,6 +205,15 @@ public partial class MainWindow : Window
         {
             node.CancelEdit();
             FocusRow(node);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Shift && control is TextBox { Tag: "comment" } comment)
+        {
+            // A line break in the comment
+            int start = Math.Min(comment.SelectionStart, comment.SelectionEnd);
+            int end = Math.Max(comment.SelectionStart, comment.SelectionEnd);
+            comment.Text = (comment.Text ?? string.Empty).Remove(start, end - start).Insert(start, "\n");
+            comment.CaretIndex = start + 1;
             e.Handled = true;
         }
         else if (e.Key == Key.Enter)
