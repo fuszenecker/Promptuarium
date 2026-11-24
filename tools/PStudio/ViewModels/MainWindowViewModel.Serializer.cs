@@ -269,8 +269,8 @@ public sealed partial class MainWindowViewModel
                 }
             }
 
-            SerializerSummary = warnings == 0 ? "serializable"
-                : $"serializable, {warnings} {(warnings == 1 ? "warning" : "warnings")}: {string.Join("; ", problems.Select(problem => $"{problem.Path}: {problem.Message}"))}";
+            SerializerSummary = warnings == 0 ? string.Empty
+                : $"{warnings} {(warnings == 1 ? "warning" : "warnings")}: {string.Join("; ", problems.Select(problem => $"{problem.Path}: {problem.Message}"))}";
         }
         else
         {

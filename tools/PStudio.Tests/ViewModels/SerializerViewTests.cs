@@ -184,7 +184,7 @@ public sealed class SerializerViewTests
         Element holder = sut.Root.Element[0];
         Assert.AreEqual("Title", holder.Data.AsUtf8String());
         Assert.AreEqual("the title", holder[1].Data.AsUtf8String());
-        Assert.AreEqual("the title", name.CommentPreview);
+        Assert.AreEqual("the title", name.CommentTip);
         Assert.IsTrue(PromptuariumSerializer.IsValid(sut.Root.Element));
     }
 
@@ -295,7 +295,7 @@ public sealed class SerializerViewTests
         Assert.AreEqual("the total", holder[1].Data.AsUtf8String());
         Assert.AreEqual(42, holder.Children.Single(child => child.MetaData.Span[0] == 0x03).Data.AsInt());
         Assert.IsFalse(count.IsEditing);
-        Assert.IsTrue(count.IsCommentShown);
+        Assert.AreEqual("the total", count.CommentTip);
         Assert.AreSame(count, sut.SerializerRoots[0].Children[1]);
         Assert.IsTrue(PromptuariumSerializer.IsValid(sut.Root.Element));
     }

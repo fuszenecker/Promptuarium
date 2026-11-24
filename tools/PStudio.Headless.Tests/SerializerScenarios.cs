@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -51,12 +52,15 @@ public sealed class SerializerScenarios
 
         // The editors of the metadata and the data are not there: the serializer view edits in its tree
         Assert.IsFalse(editor.Find<PStudio.Views.ContentEditorView>().Any(view => view.IsEffectivelyVisible));
-        TextBox text = editor.Window.FindControl<TextBox>("SerializerTextBox")!;
+        PStudio.Views.HighlightedText text = editor.Window.FindControl<PStudio.Views.HighlightedText>("SerializerText")!;
         Assert.IsTrue(text.IsEffectivelyVisible);
-        StringAssert.Contains(text.Text, "Title: demo");
+        StringAssert.Contains(text.Source, "Title: demo");
+        Assert.IsTrue(text.Inlines!.OfType<Avalonia.Controls.Documents.Run>().Any(run => run.Text == "Title" && run.Classes.Contains("key")));
+        editor.Screenshot("serializer-yaml");
         editor.ViewModel.IsJsonShown = true;
         Editor.Pump();
-        StringAssert.Contains(text.Text, "\"Title\": \"demo\"");
+        StringAssert.Contains(text.Source, "\"Title\": \"demo\"");
+        Assert.IsTrue(text.Inlines!.OfType<Avalonia.Controls.Documents.Run>().Any(run => run.Text == "\"demo\"" && run.Classes.Contains("string")));
         editor.ViewModel.SerializerRoots[0].Children[4].IsExpanded = true;
         editor.ViewModel.SerializerRoots[0].Children[3].IsExpanded = true;
         Editor.Pump();
@@ -105,7 +109,7 @@ public sealed class SerializerScenarios
         Assert.IsFalse(countNode.IsEditing);
         Assert.AreEqual("42", countNode.ValueDisplay);
 
-        // The comment is edited in the row too, above it; there is no other comment box
+        // The comment is edited in the row too, under it; there is no other comment box
         Assert.IsFalse(editor.SerializerPanel().GetVisualDescendants().OfType<TextBox>().Any(box => Equals(box.Tag, "comment") && box.IsEffectivelyVisible));
         ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(countNode)!).Focus();
         Editor.Pump();
@@ -118,7 +122,25 @@ public sealed class SerializerScenarios
         Editor.Pump();
         Assert.IsFalse(countNode.IsEditing);
         Assert.AreEqual("the total", editor.ViewModel.Root.Element[1][1].Data.AsUtf8String());
-        Assert.IsTrue(editor.SerializerTree.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Classes.Contains("comment") && block.Text == "the total" && block.IsEffectivelyVisible));
+        Assert.AreEqual("the total", ToolTip.GetTip(RowOf(editor, countNode)));
+
+        // A boolean is edited with a check box in the middle of its row
+        SerializerNodeViewModel enabledNode = editor.ViewModel.SerializerRoots[0].Children[2];
+        ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(enabledNode)!).Focus();
+        Editor.Pump();
+        editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+        Editor.Pump();
+        CheckBox check = editor.SerializerTree.GetVisualDescendants().OfType<CheckBox>().Single(box => box.IsEffectivelyVisible);
+        ComboBox type = editor.SerializerTree.GetVisualDescendants().OfType<ComboBox>().Single(box => box.IsEffectivelyVisible);
+        Visual box = check.GetVisualDescendants().OfType<Border>().FirstOrDefault(border => border.Name == "NormalRectangle") ?? (Visual)check;
+        Avalonia.Point checkMiddle = box.TranslatePoint(new Avalonia.Point(0, box.Bounds.Height / 2), editor.SerializerTree)!.Value;
+        Avalonia.Point typeMiddle = type.TranslatePoint(new Avalonia.Point(0, type.Bounds.Height / 2), editor.SerializerTree)!.Value;
+        Assert.AreEqual(typeMiddle.Y, checkMiddle.Y, 1);
+        editor.Screenshot("serializer-bool");
+        editor.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        Editor.Pump();
+        ((TreeViewItem)editor.SerializerTree.TreeContainerFromItem(countNode)!).Focus();
+        Editor.Pump();
 
         // Leaving an edited row applies it
         editor.Window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
@@ -144,6 +166,11 @@ public sealed class SerializerScenarios
         Assert.IsTrue(editor.Find<PStudio.Views.ContentEditorView>().All(view => view.IsEffectivelyVisible));
         editor.Screenshot("serializer-closed");
     });
+
+    private static Grid RowOf(Editor editor, SerializerNodeViewModel node)
+    {
+        return editor.SerializerTree.GetVisualDescendants().OfType<Grid>().First(grid => grid.DataContext == node && grid.RowDefinitions.Count == 2);
+    }
 
     private static TextBox RowBox(Editor editor, SerializerNodeViewModel node, string field)
     {

@@ -59,7 +59,7 @@
       <MenuItem Header="_View">
         <MenuItem Header="_Chunks" ToggleType="CheckBox" IsChecked="{Binding IsChunkPanelVisible, Mode=OneWay}" Command="{Binding ToggleChunkPanelCommand}" InputGesture="F6" />
         <MenuItem Header="_Serializer" ToggleType="CheckBox" IsChecked="{Binding IsSerializerPanelVisible, Mode=OneWay}" Command="{Binding ToggleSerializerPanelCommand}" InputGesture="F7"
-                  ToolTip.Tip="The tree as the values of the serializer format; shown when the tree is serializable" />
+                  ToolTip.Tip="The tree as the values of the serializer format" />
         <Separator />
         <MenuItem Header="_Reset Types" Command="{Binding ResetTypesCommand}" ToolTip.Tip="Forget the forms chosen for the metadata and the data of the nodes of this tree" />
       </MenuItem>
@@ -130,7 +130,7 @@
           </TabItem>
 
           <TabItem x:Name="SerializerTab" Header="Serializer" IsVisible="{Binding IsSerializerPanelShown}"
-                   ToolTip.Tip="The tree as the values of the serializer format; shown when the tree is serializable (F7)">
+                   ToolTip.Tip="The tree as the values of the serializer format (F7)">
         <DockPanel x:Name="SerializerPanel" Margin="8,6,8,8">
           <StackPanel DockPanel.Dock="Top" Classes="groupHeader">
             <DockPanel>
@@ -180,38 +180,37 @@
             </TreeView.Styles>
             <TreeView.ItemTemplate>
               <TreeDataTemplate x:DataType="vm:SerializerNodeViewModel" ItemsSource="{Binding Children}">
-                <!-- The comment in small letters above the row; the name column is narrower by the indentation of the
-                     value, so that the names end, and the types and the values begin, in one column at every depth -->
-                <StackPanel Margin="0,2">
-                  <TextBlock Classes="comment" Text="{Binding CommentPreview}" IsVisible="{Binding IsCommentShown}"
-                             TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CommentText}" Margin="2,0,0,1" />
-                  <TextBox Classes="comment" Tag="comment" Text="{Binding CommentText}" IsVisible="{Binding IsEditing}"
-                           PlaceholderText="comment" Margin="0,0,0,2" HorizontalAlignment="Left" MinWidth="300" />
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="{Binding NameWidth}" />
-                      <ColumnDefinition Width="150" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                    <!-- Shown as texts; a double click or F2 edits the whole row (Enter applies, Escape reverts) -->
-                    <TextBlock Grid.Column="0" Classes="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
-                               VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis" />
-                    <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameEdited}"
-                             HorizontalAlignment="Stretch" Margin="0,0,6,0" />
-                    <TextBlock Grid.Column="1" Classes="typeText" Text="{Binding SelectedType.Name}" IsVisible="{Binding IsTypeShown}" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1" Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
-                              IsVisible="{Binding IsTypeEdited}" HorizontalAlignment="Stretch" ToolTip.Tip="The type; another one converts the value" />
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
+                <!-- The comment is the tooltip of the row; an edited row has it in a box under the name, the type and the value,
+                     spanning them. The name column is narrower by the indentation of the value, so that the names end, and
+                     the types and the values begin, in one column at every depth -->
+                <Grid Margin="0,2" RowDefinitions="Auto,Auto" Background="Transparent" ToolTip.Tip="{Binding CommentTip}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding NameWidth}" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Classes="label" Text="{Binding Label}" IsVisible="{Binding HasLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <!-- Shown as texts; a double click or F2 edits the whole row (Enter applies, Escape reverts) -->
+                  <TextBlock Grid.Column="0" Classes="name" Text="{Binding NameText}" IsVisible="{Binding IsNameShown}"
+                             VerticalAlignment="Center" Margin="0,0,6,0" TextTrimming="CharacterEllipsis" />
+                  <TextBox Grid.Column="0" Classes="inline name" Tag="name" Text="{Binding NameText}" IsVisible="{Binding IsNameEdited}"
+                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Grid.Column="1" Classes="typeText" Text="{Binding SelectedType.Name}" IsVisible="{Binding IsTypeShown}" VerticalAlignment="Center" />
+                  <ComboBox Grid.Column="1" Classes="type" ItemsSource="{x:Static vm:SerializerNodeViewModel.TypeOptions}" SelectedItem="{Binding SelectedType}"
+                            IsVisible="{Binding IsTypeEdited}" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip.Tip="The type; another one converts the value" />
+                  <Panel Grid.Column="2" Margin="6,0,0,0" MinWidth="260" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                       <TextBlock Classes="valueText" Text="{Binding ValueDisplay}" IsVisible="{Binding IsValueShown}" VerticalAlignment="Center"
                                  MaxWidth="420" TextTrimming="CharacterEllipsis" />
-                      <CheckBox IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBoolEdited}" VerticalAlignment="Center" />
+                      <CheckBox Classes="inline" IsChecked="{Binding BoolValue}" IsVisible="{Binding IsBoolEdited}" VerticalAlignment="Center" />
                       <TextBox Classes="inline value" Tag="value" Text="{Binding ValueText}" IsVisible="{Binding IsTextValueEdited}"
-                               Classes.invalid="{Binding HasValueError}" Width="260" ToolTip.Tip="{Binding ValueTip}" />
+                               Classes.invalid="{Binding HasValueError}" Width="260" VerticalAlignment="Center" ToolTip.Tip="{Binding ValueTip}" />
                       <TextBlock Classes="dim" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" VerticalAlignment="Center" />
                     </StackPanel>
-                  </Grid>
-                </StackPanel>
+                  </Panel>
+                  <TextBox Grid.Row="1" Grid.ColumnSpan="3" Classes="comment" Tag="comment" Text="{Binding CommentText}" IsVisible="{Binding IsEditing}"
+                           PlaceholderText="comment" Margin="0,4,0,0" HorizontalAlignment="Stretch" />
+                </Grid>
               </TreeDataTemplate>
             </TreeView.ItemTemplate>
           </TreeView>
@@ -221,23 +220,18 @@
 
         <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
 
-        <!-- Beside the serializer view, which edits in its tree: the tree as YAML or JSON, read-only -->
+        <!-- Beside the serializer view, which edits in its tree: the tree as YAML or JSON, colored -->
         <DockPanel x:Name="TextPanel" Grid.Column="2" Margin="6,6,8,6" IsVisible="{Binding !IsRawViewSelected}">
           <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,6">
             <RadioButton Classes="format" Content="YAML" GroupName="TextFormat" IsChecked="{Binding IsYamlShown}" />
             <RadioButton Classes="format" Content="JSON" GroupName="TextFormat" IsChecked="{Binding IsJsonShown}" />
-            <TextBlock Classes="dim" Text="read-only" VerticalAlignment="Center" Margin="12,0,0,0" />
           </StackPanel>
-          <TextBox x:Name="SerializerTextBox"
-                   Text="{Binding SerializerText}"
-                   IsReadOnly="True"
-                   AcceptsReturn="True"
-                   TextWrapping="NoWrap"
-                   FontFamily="{StaticResource MonoFont}"
-                   Background="{DynamicResource RawTreeBackground}"
-                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                   ScrollViewer.VerticalScrollBarVisibility="Auto"
-                   VerticalContentAlignment="Top" />
+          <Border Background="{DynamicResource RawTreeBackground}" CornerRadius="4">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+              <v:HighlightedText x:Name="SerializerText" Source="{Binding SerializerText}" IsYaml="{Binding IsYamlShown}"
+                                 FontFamily="{StaticResource MonoFont}" Padding="10,8" TextWrapping="NoWrap" />
+            </ScrollViewer>
+          </Border>
         </DockPanel>
 
         <Grid Grid.Column="2" IsVisible="{Binding IsRawViewSelected}" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
@@ -368,11 +362,26 @@
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
-    <Style Selector="TextBlock.comment">
-      <Setter Property="FontStyle" Value="Italic" />
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Opacity" Value="0.65" />
+    <!-- The check box of a boolean in an edited row: as high as the boxes beside it, its box in the middle -->
+    <Style Selector="CheckBox.inline">
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Height" Value="26" />
     </Style>
+    <Style Selector="CheckBox.inline /template/ Grid">
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <!-- The colors of the YAML and the JSON -->
+    <Style Selector="Run.key"><Setter Property="Foreground" Value="{DynamicResource SyntaxKey}" /></Style>
+    <Style Selector="Run.string"><Setter Property="Foreground" Value="{DynamicResource SyntaxString}" /></Style>
+    <Style Selector="Run.number"><Setter Property="Foreground" Value="{DynamicResource SyntaxNumber}" /></Style>
+    <Style Selector="Run.keyword"><Setter Property="Foreground" Value="{DynamicResource SyntaxKeyword}" /></Style>
+    <Style Selector="Run.tag"><Setter Property="Foreground" Value="{DynamicResource SyntaxTag}" /></Style>
+    <Style Selector="Run.comment">
+      <Setter Property="Foreground" Value="{DynamicResource SyntaxComment}" />
+      <Setter Property="FontStyle" Value="Italic" />
+    </Style>
+    <Style Selector="Run.punctuation"><Setter Property="Foreground" Value="{DynamicResource SyntaxPunctuation}" /></Style>
     <Style Selector="Button.tool">
       <Setter Property="Padding" Value="10,3" />
     </Style>

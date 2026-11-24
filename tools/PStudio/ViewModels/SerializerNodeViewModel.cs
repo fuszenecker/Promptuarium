@@ -34,7 +34,7 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(
         nameof(IsNameShown), nameof(IsNameEdited), nameof(IsTypeShown), nameof(IsTypeEdited),
-        nameof(IsValueShown), nameof(IsBoolEdited), nameof(IsTextValueEdited), nameof(IsCommentShown))]
+        nameof(IsValueShown), nameof(IsBoolEdited), nameof(IsTextValueEdited), nameof(CommentTip))]
     private bool isEditing;
 
     [ObservableProperty]
@@ -80,8 +80,8 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     /// <summary>Whether the name is shown as a text (the row is not edited).</summary>
     public bool IsNameShown => IsMember && !IsEditing;
 
-    /// <summary>Whether the comment is shown as a text (edited with the row, in a box above it).</summary>
-    public bool IsCommentShown => HasComment && !IsEditing;
+    /// <summary>The comment as the tooltip of the row (null when there is none, or the row is edited: then it is in a box under the row).</summary>
+    public string? CommentTip => HasComment && !IsEditing ? string.Join("\n", Comments) : null;
 
     /// <summary>Whether the name is edited.</summary>
     public bool IsNameEdited => IsMember && IsEditing;
@@ -177,9 +177,6 @@ public sealed partial class SerializerNodeViewModel : ViewModelBase
     /// deeper value, so that the names end, and the types begin, in one column.
     /// </summary>
     public GridLength NameWidth => new(Math.Max(Indent, editor.SerializerNameWidth - ((Depth - 1) * Indent)));
-
-    /// <summary>The comments of the value, in one line, for the tree.</summary>
-    public string CommentPreview => string.Join("  ·  ", Comments.Select(comment => comment.ReplaceLineEndings(" ")));
 
     /// <summary>Whether the value has a comment.</summary>
     public bool HasComment => Comments.Count > 0;
