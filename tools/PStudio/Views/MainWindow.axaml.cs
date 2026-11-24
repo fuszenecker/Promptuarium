@@ -72,7 +72,8 @@ public partial class MainWindow : Window
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.SerializerEditRequested += OnSerializerEditRequested;
 
-            // The panel may be hidden from the start (the setting of the previous session)
+            // The layout of the previous session; the panel may be hidden from the start
+            RestoreLayout(viewModel.Layout);
             ShowChunkPanel(viewModel.IsChunkPanelVisible);
         }
 
@@ -120,6 +121,12 @@ public partial class MainWindow : Window
     /// <inheritdoc/>
     protected override void OnClosed(EventArgs e)
     {
+        if (viewModel is not null)
+        {
+            StoreLayout(viewModel.Layout);
+            viewModel.SaveSettings();
+        }
+
         viewModel?.Closed();
         base.OnClosed(e);
     }
@@ -315,6 +322,77 @@ public partial class MainWindow : Window
                 (first as TextBox)?.SelectAll();
             }
         }, DispatcherPriority.Loaded);
+    }
+
+    // The size and the place of the window, and where its splitters were, as the window was closed last (doubles, the
+    // FLOAT64 of version 1 of the serializer format, so the settings stay a PRMT:CFG1-LE file)
+    private void RestoreLayout(WindowLayout layout)
+    {
+        if (layout.Width > 0 && layout.Height > 0)
+        {
+            Width = Math.Max(MinWidth, layout.Width);
+            Height = Math.Max(MinHeight, layout.Height);
+        }
+
+        if (layout.HasPosition)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Position = new PixelPoint((int)layout.X, (int)layout.Y);
+        }
+
+        if (layout.IsMaximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+
+        if (layout.TreeWidth > 0 && layout.SideWidth > 0)
+        {
+            UpperGrid.ColumnDefinitions[0].Width = new GridLength(layout.TreeWidth, GridUnitType.Star);
+            UpperGrid.ColumnDefinitions[2].Width = new GridLength(layout.SideWidth, GridUnitType.Star);
+        }
+
+        if (layout.ChunkPanelHeight > 0)
+        {
+            chunkPanelHeight = new GridLength(layout.ChunkPanelHeight);
+            MainGrid.RowDefinitions[2].Height = chunkPanelHeight;
+        }
+
+        if (layout.MetaDataHeight > 0 && layout.DataHeight > 0)
+        {
+            EditorGrid.RowDefinitions[1].Height = new GridLength(layout.MetaDataHeight, GridUnitType.Star);
+            EditorGrid.RowDefinitions[3].Height = new GridLength(layout.DataHeight, GridUnitType.Star);
+        }
+    }
+
+    private void StoreLayout(WindowLayout layout)
+    {
+        layout.IsMaximized = WindowState == WindowState.Maximized;
+
+        // A maximized window keeps the size and the place it had before
+        if (WindowState == WindowState.Normal)
+        {
+            layout.Width = Math.Round(Width);
+            layout.Height = Math.Round(Height);
+            layout.X = Position.X;
+            layout.Y = Position.Y;
+            layout.HasPosition = true;
+        }
+
+        // The widths and the heights as proportions (stars), so they fit a window of another size too
+        if (UpperGrid.ColumnDefinitions[0].ActualWidth > 0 && UpperGrid.ColumnDefinitions[2].ActualWidth > 0)
+        {
+            layout.TreeWidth = Math.Round(UpperGrid.ColumnDefinitions[0].ActualWidth);
+            layout.SideWidth = Math.Round(UpperGrid.ColumnDefinitions[2].ActualWidth);
+        }
+
+        RowDefinition chunks = MainGrid.RowDefinitions[2];
+        layout.ChunkPanelHeight = Math.Round(chunks.ActualHeight > 0 ? chunks.ActualHeight : chunkPanelHeight.Value);
+
+        if (EditorGrid.RowDefinitions[1].ActualHeight > 0 && EditorGrid.RowDefinitions[3].ActualHeight > 0)
+        {
+            layout.MetaDataHeight = Math.Round(EditorGrid.RowDefinitions[1].ActualHeight);
+            layout.DataHeight = Math.Round(EditorGrid.RowDefinitions[3].ActualHeight);
+        }
     }
 
     // The hidden chunk panel gives its row back to the editor (and gets its height back when it is shown again)

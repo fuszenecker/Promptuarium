@@ -280,6 +280,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>The layout of the window, kept between the sessions.</summary>
+    public WindowLayout Layout => settings.Settings.Layout;
+
+    /// <summary>Stores the settings (after the layout of the window changed).</summary>
+    public void SaveSettings() => settings.Save();
+
     /// <summary>
     /// Tells the view model that its window closed.
     /// </summary>

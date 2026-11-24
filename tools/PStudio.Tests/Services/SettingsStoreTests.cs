@@ -1,3 +1,4 @@
+using PStudio.Models;
 using Promptuarium;
 using Promptuarium.Serializer;
 using PStudio.Services;
@@ -35,6 +36,28 @@ public sealed class SettingsStoreTests
         store.Save();
 
         Assert.IsFalse(new SettingsStore(SettingsPath).Settings.View.IsChunkPanelVisible);
+    }
+
+    [TestMethod]
+    public void LayoutOfTheWindow_IsReadByANewStore()
+    {
+        var store = new SettingsStore(SettingsPath);
+        store.Settings.Layout.Width = 1000;
+        store.Settings.Layout.X = -20;
+        store.Settings.Layout.HasPosition = true;
+        store.Settings.Layout.IsMaximized = true;
+        store.Settings.Layout.TreeWidth = 600;
+        store.Settings.Layout.ChunkPanelHeight = 150;
+
+        store.Save();
+
+        WindowLayout layout = new SettingsStore(SettingsPath).Settings.Layout;
+        Assert.AreEqual(1000, layout.Width);
+        Assert.AreEqual(-20, layout.X);
+        Assert.IsTrue(layout.HasPosition);
+        Assert.IsTrue(layout.IsMaximized);
+        Assert.AreEqual(600, layout.TreeWidth);
+        Assert.AreEqual(150, layout.ChunkPanelHeight);
     }
 
     [TestMethod]

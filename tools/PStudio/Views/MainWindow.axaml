@@ -237,7 +237,7 @@
           </Border>
         </DockPanel>
 
-        <Grid Grid.Column="2" IsVisible="{Binding IsRawViewSelected}" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
+        <Grid x:Name="EditorGrid" Grid.Column="2" IsVisible="{Binding IsRawViewSelected}" RowDefinitions="Auto,*,Auto,*" Margin="6,6,8,6">
           <Border Grid.Row="0" Classes="card" Margin="0,0,0,12">
             <StackPanel Spacing="2">
               <TextBlock Classes="path" Text="{Binding NodePath}" />
