@@ -813,6 +813,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(Title));
         RefreshChunks();
         RefreshSerializer();
+
+        // A serializable tree is opened in the serializer view
+        SelectedViewIndex = IsSerializerPanelShown ? SerializerView : RawView;
     }
 
     // The form the user chose, otherwise the one of the serializer layout (a one-byte metadata is a tag)

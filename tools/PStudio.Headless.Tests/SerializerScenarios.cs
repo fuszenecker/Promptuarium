@@ -43,12 +43,11 @@ public sealed class SerializerScenarios
         await File.WriteAllBytesAsync(path, PromptuariumSerializer.Serialize(new Settings()));
 
         Assert.IsTrue(await editor.ViewModel.OpenFileAsync(path));
-        editor.Screenshot("raw");
-
-        // The serializer view is on its own tab
-        Assert.IsTrue(editor.Window.FindControl<TabItem>("SerializerTab")!.IsVisible);
-        editor.Window.FindControl<TabItem>("SerializerTab")!.IsSelected = true;
         Editor.Pump();
+
+        // A serializable tree opens in the serializer view, on its own tab
+        Assert.IsTrue(editor.Window.FindControl<TabItem>("SerializerTab")!.IsVisible);
+        Assert.IsTrue(editor.Window.FindControl<TabItem>("SerializerTab")!.IsSelected);
         Assert.AreEqual(MainWindowViewModel.SerializerView, editor.ViewModel.SelectedViewIndex);
 
         // The editors of the metadata and the data are not there: the serializer view edits in its tree

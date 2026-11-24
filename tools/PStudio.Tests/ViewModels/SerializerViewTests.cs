@@ -109,6 +109,10 @@ public sealed class SerializerViewTests
     public void TabOfTheSerializerView_ComesToTheFront_AndGoesAwayWithIt()
     {
         MainWindowViewModel sut = Create();
+
+        // A serializable tree is opened in the serializer view
+        Assert.AreEqual(MainWindowViewModel.SerializerView, sut.SelectedViewIndex);
+
         sut.ToggleSerializerPanelCommand.Execute(null);
         Assert.AreEqual(MainWindowViewModel.RawView, sut.SelectedViewIndex);
 
